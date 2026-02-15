@@ -3,9 +3,12 @@ main = ".open-next/worker.js"
 compatibility_date = "2026-02-15"
 compatibility_flags = ["nodejs_compat"]
 
-assets = { directory = ".open-next/assets", binding = "ASSETS" }
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "isaudi-db"
 database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"
+preview_database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"
