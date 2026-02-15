@@ -3,7 +3,24 @@ import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
 
 const MOYASAR_SECRET_KEY = process.env.MOYASAR_SECRET_KEY;
-const APP_URL = process.env.APP_URL || 'https://isaudi.ai';
+
+function resolveAppUrl(): string {
+  const fallbackProd = 'https://isaudi.ai';
+  const fallbackDev = 'http://localhost:3000';
+  const appUrl = process.env.APP_URL ? process.env.APP_URL.trim() : '';
+  const cfUrl = process.env.CF_PAGES_URL ? process.env.CF_PAGES_URL.trim() : '';
+  if (process.env.NODE_ENV === 'production' && appUrl.startsWith('http://localhost')) {
+    console.warn('[config] APP_URL points to localhost while NODE_ENV=production');
+  }
+  const base =
+    appUrl || cfUrl || (process.env.NODE_ENV === 'production' ? fallbackProd : fallbackDev);
+  try {
+    const url = new URL(base);
+    return url.origin.replace(/\/+$/, '');
+  } catch {
+    return process.env.NODE_ENV === 'production' ? fallbackProd : fallbackDev;
+  }
+}
 
 const PLANS: Record<string, { month: number; year: number }> = {
   basic: { month: 199, year: 1999 },
@@ -39,6 +56,7 @@ export async function POST(request: NextRequest) {
     const amount = PLANS[planId][interval as 'month' | 'year'];
     const amountHalala = amount * 100;
     const description = `Subscription to ${planId} plan (${interval})`;
+    const appUrl = resolveAppUrl();
     
     // In DEV, if no key, simulate success
     if (!MOYASAR_SECRET_KEY) {
@@ -46,8 +64,8 @@ export async function POST(request: NextRequest) {
       // Simulate a direct success redirect (in real app, this would go to payment page)
       // Since we can't easily mock the hosted page, we'll return a mock URL that 
       // redirects back to a success handler (or just the dashboard for simplicity in dev)
-      return NextResponse.json({ 
-        url: `${APP_URL}/dashboard?payment_mock=success&plan=${planId}&interval=${interval}` 
+      return NextResponse.json({
+        url: `${appUrl}/dashboard?payment_mock=success&plan=${planId}&interval=${interval}`
       });
     }
 
@@ -62,7 +80,7 @@ export async function POST(request: NextRequest) {
         amount: amountHalala,
         currency: 'SAR',
         description: description,
-        callback_url: `${APP_URL}/billing?status=processed`, 
+        callback_url: `${appUrl}/billing?status=processed`,
         metadata: {
           user_id: user.id,
           plan_id: planId,

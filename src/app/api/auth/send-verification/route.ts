@@ -10,6 +10,9 @@ function resolveAppUrl(): string {
   const fallbackDev = 'http://localhost:3000';
   const appUrl = process.env.APP_URL ? process.env.APP_URL.trim() : '';
   const cfUrl = process.env.CF_PAGES_URL ? process.env.CF_PAGES_URL.trim() : '';
+  if (process.env.NODE_ENV === 'production' && appUrl.startsWith('http://localhost')) {
+    console.warn('[config] APP_URL points to localhost while NODE_ENV=production');
+  }
   const base =
     appUrl || cfUrl || (process.env.NODE_ENV === 'production' ? fallbackProd : fallbackDev);
   try {
