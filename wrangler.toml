@@ -1,4 +1,4 @@
-name = "isaudi-app"
+name = "isaudi"
 main = ".open-next/worker.js"
 compatibility_date = "2026-02-15"
 compatibility_flags = ["nodejs_compat"]
@@ -10,5 +10,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "isaudi-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
-
+database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"
