@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-isaudi-green: #006C35;
+  --color-isaudi-green-dark: #004D26;
+  --color-isaudi-green-light: #E6F0EA;
+  
+  --font-sans: var(--font-ibm-plex-sans-arabic), system-ui, sans-serif;
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .dir-rtl {
+    direction: rtl;
+  }
+  
+  .dir-ltr {
+    direction: ltr;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+  
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  /* Visual Depth Utilities */
+  .shadow-soft {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .shadow-depth {
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12);
+  }
+  
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+}
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}

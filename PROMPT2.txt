@@ -1,0 +1,115 @@
+Work in: C:\isaudi_html
+
+You did NOT fully fix i18n. You only changed direction + some pages.
+Now you MUST complete i18n for the ENTIRE project: every visible string on every route and every component.
+
+Hard requirement:
+- After this change, switching to EN makes 100% of UI strings English (not partial).
+- Switching to AR makes 100% Arabic.
+- Language persists across refresh and direct links.
+- SSR must output correct <html lang dir> from cookie (no flicker/mismatch).
+- No page/component may contain hardcoded Arabic/English UI strings anymore.
+
+DO NOT run long-lived dev servers.
+At the end run: npm run build (must pass).
+Return only: list of changed files + short summary + a quick audit report (counts).
+
+========================
+1) Make a COMPLETE audit of strings
+========================
+
+Search the entire codebase and list every occurrence of hardcoded UI text:
+- In TS/TSX: any string literal rendered to UI (Arabic or English).
+- In JSX children, Button labels, headings, placeholders, aria-labels, error messages, toast messages.
+- In data arrays for pricing/features/plans.
+- In API routes returning user-visible messages (JSON {error:"..."} etc).
+- In metadata/title/description if used.
+- In layout/header/footer, dashboard, billing, settings, verify, login, reports, costs, any other pages.
+
+Use a systematic approach:
+- ripgrep for Arabic range: [\u0600-\u06FF]
+- ripgrep for common English UI words: "Login", "Dashboard", "Settings", "Pricing", "Upload", "Report", "Error", etc.
+- Also search for: placeholder=, title=, aria-label=, toast, alert, error, success, empty states.
+
+DO NOT stop until:
+- The search for Arabic characters in src/ returns ONLY translation dictionary files.
+- The search for common English UI literals in src/ returns ONLY translation dictionary files.
+
+========================
+2) Implement a REAL i18n layer and enforce it everywhere
+========================
+
+Create:
+- src/lib/i18n/translations.ts
+  - export const dict = { ar: {...}, en: {...} } as const
+  - Use stable keys, nested by sections: header.*, auth.*, dashboard.*, pricing.*, billing.*, settings.*, verify.*, reports.*, costs.*, common.*
+- src/lib/i18n/t.ts (or similar)
+  - function t(lang, key, params?) to fetch strings and interpolate variables.
+  - Provide fallback behavior (throw in dev if missing key; safe fallback in prod).
+
+Update LanguageProvider:
+- MUST store lang cookie: lang=ar|en; path=/; max-age=31536000; samesite=lax
+- MUST keep documentElement.lang and documentElement.dir synced
+- MUST offer setLang(lang) and toggleLang()
+- MUST trigger router.refresh() after change so server components pick it up.
+
+Update app/layout.tsx:
+- MUST be async and read cookies() to set <html lang dir>.
+- MUST pass initialLang to LanguageProvider (so CSR matches SSR perfectly).
+
+========================
+3) Replace ALL hardcoded UI text with t()
+========================
+
+This is mandatory for:
+- All pages in src/app/**/page.tsx
+- All client components in src/app/**/*
+- All shared components in src/components/**/*
+- Any UI-related text in src/lib/** that surfaces to the UI
+- API routes that return user-facing messages: return error codes + translated messages OR return message keys and translate on client. Pick ONE approach and apply consistently.
+
+Do not leave partial translations.
+Do not keep bilingual ternaries scattered everywhere (lang === 'ar' ? ... : ...).
+Centralize in dict + t().
+
+========================
+4) Verification link "الرابط غير صحيح" must remain fixed
+========================
+
+While working, do not regress email verification.
+Keep /verify server-side direct verification using dbService.verifyEmailByToken(token).
+Ensure token persistence and schema correctness remain intact.
+
+========================
+5) Final acceptance checks (must pass)
+========================
+
+A) Automated-ish checks:
+- Run ripgrep:
+  - Arabic chars search in src/ must match ONLY translations files.
+  - Any of these literals should NOT appear in src/ outside translations:
+    "الأسعار" "تسجيل الدخول" "لوحة التحكم" "الإعدادات"
+    "Pricing" "Login" "Dashboard" "Settings"
+- If found, replace them.
+
+B) Manual flow expectation (no need to run browser here, just ensure code supports it):
+- Switch language in header -> immediate UI text changes everywhere + refresh keeps language.
+- Directly open /dashboard in EN -> English strings.
+- Directly open /settings in EN -> English strings.
+- /login, /billing, /verify must also fully translate.
+
+C) Build:
+- npm run build must pass.
+
+========================
+Deliverables
+========================
+
+1) Changed files list
+2) Short summary of approach
+3) Audit report:
+   - Number of translation keys added
+   - Number of files touched
+   - Confirm ripgrep checks passed conceptually (no remaining hardcoded UI strings)
+
+Stop all processes and do not leave anything running.
