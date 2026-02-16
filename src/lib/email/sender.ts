@@ -88,12 +88,26 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
     return { success: true, mode: 'resend' };
   } catch (error: any) {
     console.error('Failed to send email:', error);
+    const status = error?.status ?? error?.response?.status ?? error?.statusCode ?? undefined;
+    let body: string | undefined;
+    if (typeof error?.response?.body === 'string') {
+      body = error.response.body;
+    } else if (error?.response?.body && typeof error.response.body === 'object') {
+      try {
+        body = JSON.stringify(error.response.body);
+      } catch {
+        body = undefined;
+      }
+    } else if (typeof error?.body === 'string') {
+      body = error.body;
+    }
     return {
       success: false,
       error: {
-        status: error?.status ?? error?.response?.status ?? undefined,
+        status,
         name: error?.name ?? undefined,
         message: typeof error?.message === 'string' ? error.message : undefined,
+        body,
       },
     };
   }

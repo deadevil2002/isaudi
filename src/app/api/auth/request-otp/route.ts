@@ -102,18 +102,26 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       const status = emailResult?.error?.status ?? undefined;
-      const name = emailResult?.error?.name ?? undefined;
-      const message = emailResult?.error?.message ?? undefined;
-      console.log(
-        `request-otp send failed buildId=${buildId} status=${status ?? 'unknown'} name=${name ?? 'unknown'}`
+      const rawBody = emailResult?.error?.body;
+      let resend: any = undefined;
+      if (typeof rawBody === 'string') {
+        try {
+          resend = JSON.parse(rawBody);
+        } catch {
+          resend = rawBody.slice(0, 300);
+        }
+      } else if (rawBody && typeof rawBody === 'object') {
+        resend = rawBody;
+      }
+      console.error(
+        `request-otp resend failed buildId=${buildId} status=${status ?? 'unknown'}`
       );
       return NextResponse.json(
         {
           error: 'Email send failed',
           buildId,
           status,
-          name,
-          message,
+          resend,
         },
         { status: 500 }
       );
