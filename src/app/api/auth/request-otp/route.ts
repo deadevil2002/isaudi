@@ -85,19 +85,23 @@ export async function POST(request: NextRequest) {
     const expiresAtSec = nowSec + 10 * 60;
 
     if (d1) {
-    await d1
+    const updateResult = await d1
       .prepare(
-        'INSERT INTO otp_codes (email, code, codeHash, attempts, expires_at, created_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?) '
-          + 'ON CONFLICT(email) DO UPDATE SET '
-          + 'code = excluded.code, '
-          + 'codeHash = excluded.codeHash, '
-          + 'attempts = 0, '
-          + 'expires_at = excluded.expires_at, '
-          + 'created_at = excluded.created_at, '
-          + 'consumed_at = NULL'
+        'UPDATE otp_codes '
+          + 'SET code = ?, codeHash = ?, expires_at = ?, consumed_at = NULL, attempts = 0, created_at = ? '
+          + 'WHERE email = ?'
       )
-      .bind(normalizedEmail, code, codeHash, 0, expiresAtSec, nowSec, null)
+      .bind(code, codeHash, expiresAtSec, nowSec, normalizedEmail)
       .run();
+
+    if (!updateResult?.meta?.changes) {
+      await d1
+        .prepare(
+          'INSERT INTO otp_codes (email, code, codeHash, attempts, expires_at, created_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .bind(normalizedEmail, code, codeHash, 0, expiresAtSec, nowSec, null)
+        .run();
+    }
     } else if (!isCloudflare) {
       const { dbService } = await import('@/lib/db/service');
       dbService.createOTP(normalizedEmail, codeHash);
