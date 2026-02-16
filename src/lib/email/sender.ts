@@ -1,10 +1,10 @@
 import { Resend } from 'resend';
 
 type EmailEnv = {
-  resendApiKey?: string | null;
-  resendFrom?: string | null;
-  emailProvider?: string | null;
-  devOtp?: boolean;
+  RESEND_API_KEY?: string | null;
+  RESEND_FROM?: string | null;
+  EMAIL_PROVIDER?: string | null;
+  DEV_OTP?: string | null;
 };
 
 const defaultFrom = 'no-reply@updates.isaudi.ai';
@@ -44,12 +44,11 @@ function resolveFromEmail(envFrom?: string | null, provider?: string | null): st
   return value;
 }
 
-export async function sendOTPEmail(email: string, code: string, env: EmailEnv = {}) {
-  const provider = env.emailProvider ?? process.env.EMAIL_PROVIDER ?? null;
+export async function sendOTPEmail(email: string, code: string, env: EmailEnv = {}, isProd = false) {
+  const provider = env.EMAIL_PROVIDER ?? null;
   const isResend = provider === 'resend';
-  const isProd = process.env.NODE_ENV === 'production';
-  const devOtp = env.devOtp ?? process.env.DEV_OTP === 'true';
-  const resend = createResend(env.resendApiKey ?? process.env.RESEND_API_KEY ?? null);
+  const devOtp = env.DEV_OTP === 'true';
+  const resend = createResend(env.RESEND_API_KEY ?? null);
 
   if (!isResend || !resend) {
     if (!isProd && devOtp) {
@@ -70,7 +69,7 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
     return { success: false, mode: 'disabled' };
   }
 
-  const fromEmail = resolveFromEmail(env.resendFrom ?? process.env.EMAIL_FROM ?? null, provider);
+  const fromEmail = resolveFromEmail(env.RESEND_FROM ?? null, provider);
 
   try {
     await resend.emails.send({

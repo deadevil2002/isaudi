@@ -32,17 +32,28 @@ export async function POST(request: NextRequest) {
     let env: any = null;
     try {
       const ctx = getCloudflareContext();
-      env = ctx?.env ?? null;
+      env = (ctx as any)?.env ?? (ctx as any)?.context?.env ?? null;
     } catch {
       env = null;
     }
     const d1 = env?.DB ?? null;
-    const resendApiKey = env?.RESEND_API_KEY ?? process.env.RESEND_API_KEY ?? null;
-    const resendFrom = env?.RESEND_FROM ?? 'iSaudi <no-reply@updates.isaudi.ai>';
-    const emailProvider = env?.EMAIL_PROVIDER ?? process.env.EMAIL_PROVIDER ?? null;
-    const devOtp = env?.DEV_OTP === 'true';
-    const isProd = process.env.NODE_ENV === 'production';
     const isCloudflare = Boolean(d1) || Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
+    const isProd = process.env.NODE_ENV === 'production';
+    const emailEnv = isCloudflare
+      ? {
+          RESEND_API_KEY: env?.RESEND_API_KEY ?? null,
+          RESEND_FROM: env?.RESEND_FROM ?? null,
+          EMAIL_PROVIDER: env?.EMAIL_PROVIDER ?? null,
+          DEV_OTP: env?.DEV_OTP ?? null,
+        }
+      : {
+          RESEND_API_KEY: process.env.RESEND_API_KEY ?? null,
+          RESEND_FROM: process.env.RESEND_FROM ?? null,
+          EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? null,
+          DEV_OTP: process.env.DEV_OTP ?? null,
+        };
+    const hasResendKey = Boolean(emailEnv.RESEND_API_KEY);
+    const hasResendFrom = Boolean(emailEnv.RESEND_FROM);
 
     if (env && !d1 && isProd) {
       console.error('D1 binding DB is undefined', {
@@ -50,6 +61,18 @@ export async function POST(request: NextRequest) {
         keys: env ? Object.keys(env) : [],
       });
       return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+    }
+
+    if (isProd && (!hasResendKey || !hasResendFrom)) {
+      return NextResponse.json(
+        {
+          error: 'Email service not configured',
+          hasResendKey,
+          hasResendFrom,
+          envKeys: env ? Object.keys(env) : [],
+        },
+        { status: 500 }
+      );
     }
 
     const { email, code } = await request.json();
@@ -195,12 +218,7 @@ export async function POST(request: NextRequest) {
               .run();
             const appUrl = resolveAppUrl();
             const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
-            await sendVerifyEmail(user.email, verifyUrl, {
-              resendApiKey,
-              resendFrom,
-              emailProvider,
-              devOtp,
-            });
+            await sendVerifyEmail(user.email, verifyUrl, emailEnv, isProd);
             console.log('[email-verify] OTP login: issued new token', {
               userId: user.id,
               tokenPrefix: token.slice(0, 6),
@@ -320,12 +338,7 @@ export async function POST(request: NextRequest) {
           dbService.setEmailVerificationToken(user.id, token, expiresAt);
           const appUrl = resolveAppUrl();
           const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
-          await sendVerifyEmail(user.email, verifyUrl, {
-            resendApiKey,
-            resendFrom,
-            emailProvider,
-            devOtp,
-          });
+          await sendVerifyEmail(user.email, verifyUrl, emailEnv, isProd);
           console.log('[email-verify] OTP login: issued new token', {
             userId: user.id,
             tokenPrefix: token.slice(0, 6),

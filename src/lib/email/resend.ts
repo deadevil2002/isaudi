@@ -1,10 +1,10 @@
 import { Resend } from 'resend';
 
 type EmailEnv = {
-  resendApiKey?: string | null;
-  resendFrom?: string | null;
-  emailProvider?: string | null;
-  devOtp?: boolean;
+  RESEND_API_KEY?: string | null;
+  RESEND_FROM?: string | null;
+  EMAIL_PROVIDER?: string | null;
+  DEV_OTP?: string | null;
 };
 
 const defaultFrom = 'no-reply@updates.isaudi.ai';
@@ -65,13 +65,13 @@ function redactVerifyUrl(verifyUrl: string): string {
 export async function sendVerifyEmail(
   toEmail: string,
   verifyUrl: string,
-  env: EmailEnv = {}
+  env: EmailEnv = {},
+  isProd = false
 ): Promise<void> {
-  const provider = env.emailProvider ?? process.env.EMAIL_PROVIDER ?? null;
+  const provider = env.EMAIL_PROVIDER ?? null;
   const isResend = provider === 'resend';
-  const isProd = process.env.NODE_ENV === 'production';
-  const devOtp = env.devOtp ?? process.env.DEV_OTP === 'true';
-  const resend = createResend(env.resendApiKey ?? process.env.RESEND_API_KEY ?? null);
+  const devOtp = env.DEV_OTP === 'true';
+  const resend = createResend(env.RESEND_API_KEY ?? null);
 
   if (!isResend || !resend) {
     if (!isProd && devOtp) {
@@ -92,7 +92,7 @@ export async function sendVerifyEmail(
     return;
   }
 
-  const fromEmail = resolveFromEmail(env.resendFrom ?? process.env.EMAIL_FROM ?? null, provider);
+  const fromEmail = resolveFromEmail(env.RESEND_FROM ?? null, provider);
 
   await resend.emails.send({
     from: fromEmail,

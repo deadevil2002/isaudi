@@ -3,25 +3,35 @@ import { sendOTPEmail } from '@/lib/email/sender';
 import { randomInt } from 'crypto';
 import { normalizeEmail } from '@/lib/auth/email';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { BUILD_ID, BUILD_ID_FALLBACK } from '@/lib/build-id';
 
 export async function POST(request: NextRequest) {
   try {
     let env: any = null;
     try {
       const ctx = getCloudflareContext();
-      env = ctx?.env ?? null;
+      env = (ctx as any)?.env ?? (ctx as any)?.context?.env ?? null;
     } catch {
       env = null;
     }
 
     const d1 = env?.DB ?? null;
-    const resendApiKey = env?.RESEND_API_KEY ?? process.env.RESEND_API_KEY ?? null;
-    const resendFrom = env?.RESEND_FROM ?? 'iSaudi <no-reply@updates.isaudi.ai>';
-    const emailProvider = env?.EMAIL_PROVIDER ?? process.env.EMAIL_PROVIDER ?? null;
-    const devOtp = env?.DEV_OTP === 'true';
-    const isProd = process.env.NODE_ENV === 'production';
-    const isCloudflare = Boolean(d1) || Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
-
+    const isCloudflare = Boolean(env) || Boolean((globalThis as any).Cloudflare);
+    const isProd = isCloudflare ? true : process.env.NODE_ENV === 'production';
+    const buildId = BUILD_ID || BUILD_ID_FALLBACK;
+    const emailEnv = isCloudflare
+      ? {
+          RESEND_API_KEY: env?.RESEND_API_KEY ?? null,
+          RESEND_FROM: env?.RESEND_FROM ?? null,
+          EMAIL_PROVIDER: env?.EMAIL_PROVIDER ?? null,
+          DEV_OTP: env?.DEV_OTP ?? null,
+        }
+      : {
+          RESEND_API_KEY: process.env.RESEND_API_KEY ?? null,
+          RESEND_FROM: process.env.RESEND_FROM ?? null,
+          EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? null,
+          DEV_OTP: process.env.DEV_OTP ?? null,
+        };
     if (env && !d1 && isProd) {
       console.error('D1 binding DB is undefined', {
         hasEnv: !!env,
@@ -30,8 +40,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
     }
 
-    if (isProd && !resendApiKey) {
-      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+    const hasResendKey = Boolean(emailEnv.RESEND_API_KEY);
+    const hasResendFrom = Boolean(emailEnv.RESEND_FROM);
+
+    if (isCloudflare) {
+      console.log(
+        `request-otp buildId=${buildId} hasResendKey=${hasResendKey} hasResendFrom=${hasResendFrom}`
+      );
+    }
+
+    if (isProd && (!hasResendKey || !hasResendFrom)) {
+      return NextResponse.json(
+        {
+          error: 'Email service not configured',
+          buildId,
+          hasResendKey,
+          hasResendFrom,
+          envKeys: env ? Object.keys(env) : [],
+        },
+        { status: 500 }
+      );
     }
 
     const { email } = await request.json();
@@ -65,21 +93,25 @@ export async function POST(request: NextRequest) {
       const { dbService } = await import('@/lib/db/service');
       dbService.createOTP(normalizedEmail, codeHash);
     } else {
-      return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'DB not configured', buildId }, { status: 500 });
     }
     
-    const emailResult = await sendOTPEmail(rawEmail, code, {
-      resendApiKey,
-      resendFrom,
-      emailProvider,
-      devOtp,
-    });
+    const emailResult = await sendOTPEmail(rawEmail, code, emailEnv, isProd);
 
     if (!emailResult.success) {
-      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: 'Email service not configured',
+          buildId,
+          hasResendKey,
+          hasResendFrom,
+          envKeys: env ? Object.keys(env) : [],
+        },
+        { status: 500 }
+      );
     }
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, buildId });
     
   } catch (error) {
     console.error('Request OTP error:', error);
