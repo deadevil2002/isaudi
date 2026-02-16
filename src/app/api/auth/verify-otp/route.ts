@@ -76,9 +76,18 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, code } = await request.json();
+    const rawCode = code;
+    let codeStr = String(rawCode ?? '').trim();
+    const arabicIndic = '٠١٢٣٤٥٦٧٨٩';
+    const western = '0123456789';
+    codeStr = codeStr.replace(/[٠-٩]/g, (ch) => western[arabicIndic.indexOf(ch)] ?? ch);
+    const codeStrDigitsOnly = /^[0-9]+$/.test(codeStr);
     
-    if (!email || !code) {
+    if (!email || !codeStr) {
       return NextResponse.json({ error: 'Email and code are required' }, { status: 400 });
+    }
+    if (codeStr.length !== 6 || !codeStrDigitsOnly) {
+      return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
     }
 
     const rawEmail = String(email).trim();
@@ -89,6 +98,18 @@ export async function POST(request: NextRequest) {
         .prepare('SELECT * FROM otp_codes WHERE email = ?')
         .bind(normalizedEmail)
         .first()) as any | null;
+
+      console.log('verify-otp diagnostics', {
+        normalizedEmail,
+        rawCodeType: typeof rawCode,
+        codeStrLength: codeStr.length,
+        codeStrDigitsOnly,
+        recordExists: !!record,
+        recordExpiresAt: record?.expires_at ?? null,
+        recordConsumedAt: record?.consumed_at ?? null,
+        recordAttempts: record?.attempts ?? null,
+        hasCodeHash: Boolean(record?.codeHash),
+      });
       
       if (!record) {
         return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
@@ -109,7 +130,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Verify hash (simple base64 check matching request-otp)
-      const inputHash = Buffer.from(code).toString('base64');
+      const inputHash = Buffer.from(codeStr).toString('base64');
       const storedHash = record.codeHash ?? null;
       const storedCode = record.code ?? null;
 
@@ -256,6 +277,18 @@ export async function POST(request: NextRequest) {
     };
 
     const record = dbService.getOTP(normalizedEmail);
+
+    console.log('verify-otp diagnostics', {
+      normalizedEmail,
+      rawCodeType: typeof rawCode,
+      codeStrLength: codeStr.length,
+      codeStrDigitsOnly,
+      recordExists: !!record,
+      recordExpiresAt: record?.expiresAt ?? null,
+      recordConsumedAt: null,
+      recordAttempts: record?.attempts ?? null,
+      hasCodeHash: Boolean(record?.codeHash),
+    });
     
     if (!record) {
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
@@ -270,7 +303,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verify hash (simple base64 check matching request-otp)
-    const inputHash = Buffer.from(code).toString('base64');
+    const inputHash = Buffer.from(codeStr).toString('base64');
     
     if (inputHash !== record.codeHash) {
       dbService.incrementOTPAttempts(normalizedEmail);
