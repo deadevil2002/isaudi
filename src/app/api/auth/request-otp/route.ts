@@ -40,8 +40,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
     }
 
-    const hasResendKey = Boolean(emailEnv.RESEND_API_KEY);
-    const hasResendFrom = Boolean(emailEnv.RESEND_FROM);
+    const resendKeyValue = typeof emailEnv.RESEND_API_KEY === 'string' ? emailEnv.RESEND_API_KEY.trim() : '';
+    const resendFromValue = typeof emailEnv.RESEND_FROM === 'string' ? emailEnv.RESEND_FROM.trim() : '';
+    const hasResendKey = resendKeyValue.length > 0;
+    const hasResendFrom = resendFromValue.length > 0;
 
     if (isCloudflare) {
       console.log(
@@ -99,13 +101,19 @@ export async function POST(request: NextRequest) {
     const emailResult = await sendOTPEmail(rawEmail, code, emailEnv, isProd);
 
     if (!emailResult.success) {
+      const status = emailResult?.error?.status ?? undefined;
+      const name = emailResult?.error?.name ?? undefined;
+      const message = emailResult?.error?.message ?? undefined;
+      console.log(
+        `request-otp send failed buildId=${buildId} status=${status ?? 'unknown'} name=${name ?? 'unknown'}`
+      );
       return NextResponse.json(
         {
-          error: 'Email service not configured',
+          error: 'Email send failed',
           buildId,
-          hasResendKey,
-          hasResendFrom,
-          envKeys: env ? Object.keys(env) : [],
+          status,
+          name,
+          message,
         },
         { status: 500 }
       );

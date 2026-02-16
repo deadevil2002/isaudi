@@ -86,8 +86,15 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
       `
     });
     return { success: true, mode: 'resend' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to send email:', error);
-    return { success: false, error };
+    return {
+      success: false,
+      error: {
+        status: error?.status ?? error?.response?.status ?? undefined,
+        name: error?.name ?? undefined,
+        message: typeof error?.message === 'string' ? error.message : undefined,
+      },
+    };
   }
 }

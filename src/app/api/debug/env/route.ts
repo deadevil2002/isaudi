@@ -22,13 +22,20 @@ export async function GET() {
         RESEND_API_KEY: process.env.RESEND_API_KEY ?? null,
         RESEND_FROM: process.env.RESEND_FROM ?? null,
       };
+  const resendKeyValue =
+    typeof emailEnv.RESEND_API_KEY === 'string' ? emailEnv.RESEND_API_KEY.trim() : '';
+  const resendFromValue =
+    typeof emailEnv.RESEND_FROM === 'string' ? emailEnv.RESEND_FROM.trim() : '';
 
   return NextResponse.json({
     ok: true,
     buildId,
     hasDB: !!env?.DB,
-    hasResendKey: !!emailEnv.RESEND_API_KEY,
-    hasResendFrom: !!emailEnv.RESEND_FROM,
+    hasResendKey: resendKeyValue.length > 0,
+    hasResendFrom: resendFromValue.length > 0,
+    resendKeyLen: resendKeyValue.length,
+    resendKeyPrefixOk: resendKeyValue.startsWith('re_'),
+    resendFrom: resendFromValue || null,
     runtime:
       isCloudflare ? 'cloudflare' : 'local',
     envKeys: env ? Object.keys(env) : [],
