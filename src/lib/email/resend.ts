@@ -1,5 +1,3 @@
-import { Resend } from 'resend';
-
 type EmailEnv = {
   RESEND_API_KEY?: string | null;
   RESEND_FROM?: string | null;
@@ -8,11 +6,6 @@ type EmailEnv = {
 };
 
 const defaultFrom = 'no-reply@updates.isaudi.ai';
-
-function createResend(apiKey?: string | null): Resend | null {
-  const trimmed = apiKey ? apiKey.trim() : '';
-  return trimmed ? new Resend(trimmed) : null;
-}
 
 function resolveFromEmail(envFrom?: string | null, provider?: string | null): string {
   const trimmed = envFrom ? envFrom.trim() : '';
@@ -44,6 +37,81 @@ function resolveFromEmail(envFrom?: string | null, provider?: string | null): st
   return value;
 }
 
+export type ResendResult =
+  | { ok: true; status: number; id: string }
+  | { ok: false; status: number | null; error: string; body?: unknown };
+
+function normalizeErrorBody(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length > 2000 ? `${trimmed.slice(0, 2000)}…` : trimmed;
+}
+
+export async function sendEmailResend(params: {
+  env: EmailEnv;
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<ResendResult> {
+  const apiKey = (params.env.RESEND_API_KEY ?? '').toString().trim();
+
+  if (!apiKey) {
+    return {
+      ok: false,
+      status: null,
+      error: 'RESEND_API_KEY missing',
+    };
+  }
+
+  let res: Response | null = null;
+  try {
+    res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: params.from,
+        to: params.to,
+        subject: params.subject,
+        html: params.html,
+      }),
+    });
+
+    const text = await res.text();
+    let parsed: unknown = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = normalizeErrorBody(text);
+      }
+    }
+
+    if (res.ok) {
+      return {
+        ok: true,
+        status: res.status,
+        id: typeof (parsed as any)?.id === 'string' ? (parsed as any).id : '',
+      };
+    }
+
+    return {
+      ok: false,
+      status: res.status,
+      error: 'Resend API request failed',
+      body: parsed,
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      status: res?.status ?? null,
+      error: typeof error?.message === 'string' ? error.message : 'Resend API request failed',
+    };
+  }
+}
+
 function redactVerifyUrl(verifyUrl: string): string {
   try {
     const url = new URL(verifyUrl);
@@ -71,9 +139,8 @@ export async function sendVerifyEmail(
   const provider = env.EMAIL_PROVIDER ?? null;
   const isResend = provider === 'resend';
   const devOtp = env.DEV_OTP === 'true';
-  const resend = createResend(env.RESEND_API_KEY ?? null);
 
-  if (!isResend || !resend) {
+  if (!isResend) {
     if (!isProd && devOtp) {
       const safeUrl = redactVerifyUrl(verifyUrl);
       console.log(`
@@ -85,16 +152,13 @@ export async function sendVerifyEmail(
       `);
       return;
     }
-
-    if (isResend && !resend) {
-      console.error('Resend API key missing but EMAIL_PROVIDER is set to "resend".');
-    }
     return;
   }
 
   const fromEmail = resolveFromEmail(env.RESEND_FROM ?? null, provider);
 
-  await resend.emails.send({
+  const result = await sendEmailResend({
+    env,
     from: fromEmail,
     to: toEmail,
     subject: 'تأكيد البريد الإلكتروني لمنصة isaudi.ai',
@@ -110,6 +174,22 @@ export async function sendVerifyEmail(
         <p>إذا لم يعمل الزر، يمكنك نسخ الرابط التالي ولصقه في المتصفح:</p>
         <p style="direction:ltr; word-break:break-all;">${verifyUrl}</p>
       </div>
-    `
+    `,
   });
+
+  if (!result.ok) {
+    console.error('[email] Resend verify email failed', {
+      status: result.status,
+    });
+    if (!isProd && devOtp) {
+      const safeUrl = redactVerifyUrl(verifyUrl);
+      console.log(`
+        =========================================
+        [DEV MODE FALLBACK] Verify Email
+        To: ${toEmail}
+        Link: ${safeUrl}
+        =========================================
+      `);
+    }
+  }
 }

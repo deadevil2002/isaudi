@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { sendEmailResend, type ResendResult } from './resend';
 
 type EmailEnv = {
   RESEND_API_KEY?: string | null;
@@ -8,11 +8,6 @@ type EmailEnv = {
 };
 
 const defaultFrom = 'no-reply@updates.isaudi.ai';
-
-function createResend(apiKey?: string | null): Resend | null {
-  const trimmed = apiKey ? apiKey.trim() : '';
-  return trimmed ? new Resend(trimmed) : null;
-}
 
 function resolveFromEmail(envFrom?: string | null, provider?: string | null): string {
   const trimmed = envFrom ? envFrom.trim() : '';
@@ -48,9 +43,8 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
   const provider = env.EMAIL_PROVIDER ?? null;
   const isResend = provider === 'resend';
   const devOtp = env.DEV_OTP === 'true';
-  const resend = createResend(env.RESEND_API_KEY ?? null);
 
-  if (!isResend || !resend) {
+  if (!isResend) {
     if (!isProd && devOtp) {
       console.log(`
         =========================================
@@ -62,53 +56,34 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
       return { success: true, mode: 'dev' };
     }
 
-    if (isResend && !resend) {
-      console.error('Resend API key missing but EMAIL_PROVIDER is set to "resend".');
-    }
-
     return { success: false, mode: 'disabled' };
   }
 
   const fromEmail = resolveFromEmail(env.RESEND_FROM ?? null, provider);
 
-  try {
-    await resend.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: 'رمز الدخول لمنصة isaudi.ai',
-      html: `
-        <div dir="rtl" style="font-family: sans-serif; padding: 20px;">
-          <h2>مرحبًا 👋</h2>
-          <p>رمز الدخول الخاص بك هو:</p>
-          <h1 style="color: #006C35; letter-spacing: 5px; font-size: 32px;">${code}</h1>
-          <p>هذا الرمز صالح لمدة 10 دقائق.</p>
-        </div>
-      `
-    });
-    return { success: true, mode: 'resend' };
-  } catch (error: any) {
-    console.error('Failed to send email:', error);
-    const status = error?.status ?? error?.response?.status ?? error?.statusCode ?? undefined;
-    let body: string | undefined;
-    if (typeof error?.response?.body === 'string') {
-      body = error.response.body;
-    } else if (error?.response?.body && typeof error.response.body === 'object') {
-      try {
-        body = JSON.stringify(error.response.body);
-      } catch {
-        body = undefined;
-      }
-    } else if (typeof error?.body === 'string') {
-      body = error.body;
-    }
+  const result: ResendResult = await sendEmailResend({
+    env,
+    from: fromEmail,
+    to: email,
+    subject: 'رمز الدخول لمنصة isaudi.ai',
+    html: `
+      <div dir="rtl" style="font-family: sans-serif; padding: 20px;">
+        <h2>مرحبًا 👋</h2>
+        <p>رمز الدخول الخاص بك هو:</p>
+        <h1 style="color: #006C35; letter-spacing: 5px; font-size: 32px;">${code}</h1>
+        <p>هذا الرمز صالح لمدة 10 دقائق.</p>
+      </div>
+    `,
+  });
+  if (!result.ok) {
     return {
       success: false,
       error: {
-        status,
-        name: error?.name ?? undefined,
-        message: typeof error?.message === 'string' ? error.message : undefined,
-        body,
+        status: result.status,
+        message: result.error,
+        body: result.body,
       },
     };
   }
+  return { success: true, mode: 'resend', status: result.status };
 }

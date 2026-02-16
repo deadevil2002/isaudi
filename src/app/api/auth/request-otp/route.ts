@@ -102,17 +102,11 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       const status = emailResult?.error?.status ?? undefined;
-      const rawBody = emailResult?.error?.body;
-      let resend: any = undefined;
-      if (typeof rawBody === 'string') {
-        try {
-          resend = JSON.parse(rawBody);
-        } catch {
-          resend = rawBody.slice(0, 300);
-        }
-      } else if (rawBody && typeof rawBody === 'object') {
-        resend = rawBody;
-      }
+      const resend = {
+        status,
+        error: emailResult?.error?.message ?? 'Resend API request failed',
+        body: emailResult?.error?.body ?? undefined,
+      };
       console.error(
         `request-otp resend failed buildId=${buildId} status=${status ?? 'unknown'}`
       );
@@ -120,7 +114,6 @@ export async function POST(request: NextRequest) {
         {
           error: 'Email send failed',
           buildId,
-          status,
           resend,
         },
         { status: 500 }
