@@ -17,3 +17,6 @@ pnpm-debug.log*
 .open-next/
 .worker-next/
 cloudflare-env.d.ts
+
+# local backups
+migrations_backup_*/
