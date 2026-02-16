@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-import type { Database as SqliteDatabase } from 'better-sqlite3';
+type SqliteDatabase = any;
 
 const DB_PATH =
   process.env.DB_PATH && process.env.DB_PATH.trim().length > 0
@@ -344,7 +344,7 @@ export function getSqliteDb(): SqliteDatabase {
     throw new Error('SQLite require is not available in this runtime');
   }
 
-  const Database = req('better-sqlite3') as typeof import('better-sqlite3');
+  const Database = req('better-sqlite3');
   sqliteDb = new Database(DB_PATH);
 
   try {
