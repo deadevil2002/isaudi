@@ -12,12 +12,12 @@ export default async function BillingPage() {
     redirect('/login');
   }
 
-  const session = dbService.getSession(sessionId);
+  const session = await dbService.getSession(sessionId);
   if (!session) {
     redirect('/login');
   }
 
-  const user = dbService.getUserById(session.userId);
+  const user = await dbService.getUserById(session.userId);
   if (!user) {
     redirect('/login');
   }

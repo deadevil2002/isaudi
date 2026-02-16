@@ -34,12 +34,12 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    dbService.upsertCostsByIdentity(identityKey, user.id, payload);
+    await dbService.upsertCostsByIdentity(identityKey, user.id, payload);
     // Return merged view with computed fields like GET
-    const identities = dbService.listDistinctProductsForUser(user.id);
+    const identities = await dbService.listDistinctProductsForUser(user.id);
     const found = identities.find(p => p.identityKey === identityKey);
     const latestPriceHalala = found?.latestPriceHalala ?? null;
-    const updatedCosts = dbService.getCostsByIdentity(identityKey, user.id);
+    const updatedCosts = await dbService.getCostsByIdentity(identityKey, user.id);
     const fees = Math.round(((latestPriceHalala ?? 0) * (updatedCosts.payment_fee_percent_bps || 0)) / 10000);
     const totalCostHalala = latestPriceHalala == null ? null :
       ((updatedCosts.purchase_cost_halala || 0)

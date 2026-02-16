@@ -3,6 +3,7 @@ import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { normalizeEmail } from '@/lib/auth/email';
 import type { User } from '@/lib/db/client';
+import { getDb } from '@/lib/db/client';
 import { randomBytes, randomUUID } from 'crypto';
 import { sendVerifyEmail } from '@/lib/email/resend';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
@@ -267,16 +268,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { dbService } = await import('@/lib/db/service');
-    const { db } = await import('@/lib/db/client');
+    const db = await getDb();
+    const prepare = db.prepare.bind(db);
 
-    const findUsersByNormalizedEmail = (normalized: string): User[] => {
-      const users = db
-        .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users')
+    const findUsersByNormalizedEmail = async (normalized: string): Promise<User[]> => {
+      const users = await prepare('SELECT *, free_reports_used as freeReportsUsed FROM users')
         .all() as User[];
       return users.filter((u) => normalizeEmail(u.email) === normalized);
     };
 
-    const record = dbService.getOTP(normalizedEmail);
+    const record = await dbService.getOTP(normalizedEmail);
 
     console.log('verify-otp diagnostics', {
       normalizedEmail,
@@ -306,16 +307,16 @@ export async function POST(request: NextRequest) {
     const inputHash = Buffer.from(codeStr).toString('base64');
     
     if (inputHash !== record.codeHash) {
-      dbService.incrementOTPAttempts(normalizedEmail);
+      await dbService.incrementOTPAttempts(normalizedEmail);
       return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
     }
     
     // Code valid! 
     // 1. Clean up OTP
-    dbService.deleteOTP(normalizedEmail);
+    await dbService.deleteOTP(normalizedEmail);
     
     // 2. Find or Create User
-    const matches = findUsersByNormalizedEmail(normalizedEmail);
+    const matches = await findUsersByNormalizedEmail(normalizedEmail);
     let user: User | undefined;
 
     if (matches.length > 1) {
@@ -328,12 +329,12 @@ export async function POST(request: NextRequest) {
     } else if (matches.length === 1) {
       user = matches[0];
     } else {
-      const rawUser = dbService.getUserByEmail(rawEmail);
-      if (rawUser) {
-        try {
-          db.prepare('UPDATE users SET email = ? WHERE id = ?').run(normalizedEmail, rawUser.id);
-          user = { ...rawUser, email: normalizedEmail };
-        } catch (e) {
+        const rawUser = await dbService.getUserByEmail(rawEmail);
+        if (rawUser) {
+          try {
+          await prepare('UPDATE users SET email = ? WHERE id = ?').run(normalizedEmail, rawUser.id);
+            user = { ...rawUser, email: normalizedEmail };
+          } catch (e) {
           console.error('Failed to normalize user email', {
             rawEmail,
             normalizedEmail,
@@ -346,11 +347,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
-      user = dbService.createUser(normalizedEmail);
+      user = await dbService.createUser(normalizedEmail);
     }
     
     // 3. Create Session
-    const session = dbService.createSession(user.id);
+    const session = await dbService.createSession(user.id);
 
     if ((user as any).email_verified !== 1) {
       const existingToken = (user as any).email_verify_token as string | null | undefined;
@@ -368,7 +369,7 @@ export async function POST(request: NextRequest) {
         const token = randomBytes(32).toString('hex');
         const expiresAt = now + 24 * 60 * 60 * 1000;
         try {
-          dbService.setEmailVerificationToken(user.id, token, expiresAt);
+          await dbService.setEmailVerificationToken(user.id, token, expiresAt);
           const appUrl = resolveAppUrl();
           const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
           await sendVerifyEmail(user.email, verifyUrl, emailEnv, isProd);

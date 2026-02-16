@@ -1,13 +1,15 @@
-import { db, User, OTPCode, Session, DB_PATH } from './client';
+import { getDb, User, OTPCode, Session, DB_PATH } from './client';
 import { randomUUID, randomBytes } from 'crypto';
 
 export const dbService = {
   // User operations
-  getUserByEmail: (email: string): User | undefined => {
+  getUserByEmail: async (email: string): Promise<User | undefined> => {
+    const db = await getDb();
     return db.prepare('SELECT *, free_reports_used as freeReportsUsed FROM users WHERE email = ?').get(email) as User | undefined;
   },
 
-  createUser: (email: string): User => {
+  createUser: async (email: string): Promise<User> => {
+    const db = await getDb();
     const id = randomUUID();
     const now = Date.now();
     const user: User = {
@@ -28,7 +30,8 @@ export const dbService = {
   },
 
   // OTP operations
-  createOTP: (email: string, codeHash: string): void => {
+  createOTP: async (email: string, codeHash: string): Promise<void> => {
+    const db = await getDb();
     const now = Date.now();
     const expiresAt = now + 10 * 60 * 1000; // 10 minutes
     
@@ -46,20 +49,24 @@ export const dbService = {
     `).run(otp);
   },
 
-  getOTP: (email: string): OTPCode | undefined => {
+  getOTP: async (email: string): Promise<OTPCode | undefined> => {
+    const db = await getDb();
     return db.prepare('SELECT * FROM otp_codes WHERE email = ?').get(email) as OTPCode | undefined;
   },
 
-  incrementOTPAttempts: (email: string): void => {
+  incrementOTPAttempts: async (email: string): Promise<void> => {
+    const db = await getDb();
     db.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?').run(email);
   },
   
-  deleteOTP: (email: string): void => {
+  deleteOTP: async (email: string): Promise<void> => {
+    const db = await getDb();
     db.prepare('DELETE FROM otp_codes WHERE email = ?').run(email);
   },
 
   // Session operations
-  createSession: (userId: string): Session => {
+  createSession: async (userId: string): Promise<Session> => {
+    const db = await getDb();
     const sessionId = randomBytes(32).toString('hex');
     const now = Date.now();
     const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -79,7 +86,8 @@ export const dbService = {
     return session;
   },
   
-  getSession: (sessionId: string): Session | undefined => {
+  getSession: async (sessionId: string): Promise<Session | undefined> => {
+    const db = await getDb();
     const now = Date.now();
     // Clean expired sessions first (lazy cleanup)
     db.prepare('DELETE FROM sessions WHERE expiresAt < ?').run(now);
@@ -87,21 +95,25 @@ export const dbService = {
     return db.prepare('SELECT * FROM sessions WHERE sessionId = ? AND expiresAt > ?').get(sessionId, now) as Session | undefined;
   },
   
-  deleteSession: (sessionId: string): void => {
+  deleteSession: async (sessionId: string): Promise<void> => {
+    const db = await getDb();
     db.prepare('DELETE FROM sessions WHERE sessionId = ?').run(sessionId);
   },
 
-  getUserById: (id: string): User | undefined => {
+  getUserById: async (id: string): Promise<User | undefined> => {
+    const db = await getDb();
     return db.prepare('SELECT *, free_reports_used as freeReportsUsed FROM users WHERE id = ?').get(id) as User | undefined;
   },
 
-  setEmailVerificationToken: (userId: string, token: string, expiresAt: number): void => {
+  setEmailVerificationToken: async (userId: string, token: string, expiresAt: number): Promise<void> => {
+    const db = await getDb();
     db.prepare(
       'UPDATE users SET email_verify_token = ?, email_verify_token_expires_at = ? WHERE id = ?'
     ).run(token, expiresAt, userId);
   },
 
-  getUserByVerifyToken: (token: string): User | undefined => {
+  getUserByVerifyToken: async (token: string): Promise<User | undefined> => {
+    const db = await getDb();
     return db
       .prepare(
         'SELECT *, free_reports_used as freeReportsUsed FROM users WHERE email_verify_token = ?'
@@ -109,7 +121,8 @@ export const dbService = {
       .get(token) as User | undefined;
   },
 
-  verifyEmailByToken: (token: string): { ok: boolean; userId?: string; reason?: string } => {
+  verifyEmailByToken: async (token: string): Promise<{ ok: boolean; userId?: string; reason?: string }> => {
+    const db = await getDb();
     const debugEmailVerify =
       process.env.NODE_ENV !== 'production' ||
       process.env.DEBUG_EMAIL_VERIFY === '1';
@@ -129,7 +142,7 @@ export const dbService = {
       .get(cleanToken) as { c?: number } | undefined;
     const countMatches = (countRow && typeof countRow.c === 'number' ? countRow.c : 0) || 0;
 
-    const user = (dbService as any).getUserByVerifyToken(cleanToken) as User | undefined;
+    const user = (await (dbService as any).getUserByVerifyToken(cleanToken)) as User | undefined;
 
     if (!user) {
       if (debugEmailVerify) {
@@ -174,39 +187,46 @@ export const dbService = {
     return { ok: true, userId: user.id };
   },
 
-  updateUserPlan: (userId: string, plan: string, expiresAt: number): void => {
+  updateUserPlan: async (userId: string, plan: string, expiresAt: number): Promise<void> => {
+    const db = await getDb();
     db.prepare('UPDATE users SET plan = ?, planExpiresAt = ? WHERE id = ?').run(plan, expiresAt, userId);
   },
 
-  setUserPlanDev: (userId: string, plan: string): void => {
+  setUserPlanDev: async (userId: string, plan: string): Promise<void> => {
+    const db = await getDb();
     db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, userId);
   },
 
   // Payment & Subscription operations
-  createPayment: (payment: any): void => {
+  createPayment: async (payment: any): Promise<void> => {
+    const db = await getDb();
     db.prepare(`
       INSERT INTO payments (id, userId, provider, providerPaymentId, amountHalala, currency, status, createdAt, rawJson)
       VALUES (@id, @userId, @provider, @providerPaymentId, @amountHalala, @currency, @status, @createdAt, @rawJson)
     `).run(payment);
   },
 
-  createSubscription: (subscription: any): void => {
+  createSubscription: async (subscription: any): Promise<void> => {
+    const db = await getDb();
     db.prepare(`
       INSERT INTO subscriptions (id, userId, planId, interval, status, startedAt, expiresAt, createdAt)
       VALUES (@id, @userId, @planId, @interval, @status, @startedAt, @expiresAt, @createdAt)
     `).run(subscription);
   },
 
-  getSubscriptionByUserId: (userId: string): any => {
+  getSubscriptionByUserId: async (userId: string): Promise<any> => {
+    const db = await getDb();
     return db.prepare('SELECT * FROM subscriptions WHERE userId = ? ORDER BY createdAt DESC LIMIT 1').get(userId);
   },
 
   // Store & Data operations
-  getStoreConnection: (userId: string): any => {
+  getStoreConnection: async (userId: string): Promise<any> => {
+    const db = await getDb();
     return db.prepare("SELECT * FROM store_connections WHERE userId = ? AND status = 'connected'").get(userId);
   },
 
-  createOrUpdateStoreConnection: (conn: any): void => {
+  createOrUpdateStoreConnection: async (conn: any): Promise<void> => {
+    const db = await getDb();
     const existing = db.prepare('SELECT id FROM store_connections WHERE userId = ? AND platform = ?').get(conn.userId, conn.platform) as any;
     
     if (existing) {
@@ -225,11 +245,13 @@ export const dbService = {
     }
   },
 
-  disconnectStore: (userId: string): void => {
+  disconnectStore: async (userId: string): Promise<void> => {
+    const db = await getDb();
     db.prepare("UPDATE store_connections SET status = 'disconnected' WHERE userId = ?").run(userId);
   },
 
-  upsertProduct: (product: any): void => {
+  upsertProduct: async (product: any): Promise<void> => {
+    const db = await getDb();
     const existing = db.prepare('SELECT id FROM products WHERE userId = ? AND externalId = ?').get(product.userId, product.externalId) as any;
     
     if (existing) {
@@ -248,7 +270,8 @@ export const dbService = {
     }
   },
   
-  getProductByExternalId: (userId: string, externalId: string): any | null => {
+  getProductByExternalId: async (userId: string, externalId: string): Promise<any | null> => {
+    const db = await getDb();
     return db.prepare(`
       SELECT * FROM products 
       WHERE userId = ? AND externalId = ?
@@ -258,18 +281,20 @@ export const dbService = {
   },
 
   // Product Costs
-  getProductCost: (productId: string): any | null => {
+  getProductCost: async (productId: string): Promise<any | null> => {
+    const db = await getDb();
     return db.prepare('SELECT * FROM product_costs WHERE product_id = ?').get(productId) || null;
   },
 
-  upsertProductCost: (productId: string, payload: Partial<{
+  upsertProductCost: async (productId: string, payload: Partial<{
     purchase_cost_halala: number;
     labor_cost_halala: number;
     shipping_cost_halala: number;
     packaging_cost_halala: number;
     ads_cost_per_unit_halala: number;
     payment_fee_percent_bps: number;
-  }>): void => {
+  }>): Promise<void> => {
+    const db = await getDb();
     const now = Date.now();
     const existing = db.prepare('SELECT id, created_at FROM product_costs WHERE product_id = ?').get(productId) as any;
     const defaults = {
@@ -325,7 +350,8 @@ export const dbService = {
     }
   },
 
-  addOrder: (order: any): void => {
+  addOrder: async (order: any): Promise<void> => {
+    const db = await getDb();
     // Insert order tied to a report; allow duplicates across reports
     db.prepare(`
       INSERT INTO orders (id, userId, platform, externalId, reportId, totalHalala, status, itemsCount, createdAt)
@@ -333,7 +359,7 @@ export const dbService = {
     `).run(order);
   },
 
-  insertOrderItem: (item: {
+  insertOrderItem: async (item: {
     id: string;
     report_id: string;
     order_id: string;
@@ -342,7 +368,8 @@ export const dbService = {
     qty: number;
     allocated_revenue: number;
     created_at: number;
-  }): void => {
+  }): Promise<void> => {
+    const db = await getDb();
     db.prepare(`
       INSERT INTO order_items (id, report_id, order_id, sku, product_name, qty, allocated_revenue, created_at)
       VALUES (@id, @report_id, @order_id, @sku, @product_name, @qty, @allocated_revenue, @created_at)
@@ -350,7 +377,8 @@ export const dbService = {
   },
 
   // Backward-compatible upsert for older callers
-  upsertOrder: (order: any): void => {
+  upsertOrder: async (order: any): Promise<void> => {
+    const db = await getDb();
     const existing = db.prepare('SELECT id FROM orders WHERE userId = ? AND externalId = ?').get(order.userId, order.externalId) as any;
     if (existing) {
       db.prepare(`
@@ -366,7 +394,8 @@ export const dbService = {
     }
   },
 
-  getStoreStats: (userId: string): any => {
+  getStoreStats: async (userId: string): Promise<any> => {
+    const db = await getDb();
     const productsCount = db.prepare('SELECT COUNT(*) as count FROM products WHERE userId = ?').get(userId) as any;
     const notCounted = ['ملغي', 'محذوف', 'ملغى'];
     const filtered = db.prepare(`
@@ -393,14 +422,15 @@ export const dbService = {
   },
 
   // Costs identity helpers
-  listDistinctProductsForUser: (userId: string): Array<{
+  listDistinctProductsForUser: async (userId: string): Promise<Array<{
     identityKey: string;
     sku: string | null;
     externalId: string | null;
     name: string;
     latestPriceHalala: number | null;
     productIds: string[];
-  }> => {
+  }>> => {
+    const db = await getDb();
     const rows = db.prepare(`
       SELECT id, sku, externalId, title, priceHalala, createdAt, updatedAt
       FROM products
@@ -451,7 +481,8 @@ export const dbService = {
     return Array.from(map.values());
   },
 
-  getCostsByIdentity: (identityKey: string, userId: string): any => {
+  getCostsByIdentity: async (identityKey: string, userId: string): Promise<any> => {
+    const db = await getDb();
     const resolve = (): string | null => {
       const [prefix, ...rest] = identityKey.split(':');
       const value = rest.join(':').trim();
@@ -516,14 +547,15 @@ export const dbService = {
     };
   },
 
-  upsertCostsByIdentity: (identityKey: string, userId: string, payload: {
+  upsertCostsByIdentity: async (identityKey: string, userId: string, payload: {
     purchase_cost_halala?: number;
     labor_cost_halala?: number;
     shipping_cost_halala?: number;
     packaging_cost_halala?: number;
     ads_cost_per_unit_halala?: number;
     payment_fee_percent_bps?: number;
-  }): void => {
+  }): Promise<void> => {
+    const db = await getDb();
     const [prefix, ...rest] = identityKey.split(':');
     const value = rest.join(':').trim();
     let productId: string | null = null;
@@ -551,53 +583,62 @@ export const dbService = {
       }
     }
     if (!productId) throw new Error('Product not found for identity');
-    (exports as any).dbService.upsertProductCost(productId, payload);
+    await (exports as any).dbService.upsertProductCost(productId, payload);
   },
 
   // Report operations
-  saveReport: (report: any): void => {
+  saveReport: async (report: any): Promise<void> => {
+    const db = await getDb();
     db.prepare(`
       INSERT INTO reports (id, userId, storeId, reportJson, createdAt)
       VALUES (@id, @userId, @storeId, @reportJson, @createdAt)
     `).run(report);
   },
 
-  createEmptyReport: (id: string, userId: string, storeId?: string): void => {
+  createEmptyReport: async (id: string, userId: string, storeId?: string): Promise<void> => {
+    const db = await getDb();
     db.prepare(`
       INSERT INTO reports (id, userId, storeId, reportJson, createdAt)
       VALUES (?, ?, ?, ?, ?)
     `).run(id, userId, storeId || null, JSON.stringify({ status: 'pending' }), Date.now());
   },
 
-  updateReportJson: (id: string, reportJson: string): void => {
+  updateReportJson: async (id: string, reportJson: string): Promise<void> => {
+    const db = await getDb();
     db.prepare(`UPDATE reports SET reportJson = ? WHERE id = ?`).run(reportJson, id);
   },
 
-  getReportById: (id: string): any => {
+  getReportById: async (id: string): Promise<any> => {
+    const db = await getDb();
     return db.prepare('SELECT * FROM reports WHERE id = ?').get(id);
   },
 
-  listReportsByUser: (userId: string): any[] => {
+  listReportsByUser: async (userId: string): Promise<any[]> => {
+    const db = await getDb();
     return db.prepare('SELECT * FROM reports WHERE userId = ? ORDER BY createdAt DESC').all(userId) as any[];
   },
 
-  getLatestReport: (userId: string): any => {
+  getLatestReport: async (userId: string): Promise<any> => {
+    const db = await getDb();
     return db.prepare('SELECT * FROM reports WHERE userId = ? ORDER BY createdAt DESC LIMIT 1').get(userId);
   },
 
-  incrementFreeReports: (userId: string): void => {
+  incrementFreeReports: async (userId: string): Promise<void> => {
+    const db = await getDb();
     db.prepare('UPDATE users SET free_reports_used = COALESCE(free_reports_used, 0) + 1 WHERE id = ?').run(userId);
   },
 
   // Report snapshots
-  getSnapshotByHash: (userId: string, sourceHash: string): any | null => {
+  getSnapshotByHash: async (userId: string, sourceHash: string): Promise<any | null> => {
+    const db = await getDb();
     return db.prepare(`
       SELECT * FROM report_snapshots 
       WHERE user_id = ? AND source_hash = ?
       LIMIT 1
     `).get(userId, sourceHash) || null;
   },
-  insertSnapshot: (row: any): void => {
+  insertSnapshot: async (row: any): Promise<void> => {
+    const db = await getDb();
     db.prepare(`
       INSERT INTO report_snapshots (
         id, user_id, created_at, source_hash, time_range_start, time_range_end,
@@ -610,7 +651,8 @@ export const dbService = {
       )
     `).run(row);
   },
-  listSnapshots: (userId: string, limit: number = 12): any[] => {
+  listSnapshots: async (userId: string, limit: number = 12): Promise<any[]> => {
+    const db = await getDb();
     return db.prepare(`
       SELECT * FROM report_snapshots
       WHERE user_id = ?
@@ -618,12 +660,14 @@ export const dbService = {
       LIMIT ?
     `).all(userId, limit) as any[];
   },
-  getSnapshotById: (userId: string, id: string): any | null => {
+  getSnapshotById: async (userId: string, id: string): Promise<any | null> => {
+    const db = await getDb();
     return db.prepare(`
       SELECT * FROM report_snapshots WHERE user_id = ? AND id = ?
     `).get(userId, id) || null;
   },
-  getPreviousSnapshot: (userId: string, timeRangeStart: number): any | null => {
+  getPreviousSnapshot: async (userId: string, timeRangeStart: number): Promise<any | null> => {
+    const db = await getDb();
     return db.prepare(`
       SELECT * FROM report_snapshots 
       WHERE user_id = ? AND time_range_end < ?

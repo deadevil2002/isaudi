@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const session = dbService.getSession(sessionId);
+    const session = await dbService.getSession(sessionId);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = Date.now();
-    dbService.createOrUpdateStoreConnection({
+    await dbService.createOrUpdateStoreConnection({
       id: randomUUID(),
       userId: session.userId,
       platform: 'csv',
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     });
 
     const reportId = randomUUID();
-    dbService.createEmptyReport(reportId, session.userId);
+    await dbService.createEmptyReport(reportId, session.userId);
 
     const warnings: string[] = [];
     let skippedProductsCount = 0;
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
     const extId = item.externalId || `csv-${randomUUID()}`;
-    dbService.upsertProduct({
+    await dbService.upsertProduct({
         id: randomUUID(),
         userId: session.userId,
         platform: 'csv',
@@ -190,11 +190,11 @@ export async function POST(request: NextRequest) {
     // Auto-seed product_costs from cost column when available and not yet present
     const costHalala = parsePriceToHalala(item.cost || '');
     if (costHalala > 0) {
-      const productRow = dbService.getProductByExternalId(session.userId, extId);
+      const productRow = await dbService.getProductByExternalId(session.userId, extId);
       if (productRow) {
-        const existingCost = dbService.getProductCost(productRow.id);
+        const existingCost = await dbService.getProductCost(productRow.id);
         if (!existingCost) {
-          dbService.upsertProductCost(productRow.id, {
+          await dbService.upsertProductCost(productRow.id, {
             purchase_cost_halala: costHalala
           });
         }
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
       const items = parseOrderItems(mapped.itemsField || '');
       const totalQty = items.reduce((acc, it) => acc + it.qty, 0);
 
-      dbService.addOrder({
+      await dbService.addOrder({
         id: orderId,
         userId: session.userId,
         platform: 'csv',
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         const allocation = (items.length === 1 || totalQty === 0)
           ? totalHalala
           : Math.round((it.qty / totalQty) * totalHalala);
-        dbService.insertOrderItem({
+        await dbService.insertOrderItem({
           id: randomUUID(),
           report_id: reportId,
           order_id: orderId,

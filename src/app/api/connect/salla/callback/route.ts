@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    const session = dbService.getSession(sessionId);
+    const session = await dbService.getSession(sessionId);
     if (!session) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Store connection
-    dbService.createOrUpdateStoreConnection({
+    await dbService.createOrUpdateStoreConnection({
       id: randomUUID(),
       userId: session.userId,
       platform: 'salla',

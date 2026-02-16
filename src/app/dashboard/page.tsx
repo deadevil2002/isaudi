@@ -23,26 +23,26 @@ export default async function DashboardPage({
       redirect('/login');
     }
     
-    const session = dbService.getSession(sessionId);
+    const session = await dbService.getSession(sessionId);
     if (!session) {
       redirect('/login');
     }
     
-    const user = dbService.getUserById(session.userId);
+    const user = await dbService.getUserById(session.userId);
     if (!user) {
       redirect('/login');
     }
     
-    const stats = dbService.getStoreStats(user.id);
-    const storeConnection = dbService.getStoreConnection(user.id);
+    const stats = await dbService.getStoreStats(user.id);
+    const storeConnection = await dbService.getStoreConnection(user.id);
 
     const requestedReportId = resolvedSearchParams?.reportId;
     let latestReport = null as any;
     if (requestedReportId) {
-      const candidate = dbService.getReportById(requestedReportId);
-      latestReport = candidate && candidate.userId === user.id ? candidate : dbService.getLatestReport(user.id);
+      const candidate = await dbService.getReportById(requestedReportId);
+      latestReport = candidate && candidate.userId === user.id ? candidate : await dbService.getLatestReport(user.id);
     } else {
-      latestReport = dbService.getLatestReport(user.id);
+      latestReport = await dbService.getLatestReport(user.id);
     }
 
     return (

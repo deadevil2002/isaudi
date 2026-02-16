@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/client';
+import { getDb } from '@/lib/db/client';
 import { dbService } from '@/lib/db/service';
 import { requirePremiumUser } from '@/lib/auth/utils';
 
@@ -26,16 +26,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'current is required' }, { status: 400 });
     }
 
-    const cur = dbService.getSnapshotById(user.id, currentId);
+    const cur = await dbService.getSnapshotById(user.id, currentId);
     if (!cur) {
       return NextResponse.json({ error: 'Snapshot not found' }, { status: 404 });
     }
 
     let prev: any = null;
     if (previous === 'auto') {
-      prev = dbService.getPreviousSnapshot(user.id, cur.time_range_start);
+      prev = await dbService.getPreviousSnapshot(user.id, cur.time_range_start);
     } else if (previous) {
-      prev = dbService.getSnapshotById(user.id, previous);
+      prev = await dbService.getSnapshotById(user.id, previous);
     }
 
     const curSales = cur.gross_sales_halala || 0;
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
     }
 
     const notCountedStatuses = ['ملغي', 'محذوف'];
+    const db = await getDb();
     const rows = db
       .prepare(
         `
@@ -104,7 +105,7 @@ export async function GET(req: NextRequest) {
       const displayName = title || sku || 'غير مسمى';
       const identityKey = sku ? `sku:${sku}` : `name:${title.toLowerCase()}`;
 
-      const costs = dbService.getCostsByIdentity(identityKey, user.id);
+      const costs = await dbService.getCostsByIdentity(identityKey, user.id);
       const hasConfiguredCosts = costs && costs.is_configured === 1;
       if (!hasConfiguredCosts) {
         missingCosts = true;

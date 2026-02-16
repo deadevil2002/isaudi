@@ -9,66 +9,27 @@ function getD1FromContext(): any | null {
   }
 }
 
-function waitFor<T>(promise: Promise<T>): T {
-  if (typeof SharedArrayBuffer === 'undefined' || typeof Atomics === 'undefined') {
-    throw new Error('Async wait is not supported in this runtime');
-  }
-  const buffer = new SharedArrayBuffer(4);
-  const view = new Int32Array(buffer);
-  let result: T | undefined;
-  let error: any;
-  promise
-    .then((value) => {
-      result = value;
-      Atomics.store(view, 0, 1);
-      Atomics.notify(view, 0);
-    })
-    .catch((err) => {
-      error = err;
-      Atomics.store(view, 0, 1);
-      Atomics.notify(view, 0);
-    });
-  while (Atomics.load(view, 0) === 0) {
-    Atomics.wait(view, 0, 0, 50);
-  }
-  if (error) throw error;
-  return result as T;
-}
-
 function createD1Adapter(d1: any): any {
   return {
     prepare(sql: string) {
       return {
-        get: (...params: any[]) => {
-          return waitFor(d1.prepare(sql).bind(...params).first());
-        },
-        all: (...params: any[]) => {
-          return waitFor(d1.prepare(sql).bind(...params).all());
-        },
-        run: (...params: any[]) => {
-          return waitFor(d1.prepare(sql).bind(...params).run());
-        },
+        get: async (...params: any[]) => d1.prepare(sql).bind(...params).first(),
+        all: async (...params: any[]) => d1.prepare(sql).bind(...params).all(),
+        run: async (...params: any[]) => d1.prepare(sql).bind(...params).run(),
       };
     },
   };
 }
 
-export function getSqliteDb(): any {
+export async function getDb(): Promise<any> {
   const d1 = getD1FromContext();
-  if (d1) {
-    return createD1Adapter(d1);
+  if (!d1) {
+    throw new Error('D1 binding DB is not available in this runtime');
   }
-  throw new Error('D1 not available — run in Cloudflare environment');
+  return createD1Adapter(d1);
 }
 
-export const db = new Proxy({} as any, {
-  get(_target, prop) {
-    return (getSqliteDb() as any)[prop];
-  },
-});
-
-// Kept for backwards compatibility with existing imports
-export const DB_PATH = '';
+export const DB_PATH = process.env.DB_PATH || '';
 
 export interface User {
   id: string;

@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const session = dbService.getSession(sessionId);
+    const session = await dbService.getSession(sessionId);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = dbService.getUserById(session.userId);
+    const user = await dbService.getUserById(session.userId);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

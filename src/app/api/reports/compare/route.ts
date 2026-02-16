@@ -21,14 +21,14 @@ export async function GET(req: NextRequest) {
   const previous = searchParams.get('previous') || 'auto';
   if (!currentId) return NextResponse.json({ error: 'current is required' }, { status: 400 });
 
-  const cur = dbService.getSnapshotById(user.id, currentId);
+  const cur = await dbService.getSnapshotById(user.id, currentId);
   if (!cur) return NextResponse.json({ error: 'Snapshot not found' }, { status: 404 });
 
   let prev: any = null;
   if (previous === 'auto') {
-    prev = dbService.getPreviousSnapshot(user.id, cur.time_range_start);
+    prev = await dbService.getPreviousSnapshot(user.id, cur.time_range_start);
   } else {
-    prev = dbService.getSnapshotById(user.id, previous);
+    prev = await dbService.getSnapshotById(user.id, previous);
   }
 
   const curSales = cur.gross_sales_halala || 0;

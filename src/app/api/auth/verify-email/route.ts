@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'invalid' }, { status: 400 });
     }
 
-    const result = dbService.verifyEmailByToken(token);
+    const result = await dbService.verifyEmailByToken(token);
 
     if (!result.ok) {
       const reason = result.reason === 'expired' ? 'expired' : 'invalid';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
-import { db } from '@/lib/db/client';
+import { getDb } from '@/lib/db/client';
 import { getCurrentUser } from '@/lib/auth/utils';
 
 function computeComputed(latestPriceHalala: number | null, costs: {
@@ -41,8 +41,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get('q') || '').trim().toLowerCase();
   const soldInLatest = searchParams.get('soldInLatest') === '1';
+  const db = await getDb();
+  const prepare = db.prepare.bind(db);
 
-  let identities = dbService.listDistinctProductsForUser(user.id);
+  let identities = await dbService.listDistinctProductsForUser(user.id);
 
   if (q) {
     identities = identities.filter(p => 
@@ -52,9 +54,9 @@ export async function GET(req: NextRequest) {
   }
 
   if (soldInLatest) {
-    const latest = dbService.getLatestReport(user.id);
+    const latest = await dbService.getLatestReport(user.id);
     if (latest) {
-      const items = db.prepare(`
+      const items = await prepare(`
         SELECT sku, product_name, SUM(qty) AS qty
         FROM order_items
         WHERE report_id = ?
@@ -72,10 +74,21 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const products = identities.map((id) => {
-    const costs = dbService.getCostsByIdentity(id.identityKey, user.id);
+  const products = [] as Array<{
+    primaryProductId: string | null;
+    identityKey: string;
+    sku: string | null;
+    externalId: string | null;
+    name: string;
+    latestPriceHalala: number | null;
+    costs: any;
+    computed: ReturnType<typeof computeComputed>;
+  }>;
+
+  for (const id of identities) {
+    const costs = await dbService.getCostsByIdentity(id.identityKey, user.id);
     const computed = computeComputed(id.latestPriceHalala, costs);
-    return {
+    products.push({
       primaryProductId: (id as any).productIds?.[0] || null,
       identityKey: id.identityKey,
       sku: id.sku,
@@ -84,7 +97,7 @@ export async function GET(req: NextRequest) {
       latestPriceHalala: id.latestPriceHalala,
       costs,
       computed
-    };
-  });
+    });
+  }
   return NextResponse.json({ products });
 }

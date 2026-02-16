@@ -31,10 +31,10 @@ export async function getCurrentUser() {
     return user ?? null;
   }
 
-  const session = dbService.getSession(sessionId);
+  const session = await dbService.getSession(sessionId);
   if (!session) return null;
 
-  return dbService.getUserById(session.userId);
+  return await dbService.getUserById(session.userId);
 }
 
 export async function requirePlan(allowedPlans: string[] = ['basic', 'pro', 'business']) {

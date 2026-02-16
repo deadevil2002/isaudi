@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get Report Context
-    const latestReport = dbService.getLatestReport(user.id);
+    const latestReport = await dbService.getLatestReport(user.id);
     if (!latestReport) {
       return NextResponse.json({ error: 'No report found. Please generate an analysis first.' }, { status: 404 });
     }

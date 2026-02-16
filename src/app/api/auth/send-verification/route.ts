@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { dbService } from '@/lib/db/service';
-import { db, DB_PATH } from '@/lib/db/client';
+import { getDb, DB_PATH } from '@/lib/db/client';
 import { randomBytes } from 'crypto';
 import { sendVerifyEmail } from '@/lib/email/resend';
 
@@ -47,10 +47,11 @@ export async function POST(req: NextRequest) {
       tokenToUse = randomBytes(32).toString('hex');
       expiresAtToUse = now + 24 * 60 * 60 * 1000;
       generatedNew = true;
-      dbService.setEmailVerificationToken(user.id, tokenToUse, expiresAtToUse);
+      await dbService.setEmailVerificationToken(user.id, tokenToUse, expiresAtToUse);
     }
 
     try {
+      const db = await getDb();
       const row = db
         .prepare(
           'SELECT id, email, email_verify_token, email_verify_token_expires_at FROM users WHERE id = ?'

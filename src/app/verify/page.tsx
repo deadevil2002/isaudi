@@ -42,7 +42,7 @@ export default async function VerifyPage(props: {
     status = "invalid";
   } else {
     try {
-      const result = dbService.verifyEmailByToken(token);
+      const result = await dbService.verifyEmailByToken(token);
 
       if (!result.ok) {
         if (result.reason === "expired") {
@@ -54,7 +54,7 @@ export default async function VerifyPage(props: {
         const sessionId = cookieStore.get("session_id")?.value || null;
 
         if (sessionId) {
-          const session = dbService.getSession(sessionId);
+          const session = await dbService.getSession(sessionId);
           if (session) {
             if (!result.userId || session.userId === result.userId) {
               redirect("/dashboard?verified=1");

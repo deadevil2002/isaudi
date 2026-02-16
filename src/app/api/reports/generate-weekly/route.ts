@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/client';
+import { getDb } from '@/lib/db/client';
 import { dbService } from '@/lib/db/service';
 import { requirePremiumUser } from '@/lib/auth/utils';
 import { createHash, randomUUID } from 'crypto';
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     const startOfWeek = midnightRiyadhUtcMs - daysSinceSaturday * dayMs;
     const endOfWeek = startOfWeek + 7 * dayMs - 1;
 
+    const db = await getDb();
     const existing = db
       .prepare(
         `
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const latestReport = dbService.getLatestReport(user.id);
+    const latestReport = await dbService.getLatestReport(user.id);
     if (!latestReport) {
     return NextResponse.json({ error: 'No report context. Data files missing.' }, { status: 400 });
     }
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
       const title = normalizeTitle(r.name || '');
       const identityKey = sku ? `sku:${sku}` : `name:${title.toLowerCase()}`;
 
-      const costs = dbService.getCostsByIdentity(identityKey, user.id);
+      const costs = await dbService.getCostsByIdentity(identityKey, user.id);
 
       const revenueHalala = Math.round(((r.revenue_sar || 0) * 100)) || 0;
       if (revenueHalala <= 0) continue;
@@ -160,7 +161,7 @@ export async function POST(req: NextRequest) {
       .update(`weekly:${startOfWeek}:${endOfWeek}`)
       .digest('hex');
 
-    dbService.insertSnapshot({
+    await dbService.insertSnapshot({
       id: snapshotId,
       user_id: user.id,
       created_at: nowMs,

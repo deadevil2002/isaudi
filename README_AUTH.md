@@ -7,7 +7,7 @@ This project implements a passwordless Email OTP authentication system.
 - **Auth Method**: Email Magic Code (OTP).
 - **Session**: `httpOnly` cookie (`session_id`).
 - **Database**:
-  - **Development**: Local SQLite (`local.db`) via `better-sqlite3`.
+  - **Development**: D1 binding via Cloudflare/Miniflare.
   - **Production (Cloudflare)**: Designed to swap to Cloudflare D1 (requires adapter update).
 
 ## 2. Environment Setup

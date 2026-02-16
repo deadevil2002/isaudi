@@ -14,7 +14,7 @@ export default async function Home() {
   const sessionId = cookieStore.get("session_id")?.value || null;
 
   if (sessionId) {
-    const session = dbService.getSession(sessionId);
+    const session = await dbService.getSession(sessionId);
     if (session) {
       redirect("/dashboard");
     }

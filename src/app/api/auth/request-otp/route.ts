@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
     } else if (!isCloudflare) {
       const { dbService } = await import('@/lib/db/service');
-      dbService.createOTP(normalizedEmail, codeHash);
+      await dbService.createOTP(normalizedEmail, codeHash);
     } else {
       return NextResponse.json({ error: 'DB not configured', buildId }, { status: 500 });
     }

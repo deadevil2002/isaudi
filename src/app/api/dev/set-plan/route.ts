@@ -23,17 +23,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const session = dbService.getSession(sessionId);
+    const session = await dbService.getSession(sessionId);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = dbService.getUserById(session.userId);
+    const user = await dbService.getUserById(session.userId);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    dbService.setUserPlanDev(user.id, plan);
+    await dbService.setUserPlanDev(user.id, plan);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -41,4 +41,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

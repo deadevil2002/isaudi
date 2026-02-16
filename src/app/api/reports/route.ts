@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (range !== 'weekly') {
     return NextResponse.json({ error: 'Unsupported range' }, { status: 400 });
   }
-  const rows = dbService.listSnapshots(user.id, limit);
+  const rows = await dbService.listSnapshots(user.id, limit);
   const items = rows.map((r: any) => ({
     id: r.id,
     createdAt: r.created_at,

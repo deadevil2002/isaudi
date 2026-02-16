@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         const expiresAt = now + duration;
 
         // 1. Record Payment
-        dbService.createPayment({
+        await dbService.createPayment({
           id: verifiedPayment.id,
           userId,
           provider: 'moyasar',
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Create/Update Subscription
         const subscriptionId = randomUUID();
-        dbService.createSubscription({
+        await dbService.createSubscription({
           id: subscriptionId,
           userId,
           planId,
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         });
 
         // 3. Update User Plan
-        dbService.updateUserPlan(userId, planId, expiresAt);
+        await dbService.updateUserPlan(userId, planId, expiresAt);
         
         console.log(`Subscription activated for user ${userId}: ${planId} (${interval})`);
       }

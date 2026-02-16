@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
-import { db } from '@/lib/db/client';
+import { getDb } from '@/lib/db/client';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { createHash, randomUUID } from 'crypto';
 
@@ -10,20 +10,22 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { reportId } = await req.json().catch(() => ({ reportId: null as string | null }));
-    const targetReportId = reportId || dbService.getLatestReport(user.id)?.id;
+    const targetReportId = reportId || (await dbService.getLatestReport(user.id))?.id;
     if (!targetReportId) {
     return NextResponse.json({ error: 'No report context. Data files missing.' }, { status: 400 });
     }
 
-    const connection = dbService.getStoreConnection(user.id);
+    const connection = await dbService.getStoreConnection(user.id);
+    const db = await getDb();
+    const prepare = db.prepare.bind(db);
 
     const notCountedStatuses = ['ملغي', 'محذوف'];
-    const totals = db.prepare(`
+    const totals = await prepare(`
       SELECT COUNT(*) as cnt, COALESCE(SUM(totalHalala),0) as sum 
       FROM orders 
       WHERE userId = ? AND reportId = ? AND COALESCE(status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
     `).get(user.id, targetReportId, ...notCountedStatuses) as any;
-    const excluded = db.prepare(`
+    const excluded = await prepare(`
       SELECT COUNT(*) as cnt, COALESCE(SUM(totalHalala),0) as sum 
       FROM orders 
       WHERE userId = ? AND reportId = ? AND COALESCE(status,'') IN (${notCountedStatuses.map(() => '?').join(',')})
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
     const totalSales = (totalSalesHalala / 100);
     const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
-    const topRows = db.prepare(`
+    const topRows = await prepare(`
       SELECT COALESCE(oi.sku,'') as sku, COALESCE(oi.product_name,'') as product_name,
              SUM(oi.allocated_revenue) as revenue, SUM(oi.qty) as qty
       FROM order_items oi
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
       LIMIT 5
     `).all(targetReportId, ...notCountedStatuses) as any[];
 
-    const weakRows = db.prepare(`
+    const weakRows = await prepare(`
       SELECT COALESCE(oi.sku,'') as sku, COALESCE(oi.product_name,'') as product_name,
              SUM(oi.allocated_revenue) as revenue, SUM(oi.qty) as qty
       FROM order_items oi
@@ -168,7 +170,7 @@ export async function POST(req: NextRequest) {
       ]
     };
 
-    const sold = db.prepare(`
+    const sold = await prepare(`
       SELECT COALESCE(oi.sku,'') as sku, COALESCE(oi.product_name,'') as name,
              SUM(oi.qty) as qty, SUM(oi.allocated_revenue) as revenue_sar
       FROM order_items oi
@@ -178,9 +180,9 @@ export async function POST(req: NextRequest) {
     `).all(targetReportId, ...notCountedStatuses) as any[];
 
     const normalizeTitle = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
-    const findProductBySku = (sku: string): any | null => {
+    const findProductBySku = async (sku: string): Promise<any | null> => {
       if (!sku) return null;
-      const row = db.prepare(`
+      const row = await prepare(`
         SELECT * FROM products 
         WHERE userId = ? AND TRIM(COALESCE(sku,'')) = ?
         ORDER BY (CASE WHEN COALESCE(reportId,'') = ? THEN 1 ELSE 0 END) DESC, COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
@@ -188,10 +190,10 @@ export async function POST(req: NextRequest) {
       `).get(user.id, sku.trim(), targetReportId) as any;
       return row || null;
     };
-    const findProductByTitle = (title: string): any | null => {
+    const findProductByTitle = async (title: string): Promise<any | null> => {
       const t = normalizeTitle(title);
       if (!t) return null;
-      let row = db.prepare(`
+      let row = await prepare(`
         SELECT * FROM products 
         WHERE userId = ? AND TRIM(COALESCE(title,'')) = ?
         AND COALESCE(reportId,'') = ?
@@ -199,7 +201,7 @@ export async function POST(req: NextRequest) {
         LIMIT 1
       `).get(user.id, t, targetReportId) as any;
       if (row) return row;
-      row = db.prepare(`
+      row = await prepare(`
         SELECT * FROM products 
         WHERE userId = ? AND TRIM(COALESCE(title,'')) = ?
         ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
@@ -207,12 +209,12 @@ export async function POST(req: NextRequest) {
       `).get(user.id, t) as any;
       return row || null;
     };
-    const hasCosts = (productId: string): boolean => {
-      const r = db.prepare(`SELECT 1 FROM product_costs WHERE product_id = ?`).get(productId) as any;
+    const hasCosts = async (productId: string): Promise<boolean> => {
+      const r = await prepare(`SELECT 1 FROM product_costs WHERE product_id = ?`).get(productId) as any;
       return !!r;
     };
-    const getCosts = (productId: string) => {
-      const c = db.prepare(`SELECT * FROM product_costs WHERE product_id = ?`).get(productId) as any;
+    const getCosts = async (productId: string): Promise<any | null> => {
+      const c = await prepare(`SELECT * FROM product_costs WHERE product_id = ?`).get(productId) as any;
       return c || null;
     };
 
@@ -234,8 +236,8 @@ export async function POST(req: NextRequest) {
       const sku = (r.sku || '').trim() || null;
       const title = normalizeTitle(r.name || '');
       let prod: any | null = null;
-      if (sku) prod = findProductBySku(sku);
-      if (!prod && title) prod = findProductByTitle(title);
+      if (sku) prod = await findProductBySku(sku);
+      if (!prod && title) prod = await findProductByTitle(title);
       if (!prod) {
         const revenueHal = Math.round((r.revenue_sar || 0) * 100) || 0;
         missingCostProductsCount++;
@@ -247,7 +249,7 @@ export async function POST(req: NextRequest) {
         if (qty > 0 && revHal > 0) return Math.round(revHal / qty);
         return prod.priceHalala || 0;
       })();
-      const costs = getCosts(prod.id);
+      const costs = await getCosts(prod.id);
       if (!costs) {
         const revenueHal = Math.round((r.revenue_sar || 0) * 100) || 0;
         missingCostProductsCount++;
@@ -348,7 +350,7 @@ export async function POST(req: NextRequest) {
     // Dedup snapshots by (user, sourceHash)
     let deduped = false;
     let snapshotId: string;
-    const existing = dbService.getSnapshotByHash(user.id, sourceHash);
+    const existing = await dbService.getSnapshotByHash(user.id, sourceHash);
     if (existing) {
       deduped = true;
       snapshotId = existing.id;
@@ -356,15 +358,15 @@ export async function POST(req: NextRequest) {
         ...JSON.parse(reportPayload),
         snapshot: { id: snapshotId, deduped, sourceHash, timeRangeStart: startOfWeek, timeRangeEnd: endOfWeek }
       });
-      dbService.updateReportJson(targetReportId, finalReportJson);
-      const updated = dbService.getReportById(targetReportId);
+      await dbService.updateReportJson(targetReportId, finalReportJson);
+      const updated = await dbService.getReportById(targetReportId);
       return NextResponse.json(updated);
     } else {
       snapshotId = randomUUID();
       if (user.plan === 'free' && (user.freeReportsUsed || 0) >= 2) {
         return NextResponse.json({ error: 'Free limit reached. Upgrade to continue.' }, { status: 403 });
       }
-      dbService.insertSnapshot({
+      await dbService.insertSnapshot({
         id: snapshotId,
         user_id: user.id,
         created_at: nowMs,
@@ -384,9 +386,9 @@ export async function POST(req: NextRequest) {
         ...JSON.parse(reportPayload),
         snapshot: { id: snapshotId, deduped, sourceHash, timeRangeStart: startOfWeek, timeRangeEnd: endOfWeek }
       });
-      dbService.updateReportJson(targetReportId, finalReportJson);
-      dbService.incrementFreeReports(user.id);
-      const updated = dbService.getReportById(targetReportId);
+      await dbService.updateReportJson(targetReportId, finalReportJson);
+      await dbService.incrementFreeReports(user.id);
+      const updated = await dbService.getReportById(targetReportId);
       return NextResponse.json(updated);
     }
 
