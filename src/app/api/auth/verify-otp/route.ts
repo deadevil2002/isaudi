@@ -73,8 +73,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
       }
       
-      if (record.expiresAt < Date.now()) {
+      const nowSec = Math.floor(Date.now() / 1000);
+
+      if (record.expires_at < nowSec) {
         return NextResponse.json({ error: 'Code expired' }, { status: 400 });
+      }
+
+      if (record.consumed_at) {
+        return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
       }
       
       if (record.attempts >= 5) {
@@ -83,8 +89,10 @@ export async function POST(request: NextRequest) {
       
       // Verify hash (simple base64 check matching request-otp)
       const inputHash = Buffer.from(code).toString('base64');
-      
-      if (inputHash !== record.codeHash) {
+      const storedHash = record.codeHash ?? null;
+      const storedCode = record.code ?? null;
+
+      if ((storedHash && inputHash !== storedHash) || (!storedHash && storedCode !== code)) {
         await d1
           .prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?')
           .bind(normalizedEmail)
@@ -93,7 +101,10 @@ export async function POST(request: NextRequest) {
       }
       
       // Code valid!
-      await d1.prepare('DELETE FROM otp_codes WHERE email = ?').bind(normalizedEmail).run();
+      await d1
+        .prepare('UPDATE otp_codes SET consumed_at = ? WHERE email = ?')
+        .bind(nowSec, normalizedEmail)
+        .run();
       
       // 2. Find or Create User
       const usersResult = await d1

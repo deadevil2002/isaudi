@@ -42,15 +42,15 @@ export async function POST(request: NextRequest) {
     // (or implement simple hashing if needed, but plain text in DB is risky for prod)
     // Let's do a simple base64 "hash" just to show intent, though bcrypt is better.
     const codeHash = Buffer.from(code).toString('base64');
-    const now = Date.now();
-    const expiresAt = now + 10 * 60 * 1000;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const expiresAtSec = nowSec + 10 * 60;
 
     if (d1) {
       await d1
         .prepare(
-          'INSERT OR REPLACE INTO otp_codes (email, codeHash, attempts, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)'
+          'INSERT OR REPLACE INTO otp_codes (email, code, codeHash, attempts, expires_at, created_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )
-        .bind(normalizedEmail, codeHash, 0, expiresAt, now)
+        .bind(normalizedEmail, code, codeHash, 0, expiresAtSec, nowSec, null)
         .run();
     } else {
       dbService.createOTP(normalizedEmail, codeHash);
