@@ -1,16 +1,27 @@
-import Database from 'better-sqlite3';
 import { join } from 'path';
+
+import type { Database as SqliteDatabase } from 'better-sqlite3';
 
 const DB_PATH =
   process.env.DB_PATH && process.env.DB_PATH.trim().length > 0
     ? process.env.DB_PATH.trim()
     : join(process.cwd(), 'local.db');
 
-let db: Database.Database;
+let sqliteDb: SqliteDatabase | null = null;
 
-try {
-  db = new Database(DB_PATH);
+function isCloudflareRuntime(): boolean {
+  return Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
+}
 
+function getRequire(): NodeRequire | null {
+  try {
+    return eval('require') as NodeRequire;
+  } catch {
+    return null;
+  }
+}
+
+function initializeSqlite(db: SqliteDatabase): void {
   try {
     console.log('[db] path', DB_PATH);
     const usersSchema = db.prepare('PRAGMA table_info(users)').all();
@@ -261,12 +272,39 @@ try {
   } catch (e: any) {
     console.error('Migration error (report_snapshots):', e);
   }
-
-} catch (error) {
-  console.error("Failed to initialize database:", error);
 }
 
-export { db, DB_PATH };
+export function getSqliteDb(): SqliteDatabase {
+  if (sqliteDb) return sqliteDb;
+
+  if (isCloudflareRuntime()) {
+    throw new Error('SQLite is not available in Cloudflare runtime');
+  }
+
+  const req = getRequire();
+  if (!req) {
+    throw new Error('SQLite require is not available in this runtime');
+  }
+
+  const Database = req('better-sqlite3') as typeof import('better-sqlite3');
+  sqliteDb = new Database(DB_PATH);
+
+  try {
+    initializeSqlite(sqliteDb);
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+  }
+
+  return sqliteDb;
+}
+
+export const db = new Proxy({} as SqliteDatabase, {
+  get(_target, prop) {
+    return (getSqliteDb() as any)[prop];
+  },
+});
+
+export { DB_PATH };
 
 export interface User {
   id: string;

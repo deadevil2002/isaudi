@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbService } from '@/lib/db/service';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { normalizeEmail } from '@/lib/auth/email';
-import { db, User } from '@/lib/db/client';
+import type { User } from '@/lib/db/client';
 import { randomBytes, randomUUID } from 'crypto';
 import { sendVerifyEmail } from '@/lib/email/resend';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
@@ -28,13 +27,6 @@ function resolveAppUrl(): string {
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-secret-key-change-in-prod';
 
-function findUsersByNormalizedEmail(normalizedEmail: string): User[] {
-  const users = db
-    .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users')
-    .all() as User[];
-  return users.filter((u) => normalizeEmail(u.email) === normalizedEmail);
-}
-
 export async function POST(request: NextRequest) {
   try {
     let env: any = null;
@@ -50,6 +42,7 @@ export async function POST(request: NextRequest) {
     const emailProvider = env?.EMAIL_PROVIDER ?? process.env.EMAIL_PROVIDER ?? null;
     const devOtp = env?.DEV_OTP === 'true';
     const isProd = process.env.NODE_ENV === 'production';
+    const isCloudflare = Boolean(d1) || Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
 
     if (env && !d1 && isProd) {
       console.error('D1 binding DB is undefined', {
@@ -229,6 +222,20 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ success: true, redirectTo: '/dashboard' });
     }
+
+    if (isCloudflare) {
+      return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+    }
+
+    const { dbService } = await import('@/lib/db/service');
+    const { db } = await import('@/lib/db/client');
+
+    const findUsersByNormalizedEmail = (normalized: string): User[] => {
+      const users = db
+        .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users')
+        .all() as User[];
+      return users.filter((u) => normalizeEmail(u.email) === normalized);
+    };
 
     const record = dbService.getOTP(normalizedEmail);
     

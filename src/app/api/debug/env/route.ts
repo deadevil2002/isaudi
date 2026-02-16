@@ -15,6 +15,10 @@ export async function GET() {
     hasDB: !!env?.DB,
     hasResendKey: !!env?.RESEND_API_KEY,
     hasResendFrom: !!env?.RESEND_FROM,
+    runtime:
+      env?.DB || (globalThis as any).Cloudflare || process.env.NEXT_RUNTIME === 'edge'
+        ? 'cloudflare'
+        : 'local',
     envKeys: env ? Object.keys(env) : [],
   });
 }

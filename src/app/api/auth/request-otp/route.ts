@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbService } from '@/lib/db/service';
 import { sendOTPEmail } from '@/lib/email/sender';
 import { randomInt } from 'crypto';
 import { normalizeEmail } from '@/lib/auth/email';
@@ -21,6 +20,7 @@ export async function POST(request: NextRequest) {
     const emailProvider = env?.EMAIL_PROVIDER ?? process.env.EMAIL_PROVIDER ?? null;
     const devOtp = env?.DEV_OTP === 'true';
     const isProd = process.env.NODE_ENV === 'production';
+    const isCloudflare = Boolean(d1) || Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
 
     if (env && !d1 && isProd) {
       console.error('D1 binding DB is undefined', {
@@ -61,8 +61,11 @@ export async function POST(request: NextRequest) {
         )
         .bind(normalizedEmail, code, codeHash, 0, expiresAtSec, nowSec, null)
         .run();
-    } else {
+    } else if (!isCloudflare) {
+      const { dbService } = await import('@/lib/db/service');
       dbService.createOTP(normalizedEmail, codeHash);
+    } else {
+      return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
     }
     
     const emailResult = await sendOTPEmail(rawEmail, code, {
