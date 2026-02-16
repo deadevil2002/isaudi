@@ -3,9 +3,28 @@ import { dbService } from '@/lib/db/service';
 import { sendOTPEmail } from '@/lib/email/sender';
 import { randomInt } from 'crypto';
 import { normalizeEmail } from '@/lib/auth/email';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 export async function POST(request: NextRequest) {
   try {
+    let env: any = null;
+    try {
+      const ctx = getCloudflareContext();
+      env = ctx?.env ?? null;
+    } catch {
+      env = null;
+    }
+
+    const d1 = env?.DB ?? null;
+
+    if (env && !d1 && process.env.NODE_ENV === 'production') {
+      console.error('D1 binding DB is undefined', {
+        hasEnv: !!env,
+        keys: env ? Object.keys(env) : [],
+      });
+      return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+    }
+
     const { email } = await request.json();
     
     if (!email || typeof email !== 'string') {
@@ -23,8 +42,19 @@ export async function POST(request: NextRequest) {
     // (or implement simple hashing if needed, but plain text in DB is risky for prod)
     // Let's do a simple base64 "hash" just to show intent, though bcrypt is better.
     const codeHash = Buffer.from(code).toString('base64');
-    
-    dbService.createOTP(normalizedEmail, codeHash);
+    const now = Date.now();
+    const expiresAt = now + 10 * 60 * 1000;
+
+    if (d1) {
+      await d1
+        .prepare(
+          'INSERT OR REPLACE INTO otp_codes (email, codeHash, attempts, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)'
+        )
+        .bind(normalizedEmail, codeHash, 0, expiresAt, now)
+        .run();
+    } else {
+      dbService.createOTP(normalizedEmail, codeHash);
+    }
     
     await sendOTPEmail(rawEmail, code);
     

@@ -4,8 +4,9 @@ import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { normalizeEmail } from '@/lib/auth/email';
 import { db, User } from '@/lib/db/client';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { sendVerifyEmail } from '@/lib/email/resend';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 function resolveAppUrl(): string {
   const fallbackProd = 'https://isaudi.ai';
@@ -36,6 +37,23 @@ function findUsersByNormalizedEmail(normalizedEmail: string): User[] {
 
 export async function POST(request: NextRequest) {
   try {
+    let env: any = null;
+    try {
+      const ctx = getCloudflareContext();
+      env = ctx?.env ?? null;
+    } catch {
+      env = null;
+    }
+    const d1 = env?.DB ?? null;
+
+    if (env && !d1 && process.env.NODE_ENV === 'production') {
+      console.error('D1 binding DB is undefined', {
+        hasEnv: !!env,
+        keys: env ? Object.keys(env) : [],
+      });
+      return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+    }
+
     const { email, code } = await request.json();
     
     if (!email || !code) {
@@ -44,6 +62,152 @@ export async function POST(request: NextRequest) {
 
     const rawEmail = String(email).trim();
     const normalizedEmail = normalizeEmail(rawEmail);
+
+    if (d1) {
+      const record = (await d1
+        .prepare('SELECT * FROM otp_codes WHERE email = ?')
+        .bind(normalizedEmail)
+        .first()) as any | null;
+      
+      if (!record) {
+        return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
+      }
+      
+      if (record.expiresAt < Date.now()) {
+        return NextResponse.json({ error: 'Code expired' }, { status: 400 });
+      }
+      
+      if (record.attempts >= 5) {
+        return NextResponse.json({ error: 'Too many attempts' }, { status: 400 });
+      }
+      
+      // Verify hash (simple base64 check matching request-otp)
+      const inputHash = Buffer.from(code).toString('base64');
+      
+      if (inputHash !== record.codeHash) {
+        await d1
+          .prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?')
+          .bind(normalizedEmail)
+          .run();
+        return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
+      }
+      
+      // Code valid!
+      await d1.prepare('DELETE FROM otp_codes WHERE email = ?').bind(normalizedEmail).run();
+      
+      // 2. Find or Create User
+      const usersResult = await d1
+        .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users')
+        .all();
+      const users = (usersResult?.results ?? []) as User[];
+      const matches = users.filter((u) => normalizeEmail(String(u.email || '')) === normalizedEmail);
+      let user: User | undefined;
+
+      if (matches.length > 1) {
+        const sorted = [...matches].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        console.error('Duplicate users with same normalized email', {
+          normalizedEmail,
+          userIds: sorted.map((u) => u.id),
+        });
+        user = sorted[0];
+      } else if (matches.length === 1) {
+        user = matches[0];
+      } else {
+        const rawUser = (await d1
+          .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users WHERE email = ?')
+          .bind(rawEmail)
+          .first()) as User | null;
+        if (rawUser) {
+          try {
+            await d1
+              .prepare('UPDATE users SET email = ? WHERE id = ?')
+              .bind(normalizedEmail, rawUser.id)
+              .run();
+            user = { ...rawUser, email: normalizedEmail };
+          } catch (e) {
+            console.error('Failed to normalize user email', {
+              rawEmail,
+              normalizedEmail,
+              userId: rawUser.id,
+              error: e,
+            });
+            user = rawUser;
+          }
+        }
+      }
+
+      if (!user) {
+        const id = randomUUID();
+        const createdAt = Date.now();
+        user = {
+          id,
+          email: normalizedEmail,
+          plan: 'free',
+          planExpiresAt: null,
+          createdAt,
+          freeReportsUsed: 0,
+        } as User;
+        await d1
+          .prepare(
+            'INSERT INTO users (id, email, plan, planExpiresAt, createdAt, free_reports_used) VALUES (?, ?, ?, ?, ?, ?)'
+          )
+          .bind(user.id, user.email, user.plan, user.planExpiresAt, user.createdAt, user.freeReportsUsed ?? 0)
+          .run();
+      }
+
+      // 3. Create Session
+      const sessionId = randomBytes(32).toString('hex');
+      const createdAt = Date.now();
+      const expiresAt = createdAt + 30 * 24 * 60 * 60 * 1000;
+      await d1
+        .prepare('INSERT INTO sessions (sessionId, userId, expiresAt, createdAt) VALUES (?, ?, ?, ?)')
+        .bind(sessionId, user.id, expiresAt, createdAt)
+        .run();
+
+      if ((user as any).email_verified !== 1) {
+        const existingToken = (user as any).email_verify_token as string | null | undefined;
+        const existingExpiresAt = (user as any)
+          .email_verify_token_expires_at as number | null | undefined;
+        const now = Date.now();
+
+        if (existingToken && existingExpiresAt && existingExpiresAt > now) {
+          console.log('[email-verify] OTP login: reuse existing active token', {
+            userId: user.id,
+            tokenPrefix: existingToken.slice(0, 6),
+            expiresAt: existingExpiresAt,
+          });
+        } else {
+          const token = randomBytes(32).toString('hex');
+          const expiresAt = now + 24 * 60 * 60 * 1000;
+          try {
+            await d1
+              .prepare('UPDATE users SET email_verify_token = ?, email_verify_token_expires_at = ? WHERE id = ?')
+              .bind(token, expiresAt, user.id)
+              .run();
+            const appUrl = resolveAppUrl();
+            const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
+            await sendVerifyEmail(user.email, verifyUrl);
+            console.log('[email-verify] OTP login: issued new token', {
+              userId: user.id,
+              tokenPrefix: token.slice(0, 6),
+              expiresAt,
+            });
+          } catch (e) {
+            console.error('Failed to send verification email after OTP login', e);
+          }
+        }
+      }
+
+      (await cookies()).set('session_id', sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: new Date(expiresAt),
+        path: '/',
+      });
+
+      return NextResponse.json({ success: true, redirectTo: '/dashboard' });
+    }
 
     const record = dbService.getOTP(normalizedEmail);
     

@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 export async function GET() {
-  const key = (process.env.OPENAI_API_KEY ?? '').trim();
+  let env: any = null;
+  try {
+    const ctx = getCloudflareContext();
+    env = ctx?.env ?? null;
+  } catch {
+    env = null;
+  }
+
   return NextResponse.json({
-    cwd: process.cwd(),
-    nodeEnv: process.env.NODE_ENV ?? null,
-    openaiPresent: Boolean(key),
-    openaiKeyPrefix: key ? key.slice(0, 7) : null
+    ok: true,
+    hasDB: !!env?.DB,
+    envKeys: env ? Object.keys(env) : [],
   });
 }
