@@ -1,4 +1,5 @@
 import { join } from 'path';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 import type { Database as SqliteDatabase } from 'better-sqlite3';
 
@@ -11,6 +12,59 @@ let sqliteDb: SqliteDatabase | null = null;
 
 function isCloudflareRuntime(): boolean {
   return Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
+}
+
+function getD1FromContext(): any | null {
+  try {
+    const ctx = getCloudflareContext();
+    return (ctx as any)?.env?.DB ?? (ctx as any)?.context?.env?.DB ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function waitFor<T>(promise: Promise<T>): T {
+  if (typeof SharedArrayBuffer === 'undefined' || typeof Atomics === 'undefined') {
+    throw new Error('Async wait is not supported in this runtime');
+  }
+  const buffer = new SharedArrayBuffer(4);
+  const view = new Int32Array(buffer);
+  let result: T | undefined;
+  let error: any;
+  promise
+    .then((value) => {
+      result = value;
+      Atomics.store(view, 0, 1);
+      Atomics.notify(view, 0);
+    })
+    .catch((err) => {
+      error = err;
+      Atomics.store(view, 0, 1);
+      Atomics.notify(view, 0);
+    });
+  while (Atomics.load(view, 0) === 0) {
+    Atomics.wait(view, 0, 0, 50);
+  }
+  if (error) throw error;
+  return result as T;
+}
+
+function createD1Adapter(d1: any): SqliteDatabase {
+  return {
+    prepare(sql: string) {
+      return {
+        get: (...params: any[]) => {
+          return waitFor(d1.prepare(sql).bind(...params).first());
+        },
+        all: (...params: any[]) => {
+          return waitFor(d1.prepare(sql).bind(...params).all());
+        },
+        run: (...params: any[]) => {
+          return waitFor(d1.prepare(sql).bind(...params).run());
+        },
+      };
+    },
+  } as unknown as SqliteDatabase;
 }
 
 function getRequire(): NodeRequire | null {
@@ -278,6 +332,10 @@ export function getSqliteDb(): SqliteDatabase {
   if (sqliteDb) return sqliteDb;
 
   if (isCloudflareRuntime()) {
+    const d1 = getD1FromContext();
+    if (d1) {
+      return createD1Adapter(d1);
+    }
     throw new Error('SQLite is not available in Cloudflare runtime');
   }
 
