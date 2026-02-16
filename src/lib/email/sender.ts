@@ -1,14 +1,20 @@
 import { Resend } from 'resend';
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+type EmailEnv = {
+  resendApiKey?: string | null;
+  resendFrom?: string | null;
+  emailProvider?: string | null;
+  devOtp?: boolean;
+};
 
 const defaultFrom = 'no-reply@updates.isaudi.ai';
 
-function resolveFromEmail(): string {
-  const provider = process.env.EMAIL_PROVIDER;
-  const envFrom = process.env.EMAIL_FROM;
+function createResend(apiKey?: string | null): Resend | null {
+  const trimmed = apiKey ? apiKey.trim() : '';
+  return trimmed ? new Resend(trimmed) : null;
+}
+
+function resolveFromEmail(envFrom?: string | null, provider?: string | null): string {
   const trimmed = envFrom ? envFrom.trim() : '';
   let value = trimmed || defaultFrom;
 
@@ -38,30 +44,33 @@ function resolveFromEmail(): string {
   return value;
 }
 
-export async function sendOTPEmail(email: string, code: string) {
-  const provider = process.env.EMAIL_PROVIDER;
+export async function sendOTPEmail(email: string, code: string, env: EmailEnv = {}) {
+  const provider = env.emailProvider ?? process.env.EMAIL_PROVIDER ?? null;
   const isResend = provider === 'resend';
+  const isProd = process.env.NODE_ENV === 'production';
+  const devOtp = env.devOtp ?? process.env.DEV_OTP === 'true';
+  const resend = createResend(env.resendApiKey ?? process.env.RESEND_API_KEY ?? null);
 
-  if (!isResend) {
-    console.log(`
-      =========================================
-      [DEV MODE] OTP Request
-      To: ${email}
-      Code: ${code}
-      =========================================
-    `);
-    return { success: true, mode: 'dev' };
+  if (!isResend || !resend) {
+    if (!isProd && devOtp) {
+      console.log(`
+        =========================================
+        [DEV MODE] OTP Request
+        To: ${email}
+        Code: ${code}
+        =========================================
+      `);
+      return { success: true, mode: 'dev' };
+    }
+
+    if (isResend && !resend) {
+      console.error('Resend API key missing but EMAIL_PROVIDER is set to "resend".');
+    }
+
+    return { success: false, mode: 'disabled' };
   }
 
-  if (!resend) {
-    console.error(
-      'Resend API key missing but EMAIL_PROVIDER is set to "resend". Falling back to console log.'
-    );
-    console.log(`[FALLBACK] OTP for ${email}: ${code}`);
-    return { success: true, mode: 'fallback' };
-  }
-
-  const fromEmail = resolveFromEmail();
+  const fromEmail = resolveFromEmail(env.resendFrom ?? process.env.EMAIL_FROM ?? null, provider);
 
   try {
     await resend.emails.send({

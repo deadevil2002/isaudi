@@ -45,8 +45,13 @@ export async function POST(request: NextRequest) {
       env = null;
     }
     const d1 = env?.DB ?? null;
+    const resendApiKey = env?.RESEND_API_KEY ?? process.env.RESEND_API_KEY ?? null;
+    const resendFrom = env?.RESEND_FROM ?? 'iSaudi <no-reply@updates.isaudi.ai>';
+    const emailProvider = env?.EMAIL_PROVIDER ?? process.env.EMAIL_PROVIDER ?? null;
+    const devOtp = env?.DEV_OTP === 'true';
+    const isProd = process.env.NODE_ENV === 'production';
 
-    if (env && !d1 && process.env.NODE_ENV === 'production') {
+    if (env && !d1 && isProd) {
       console.error('D1 binding DB is undefined', {
         hasEnv: !!env,
         keys: env ? Object.keys(env) : [],
@@ -197,7 +202,12 @@ export async function POST(request: NextRequest) {
               .run();
             const appUrl = resolveAppUrl();
             const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
-            await sendVerifyEmail(user.email, verifyUrl);
+            await sendVerifyEmail(user.email, verifyUrl, {
+              resendApiKey,
+              resendFrom,
+              emailProvider,
+              devOtp,
+            });
             console.log('[email-verify] OTP login: issued new token', {
               userId: user.id,
               tokenPrefix: token.slice(0, 6),
@@ -303,7 +313,12 @@ export async function POST(request: NextRequest) {
           dbService.setEmailVerificationToken(user.id, token, expiresAt);
           const appUrl = resolveAppUrl();
           const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
-          await sendVerifyEmail(user.email, verifyUrl);
+          await sendVerifyEmail(user.email, verifyUrl, {
+            resendApiKey,
+            resendFrom,
+            emailProvider,
+            devOtp,
+          });
           console.log('[email-verify] OTP login: issued new token', {
             userId: user.id,
             tokenPrefix: token.slice(0, 6),

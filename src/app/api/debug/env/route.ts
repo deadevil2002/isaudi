@@ -13,6 +13,8 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     hasDB: !!env?.DB,
+    hasResendKey: !!env?.RESEND_API_KEY,
+    hasResendFrom: !!env?.RESEND_FROM,
     envKeys: env ? Object.keys(env) : [],
   });
 }

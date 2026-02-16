@@ -1,14 +1,20 @@
 import { Resend } from 'resend';
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+type EmailEnv = {
+  resendApiKey?: string | null;
+  resendFrom?: string | null;
+  emailProvider?: string | null;
+  devOtp?: boolean;
+};
 
 const defaultFrom = 'no-reply@updates.isaudi.ai';
 
-function resolveFromEmail(): string {
-  const provider = process.env.EMAIL_PROVIDER;
-  const envFrom = process.env.EMAIL_FROM;
+function createResend(apiKey?: string | null): Resend | null {
+  const trimmed = apiKey ? apiKey.trim() : '';
+  return trimmed ? new Resend(trimmed) : null;
+}
+
+function resolveFromEmail(envFrom?: string | null, provider?: string | null): string {
   const trimmed = envFrom ? envFrom.trim() : '';
   let value = trimmed || defaultFrom;
 
@@ -56,28 +62,37 @@ function redactVerifyUrl(verifyUrl: string): string {
   }
 }
 
-export async function sendVerifyEmail(toEmail: string, verifyUrl: string): Promise<void> {
-  const provider = process.env.EMAIL_PROVIDER;
+export async function sendVerifyEmail(
+  toEmail: string,
+  verifyUrl: string,
+  env: EmailEnv = {}
+): Promise<void> {
+  const provider = env.emailProvider ?? process.env.EMAIL_PROVIDER ?? null;
   const isResend = provider === 'resend';
+  const isProd = process.env.NODE_ENV === 'production';
+  const devOtp = env.devOtp ?? process.env.DEV_OTP === 'true';
+  const resend = createResend(env.resendApiKey ?? process.env.RESEND_API_KEY ?? null);
 
   if (!isResend || !resend) {
-    if (isResend && !resend) {
-      console.error(
-        'Resend API key missing but EMAIL_PROVIDER is set to "resend". Falling back to console log.'
-      );
+    if (!isProd && devOtp) {
+      const safeUrl = redactVerifyUrl(verifyUrl);
+      console.log(`
+        =========================================
+        [DEV MODE] Verify Email
+        To: ${toEmail}
+        Link: ${safeUrl}
+        =========================================
+      `);
+      return;
     }
-    const safeUrl = redactVerifyUrl(verifyUrl);
-    console.log(`
-      =========================================
-      [DEV MODE] Verify Email
-      To: ${toEmail}
-      Link: ${safeUrl}
-      =========================================
-    `);
+
+    if (isResend && !resend) {
+      console.error('Resend API key missing but EMAIL_PROVIDER is set to "resend".');
+    }
     return;
   }
 
-  const fromEmail = resolveFromEmail();
+  const fromEmail = resolveFromEmail(env.resendFrom ?? process.env.EMAIL_FROM ?? null, provider);
 
   await resend.emails.send({
     from: fromEmail,

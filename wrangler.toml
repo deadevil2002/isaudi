@@ -12,3 +12,6 @@ binding = "DB"
 database_name = "isaudi-db"
 database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"
 preview_database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"
+
+[vars]
+RESEND_FROM = "iSaudi <no-reply@updates.isaudi.ai>"

@@ -16,13 +16,22 @@ export async function POST(request: NextRequest) {
     }
 
     const d1 = env?.DB ?? null;
+    const resendApiKey = env?.RESEND_API_KEY ?? process.env.RESEND_API_KEY ?? null;
+    const resendFrom = env?.RESEND_FROM ?? 'iSaudi <no-reply@updates.isaudi.ai>';
+    const emailProvider = env?.EMAIL_PROVIDER ?? process.env.EMAIL_PROVIDER ?? null;
+    const devOtp = env?.DEV_OTP === 'true';
+    const isProd = process.env.NODE_ENV === 'production';
 
-    if (env && !d1 && process.env.NODE_ENV === 'production') {
+    if (env && !d1 && isProd) {
       console.error('D1 binding DB is undefined', {
         hasEnv: !!env,
         keys: env ? Object.keys(env) : [],
       });
       return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+    }
+
+    if (isProd && !resendApiKey) {
+      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
     }
 
     const { email } = await request.json();
@@ -56,7 +65,16 @@ export async function POST(request: NextRequest) {
       dbService.createOTP(normalizedEmail, codeHash);
     }
     
-    await sendOTPEmail(rawEmail, code);
+    const emailResult = await sendOTPEmail(rawEmail, code, {
+      resendApiKey,
+      resendFrom,
+      emailProvider,
+      devOtp,
+    });
+
+    if (!emailResult.success) {
+      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+    }
     
     return NextResponse.json({ success: true });
     
