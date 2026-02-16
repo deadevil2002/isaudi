@@ -1,11 +1,35 @@
-import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { dbService } from '@/lib/db/service';
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('session_id')?.value;
 
   if (!sessionId) return null;
+
+  let env: any = null;
+  try {
+    const ctx = getCloudflareContext();
+    env = (ctx as any)?.env ?? (ctx as any)?.context?.env ?? null;
+  } catch {
+    env = null;
+  }
+
+  const d1 = env?.DB ?? null;
+  if (d1) {
+    const session = (await d1
+      .prepare('SELECT * FROM sessions WHERE sessionId = ?')
+      .bind(sessionId)
+      .first()) as any | null;
+    if (!session) return null;
+
+    const user = (await d1
+      .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users WHERE id = ?')
+      .bind(session.userId)
+      .first()) as any | null;
+    return user ?? null;
+  }
 
   const session = dbService.getSession(sessionId);
   if (!session) return null;
