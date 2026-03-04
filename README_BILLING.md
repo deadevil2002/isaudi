@@ -1,47 +1,23 @@
-# Billing & Payments Implementation
+# Billing (Tap Only)
 
-This project uses **Moyasar** for Saudi-friendly payments (SAR).
+- Tap only. Moyasar is not used.
 
-## 1. Setup
+## Flow
 
-### Environment Variables
-Add these to your `.env.local` and Cloudflare Pages settings:
+1) Client requests a payment
+- Endpoint: POST /api/billing/tap/create-payment
+- Body: { planId: "starter|growth|enterprise", interval: "month|year" }
 
-```env
-MOYASAR_SECRET_KEY=sk_test_...
-MOYASAR_PUBLISHABLE_KEY=pk_test_...
-APP_URL=https://your-domain.com
-```
+2) Server responds
+- Response JSON includes: { redirectUrl } (or url fallback)
 
-### Cloudflare Deployment
-Since payment processing involves API routes (`/api/billing/*`), this project uses **Cloudflare Pages Functions**.
-Do NOT enable static export (`output: "export"`) in `next.config.ts`.
+3) Client redirects user
+- Browser is redirected to the Tap checkout page (redirectUrl)
 
-## 2. Webhook Configuration
+4) Return and refresh
+- After payment completion, Tap redirects back (e.g. to /billing?status=success)
+- The UI refreshes the subscription status on load
 
-To receive payment confirmations, configure the webhook in your Moyasar Dashboard:
-
-- **URL**: `https://your-domain.com/api/billing/webhook/moyasar`
-- **Events**: `invoice.paid` (or `payment.paid`)
-
-## 3. Testing (DEV Mode)
-
-1. **Login**: Go to `/login` and sign in.
-2. **Go to Billing**: Navigate to `/billing`.
-3. **Select Plan**: Click "اشترك شهريًا" for any plan.
-   - If `MOYASAR_SECRET_KEY` is **missing**, the system mocks a successful payment and redirects you back with `status=processed`.
-   - If configured, you will be redirected to the Moyasar Invoice page.
-4. **Verification**:
-   - Check the `subscriptions` and `payments` tables in `src/lib/db/local.db` (using a SQLite viewer).
-   - Verify the Dashboard now shows "Manage Subscription" instead of "Upgrade".
-   - Verify premium features are unlocked.
-
-## 4. API Routes
-
-- `POST /api/billing/create-payment`: Creates an invoice and returns redirect URL.
-- `POST /api/billing/webhook/moyasar`: Handles status updates from Moyasar.
-
-## 5. Security
-
-- **Server-Side Gating**: Use `requirePlan()` from `src/lib/auth/utils.ts` to protect API routes.
-- **Client-Side Gating**: The Dashboard UI conditionally renders content based on `user.plan`.
+## Notes
+- Do not use any Moyasar routes or webhooks. They were removed.
+- Ensure TAP_* environment variables are configured in the deployment.
