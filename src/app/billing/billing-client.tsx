@@ -31,6 +31,12 @@ const basePlans = [
   },
 ] as const;
 
+const tapPlanIdByUiPlanId = {
+  basic: "starter",
+  pro: "growth",
+  business: "enterprise",
+} as const;
+
 export function BillingClient({ user }: { user: User }) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
@@ -78,7 +84,7 @@ export function BillingClient({ user }: { user: User }) {
   const status = searchParams.get('status');
 
   useEffect(() => {
-    if (status === 'processed') {
+    if (status === 'processed' || status === 'success') {
       // In a real app, we might poll the backend to confirm the webhook processed
       // For now, we just refresh the page to show updated user state if it happened fast enough
       // or show a success message.
@@ -90,10 +96,15 @@ export function BillingClient({ user }: { user: User }) {
     setLoadingPlan(planId);
     try {
       const interval = isYearly ? 'year' : 'month';
-      const res = await fetch('/api/billing/create-payment', {
+      const apiPlanId = (tapPlanIdByUiPlanId as Record<string, string | undefined>)[planId];
+      if (!apiPlanId) {
+        throw new Error(t("billing.error.generic"));
+      }
+
+      const res = await fetch('/api/billing/tap/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, interval })
+        body: JSON.stringify({ planId: apiPlanId, interval })
       });
       
       const data = await res.json();
@@ -102,8 +113,9 @@ export function BillingClient({ user }: { user: User }) {
         throw new Error(data.error || t("billing.error.generic"));
       }
       
-      if (data.url) {
-        window.location.href = data.url;
+      const redirectUrl = data.redirectUrl || data.url;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
       }
     } catch (error) {
       console.error('Subscription error:', error);
