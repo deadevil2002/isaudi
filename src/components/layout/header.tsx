@@ -49,7 +49,7 @@ export function Header({ userEmail }: HeaderProps) {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6 mr-8">
-              <Link href="#pricing" className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
+              <Link href={userEmail ? "/billing" : "/pricing"} className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
                 {t("header.nav.pricing")}
               </Link>
               <Link href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
