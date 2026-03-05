@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const currentId = searchParams.get('current');
     const previous = searchParams.get('previous') || 'auto';
-    if (!currentId) {
-      return NextResponse.json({ error: 'current is required' }, { status: 400 });
+    if (!currentId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentId)) {
+      return NextResponse.json({ error: 'Valid current UUID is required' }, { status: 400 });
     }
 
     const cur = await dbService.getSnapshotById(user.id, currentId);
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     let prev: any = null;
     if (previous === 'auto') {
       prev = await dbService.getPreviousSnapshot(user.id, cur.time_range_start);
-    } else if (previous) {
+    } else if (previous && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(previous)) {
       prev = await dbService.getSnapshotById(user.id, previous);
     }
 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     const notCountedStatuses = ['ملغي', 'محذوف'];
     const db = await getDb();
-    const rows = db
+    const rows = (db
       .prepare(
         `
         SELECT 
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
         GROUP BY COALESCE(oi.sku,''), COALESCE(oi.product_name,'')
       `
       )
-      .all(user.id, ...notCountedStatuses, cur.time_range_start, cur.time_range_end) as any[];
+      .all(user.id, ...notCountedStatuses, cur.time_range_start, cur.time_range_end) as any[]) || [];
 
     const normalizeTitle = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
     const products: {
