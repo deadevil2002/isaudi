@@ -20,3 +20,4 @@ cloudflare-env.d.ts
 
 # local backups
 migrations_backup_*/
+.wrangler/
