@@ -3,6 +3,11 @@ main = ".open-next/worker.js"
 compatibility_date = "2026-02-15"
 compatibility_flags = ["nodejs_compat"]
 
+routes = [
+  { pattern = "isaudi.ai/*", zone_name = "isaudi.ai" },
+  { pattern = "www.isaudi.ai/*", zone_name = "isaudi.ai" }
+]
+
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
@@ -10,8 +15,13 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "isaudi-db"
-database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"
 migrations_dir = "migrations"
 
 [vars]
+APP_URL = "https://isaudi.ai"
+BASE_URL = "https://isaudi.ai"
+NEXT_PUBLIC_APP_URL = "https://isaudi.ai"
 RESEND_FROM = "iSaudi <no-reply@updates.isaudi.ai>"
+
+[triggers]
+crons = ["0 3 * * 1", "0 4 * * 1"]
