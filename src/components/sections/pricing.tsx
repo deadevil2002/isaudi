@@ -99,31 +99,33 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
           </motion.p>
 
           {/* Toggle */}
-          <div className="flex items-center justify-center gap-4 mb-12">
-            <span className={cn("text-sm font-medium transition-colors", !isYearly ? "text-gray-900" : "text-gray-500")}>
+          <div className="flex items-center justify-center mb-12">
+            <div className="flex items-center gap-4 px-4 py-2 rounded-full border border-isaudi-green/60 bg-white shadow-sm">
+              <span className={cn("text-sm font-semibold transition-colors", !isYearly ? "text-isaudi-green" : "text-gray-600")}>
               {t("pricing.monthly")}
-            </span>
-            <button
+              </span>
+              <button
               onClick={() => setIsYearly(!isYearly)}
-              className="relative w-14 h-8 bg-gray-200 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-isaudi-green"
+              className="relative w-16 h-8 bg-gray-200 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-isaudi-green border border-isaudi-green/60"
             >
               <div 
                 className={cn(
-                  "absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300",
+                  "absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300 border border-isaudi-green/60",
                 )}
                 style={{ 
                     // Manual override to ensure correct movement
-                    transform: isYearly ? "translateX(-24px)" : "translateX(0)",
-                    right: "4px" // Start from right
+                    transform: isYearly ? "translateX(-28px)" : "translateX(0)",
+                    right: "6px" // Start from right
                 }}
               />
-            </button>
-            <span className={cn("text-sm font-medium transition-colors", isYearly ? "text-gray-900" : "text-gray-500")}>
+              </button>
+              <span className={cn("text-sm font-semibold transition-colors", isYearly ? "text-isaudi-green" : "text-gray-600")}>
               {t("pricing.yearly")}{" "}
               <span className="text-isaudi-green text-xs font-bold">
                 {t("pricing.yearlyBadge")}
               </span>
-            </span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -150,15 +152,16 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
             let buttonHref = user ? `/billing?plan=${slug}&interval=${interval}` : `/login`;
 
             if (isCurrentPlan) {
-              buttonText = t("pricing.currentPlan");
+              buttonText = t("billing.currentPlan");
               buttonDisabled = true;
+              buttonHref = "/billing";
             } else if (isDowngrade) {
-              buttonText = t("pricing.downgradeNotAvailable");
+              buttonText = lang === "ar" ? "غير متاح الرجوع لأقل" : "Downgrade not available";
               buttonDisabled = true;
             } else if (user) {
-              buttonText = t("pricing.upgrade");
+              buttonText = t("dashboard.plan.upgrade");
             } else {
-              buttonText = t("pricing.subscribe");
+              buttonText = lang === "ar" ? "اشترك" : "Subscribe";
             }
 
 

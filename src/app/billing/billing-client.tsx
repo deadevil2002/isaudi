@@ -257,7 +257,7 @@ export function BillingClient({ user, subscription }: { user: User, subscription
               {plans.map((plan) => {
                 const currentPlanIndex = planOrder.indexOf(subscription?.planId || 'free');
                 const planIndex = planOrder.indexOf(plan.id);
-                const isCurrentPlan = user.plan === plan.id;
+                const isCurrentPlan = subscription?.planId === plan.id && subscription?.isActiveNow;
                 const isUpgrade = planIndex > currentPlanIndex;
                 const isDowngrade = planIndex < currentPlanIndex;
 

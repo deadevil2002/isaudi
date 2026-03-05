@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
 import { Header } from '@/components/layout/header';
 import { SettingsClient } from './settings-client';
+import { getUserEntitlements } from '@/lib/subscription/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,8 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
+  const subscription = await getUserEntitlements(user.id);
+
   return (
     <>
       <Header userEmail={user.email} />
@@ -32,6 +35,7 @@ export default async function SettingsPage() {
         emailVerified={Boolean((user as any).email_verified)}
         plan={user.plan}
         planExpiresAt={user.planExpiresAt || null}
+        subscription={subscription}
       />
     </>
   );

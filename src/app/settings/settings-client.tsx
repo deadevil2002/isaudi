@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { BackToDashboardLink } from "@/components/common/back-to-dashboard";
+import { SubscriptionEntitlements } from "@/lib/subscription/types";
 
 interface SettingsClientProps {
   userEmail: string;
   emailVerified: boolean;
   plan: string;
   planExpiresAt: number | null;
+  subscription?: SubscriptionEntitlements | null;
 }
 
 function formatDate(timestamp: number | null, lang: "ar" | "en"): string | null {
@@ -25,7 +27,7 @@ function formatDate(timestamp: number | null, lang: "ar" | "en"): string | null 
   }
 }
 
-export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt }: SettingsClientProps) {
+export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, subscription }: SettingsClientProps) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
   const [sending, setSending] = useState(false);
@@ -82,6 +84,22 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt }
       ? t("billing.plan.business")
       : plan;
   const planExpiry = formatDate(planExpiresAt, lang);
+  const startedMs = (() => {
+    const v = subscription?.startedAt ?? null;
+    if (!v) return null;
+    const asStr = String(v);
+    return asStr.length === 10 ? v * 1000 : v;
+  })();
+  const expiresMs = (() => {
+    const v = subscription?.expiresAt ?? null;
+    if (!v) return null;
+    const asStr = String(v);
+    return asStr.length === 10 ? v * 1000 : v;
+  })();
+  const subStart = formatDate(startedMs, lang);
+  const subEnd = formatDate(expiresMs, lang);
+  const isActive = Boolean(subscription?.isActiveNow);
+  const subStatus = subscription?.status || "none";
 
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20">
@@ -174,12 +192,34 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt }
                   </span>
                   <span className="font-semibold text-gray-900">{planName}</span>
                 </div>
-                {planExpiry && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">
-                      {t("settings.plan.expiry")}
-                    </span>
-                    <span className="font-medium text-gray-900">{planExpiry}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">
+                    {lang === "ar" ? "الحالة" : "Status"}
+                  </span>
+                  <span className="font-medium text-gray-900">{subStatus}</span>
+                </div>
+                {isActive ? (
+                  <>
+                    {subStart && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">
+                          {lang === "ar" ? "تاريخ البدء" : "Start date"}
+                        </span>
+                        <span className="font-medium text-gray-900">{subStart}</span>
+                      </div>
+                    )}
+                    {subEnd && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">
+                          {t("settings.plan.expiry")}
+                        </span>
+                        <span className="font-medium text-gray-900">{subEnd}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500">
+                    {lang === "ar" ? "لا يوجد اشتراك نشط" : "No active subscription"}
                   </div>
                 )}
               </div>
