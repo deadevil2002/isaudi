@@ -4,6 +4,8 @@ import { dbService } from '@/lib/db/service';
 import { Header } from '@/components/layout/header';
 import { SettingsClient } from './settings-client';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SettingsPage() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('session_id')?.value;

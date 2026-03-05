@@ -66,7 +66,7 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
           return;
         }
         const dataSnaps = await resSnaps.json();
-        const snaps = dataSnaps.snapshots || [];
+        const snaps = dataSnaps.snapshots || (Array.isArray(dataSnaps) ? dataSnaps : []);
         if (snaps.length === 0) {
           if (!cancelled) setInsightsError(t("dashboard.insights.error.noWeekly"));
           return;
@@ -339,7 +339,7 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
                                 return;
                               }
                               const data = await res.json();
-                              const snaps = data.snapshots || [];
+                              const snaps = data.snapshots || (Array.isArray(data) ? data : []);
                               setTrend(snaps);
                               if (snaps.length >= 1) {
                                 const curId = snaps[0].id;

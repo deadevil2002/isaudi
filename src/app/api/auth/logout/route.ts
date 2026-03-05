@@ -9,7 +9,13 @@ export async function POST(request: NextRequest) {
     
     if (sessionId) {
       await dbService.deleteSession(sessionId);
-      cookieStore.delete('session_id');
+      cookieStore.set('session_id', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        expires: new Date(0),
+      });
     }
     
     return NextResponse.json({ success: true, redirectTo: '/' });

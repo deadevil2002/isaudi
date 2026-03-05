@@ -37,7 +37,7 @@ const tapPlanIdByUiPlanId = {
   business: "enterprise",
 } as const;
 
-export function BillingClient({ user }: { user: User }) {
+export function BillingClient({ user, subscription }: { user: User, subscription?: { planId?: string; status?: string } | null }) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
 
@@ -78,19 +78,54 @@ export function BillingClient({ user }: { user: User }) {
 
   const [isYearly, setIsYearly] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const planOrder = Array.from(new Set(['free', ...plans.map(p => p.id)]));
   
   const status = searchParams.get('status');
+  const tapId = searchParams.get('tap_id') || searchParams.get('tapId');
 
   useEffect(() => {
-    if (status === 'processed' || status === 'success') {
-      // In a real app, we might poll the backend to confirm the webhook processed
-      // For now, we just refresh the page to show updated user state if it happened fast enough
-      // or show a success message.
+    if (status === 'processed') {
+      (async () => {
+        try {
+          const storedTapChargeId =
+            typeof window !== "undefined" ? window.sessionStorage.getItem("tapChargeId") : null;
+          const finalTapId = tapId || storedTapChargeId || "";
+
+          if (!finalTapId) {
+            setVerifyError("Missing Tap transaction ID. Please contact support if you were charged.");
+            return;
+          }
+
+          const res = await fetch("/api/billing/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tapId: finalTapId }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data?.ok) {
+            try {
+              window.sessionStorage.removeItem("tapChargeId");
+            } catch {}
+            window.location.href = "/billing?updated=1";
+            return;
+          }
+          setVerifyError("Payment verification failed. If you were charged, please contact support.");
+          router.refresh();
+        } catch {
+          setVerifyError("Payment verification failed. Please refresh and try again.");
+          router.refresh();
+        }
+      })();
+      return;
+    }
+
+    if (status === 'success') {
       router.refresh();
     }
-  }, [status, router]);
+  }, [status, tapId, router]);
 
   const handleSubscribe = async (planId: string) => {
     setLoadingPlan(planId);
@@ -114,6 +149,12 @@ export function BillingClient({ user }: { user: User }) {
       }
       
       const redirectUrl = data.redirectUrl || data.url;
+      const createdTapChargeId = typeof data?.tapChargeId === "string" ? data.tapChargeId : null;
+      if (createdTapChargeId) {
+        try {
+          window.sessionStorage.setItem("tapChargeId", createdTapChargeId);
+        } catch {}
+      }
       if (redirectUrl) {
         window.location.href = redirectUrl;
       }
@@ -172,6 +213,13 @@ export function BillingClient({ user }: { user: User }) {
                 <span>{t("billing.status.processed")}</span>
               </div>
             )}
+
+            {status === "processed" && verifyError && (
+              <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl flex items-center gap-3 border border-red-100">
+                <AlertCircle className="w-5 h-5" />
+                <span>{verifyError}</span>
+              </div>
+            )}
           </div>
 
           {/* Pricing Section */}
@@ -206,8 +254,12 @@ export function BillingClient({ user }: { user: User }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {plans.map((plan) => {
-                const isCurrentPlan = user.plan === plan.id;
-                
+                const currentPlanIndex = planOrder.indexOf(subscription?.planId || 'free');
+                const planIndex = planOrder.indexOf(plan.id);
+                const isCurrentPlan = subscription?.planId === plan.id && subscription?.status === 'active';
+                const isUpgrade = planIndex > currentPlanIndex;
+                const isDowngrade = planIndex < currentPlanIndex;
+
                 return (
                   <div 
                     key={plan.id}
@@ -251,17 +303,19 @@ export function BillingClient({ user }: { user: User }) {
                     <Button 
                       className={cn(
                         "w-full py-6 text-lg font-bold",
-                        isCurrentPlan 
+                        isCurrentPlan || isDowngrade
                           ? "bg-gray-100 text-gray-400 hover:bg-gray-100 cursor-default" 
                           : "bg-isaudi-green hover:bg-isaudi-green-dark text-white"
                       )}
-                      onClick={() => !isCurrentPlan && handleSubscribe(plan.id)}
-                      disabled={isCurrentPlan || !!loadingPlan}
+                      onClick={() => !isCurrentPlan && !isDowngrade && handleSubscribe(plan.id)}
+                      disabled={isCurrentPlan || isDowngrade || !!loadingPlan}
                     >
                       {loadingPlan === plan.id ? (
                         <Loader2 className="animate-spin" />
                       ) : isCurrentPlan ? (
                         t("billing.button.current")
+                      ) : isDowngrade ? (
+                        t("billing.button.downgrade")
                       ) : (
                         isYearly ? t("billing.button.subscribeYearly") : t("billing.button.subscribeMonthly")
                       )}

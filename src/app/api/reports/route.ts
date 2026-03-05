@@ -14,7 +14,15 @@ export async function GET(req: NextRequest) {
   if (range !== 'weekly') {
     return NextResponse.json({ error: 'Unsupported range' }, { status: 400 });
   }
-  const rows = await dbService.listSnapshots(user.id, limit);
+  const rowsRaw = await dbService.listSnapshots(user.id, limit);
+  const rows = Array.isArray(rowsRaw)
+    ? rowsRaw
+    : Array.isArray((rowsRaw as any)?.results)
+    ? (rowsRaw as any).results
+    : Array.isArray((rowsRaw as any)?.rows)
+    ? (rowsRaw as any).rows
+    : [];
+
   const items = rows.map((r: any) => ({
     id: r.id,
     createdAt: r.created_at,

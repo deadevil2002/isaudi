@@ -4,17 +4,15 @@ import { dbService } from '@/lib/db/service';
 import { DashboardClient } from './dashboard-client';
 import { Header } from '@/components/layout/header';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage({
   searchParams
 }: {
-  searchParams?: { reportId?: string };
+  searchParams: Promise<{ reportId?: string }>;
 }) {
   try {
-    const searchParamsSource = searchParams as any;
-    const resolvedSearchParams =
-      searchParamsSource && typeof searchParamsSource.then === 'function'
-        ? await searchParamsSource
-        : searchParamsSource || {};
+    const resolvedSearchParams = await searchParams;
 
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('session_id')?.value;

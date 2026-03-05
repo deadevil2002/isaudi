@@ -60,7 +60,8 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
       const res = await fetch('/api/reports?range=weekly&limit=12', { cache: 'no-store' });
       if (res.status === 401) { setLoading(false); return; }
       const data = await res.json();
-      setRows(data.snapshots || []);
+      const snaps = Array.isArray(data) ? data : (Array.isArray((data as any)?.snapshots) ? (data as any).snapshots : []);
+      setRows(snaps);
       setLoading(false);
     })();
   }, []);
