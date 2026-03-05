@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
 import { DashboardClient } from './dashboard-client';
 import { Header } from '@/components/layout/header';
+import { getUserEntitlements } from '@/lib/subscription/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,8 @@ export default async function DashboardPage({
     if (!user) {
       redirect('/login');
     }
+
+    const subscription = await getUserEntitlements(user.id);
     
     const stats = await dbService.getStoreStats(user.id);
     const storeConnection = await dbService.getStoreConnection(user.id);

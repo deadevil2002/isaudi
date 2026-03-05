@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
+import { SubscriptionEntitlements } from "@/lib/subscription/types";
 import { User } from "@/lib/db/client";
 import { Check, Loader2, CreditCard, ShieldCheck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,7 @@ const tapPlanIdByUiPlanId = {
   business: "enterprise",
 } as const;
 
-export function BillingClient({ user, subscription }: { user: User, subscription?: { planId?: string; status?: string } | null }) {
+export function BillingClient({ user, subscription }: { user: User, subscription: SubscriptionEntitlements | null }) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
 
@@ -256,7 +257,7 @@ export function BillingClient({ user, subscription }: { user: User, subscription
               {plans.map((plan) => {
                 const currentPlanIndex = planOrder.indexOf(subscription?.planId || 'free');
                 const planIndex = planOrder.indexOf(plan.id);
-                const isCurrentPlan = subscription?.planId === plan.id && subscription?.status === 'active';
+                const isCurrentPlan = user.plan === plan.id;
                 const isUpgrade = planIndex > currentPlanIndex;
                 const isDowngrade = planIndex < currentPlanIndex;
 

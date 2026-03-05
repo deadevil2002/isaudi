@@ -11,6 +11,9 @@ import { fadeIn, staggerContainer } from "@/lib/animations";
 import Image from "next/image";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
+import type { User } from "@/lib/db/client";
+import type { SubscriptionEntitlements } from "@/lib/subscription/types";
+import { comparePlans, type PlanId } from "@/lib/subscription/plans";
 
 const plans = [
   {
@@ -65,7 +68,7 @@ const plans = [
   },
 ];
 
-export function Pricing() {
+export function Pricing({ user, subscription }: { user: User | null, subscription: SubscriptionEntitlements | null }) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
   const [isYearly, setIsYearly] = useState(false);
@@ -138,6 +141,27 @@ export function Pricing() {
             const slug = plan.id;
             const interval = isYearly ? "year" : "month";
 
+            const currentPlanId = subscription?.planId || 'free';
+            const isCurrentPlan = plan.id === currentPlanId && subscription?.isActiveNow;
+            const isDowngrade = comparePlans(plan.id as PlanId, currentPlanId as PlanId) < 0;
+
+            let buttonText = t("pricing.choosePlan");
+            let buttonDisabled = false;
+            let buttonHref = user ? `/billing?plan=${slug}&interval=${interval}` : `/login`;
+
+            if (isCurrentPlan) {
+              buttonText = t("pricing.currentPlan");
+              buttonDisabled = true;
+            } else if (isDowngrade) {
+              buttonText = t("pricing.downgradeNotAvailable");
+              buttonDisabled = true;
+            } else if (user) {
+              buttonText = t("pricing.upgrade");
+            } else {
+              buttonText = t("pricing.subscribe");
+            }
+
+
             return (
               <motion.div
                 key={plan.id}
@@ -202,8 +226,9 @@ export function Pricing() {
                   ))}
                 </ul>
 
-                <Link href={`/billing?plan=${slug}&interval=${interval}`} className="w-full">
+                <Link href={buttonHref} className="w-full">
                   <Button 
+                    disabled={buttonDisabled}
                     className={cn(
                       "w-full transition-colors duration-300",
                       isActive 
@@ -212,7 +237,7 @@ export function Pricing() {
                     )}
                     variant={isActive ? "default" : "outline"}
                   >
-                    {t("pricing.choosePlan")}
+                    {buttonText}
                   </Button>
                 </Link>
               </motion.div>

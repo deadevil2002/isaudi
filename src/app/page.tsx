@@ -12,6 +12,9 @@ import { dbService } from '@/lib/db/service';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+import { getCurrentUser } from "@/lib/auth/utils";
+import { getUserEntitlements } from "@/lib/subscription/service";
+
 export default async function Home() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('session_id')?.value;
@@ -22,13 +25,16 @@ export default async function Home() {
     }
   }
 
+  const user = await getCurrentUser();
+  const subscription = user ? await getUserEntitlements(user.id) : null;
+
   return (
     <main className="min-h-screen bg-white selection:bg-isaudi-green/20 selection:text-isaudi-green-dark">
       <Header />
       <Hero />
       <HowItWorks />
       <SampleReport />
-      <Pricing />
+      <Pricing user={user} subscription={subscription} />
       <Trust />
       <Footer />
     </main>
