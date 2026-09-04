@@ -18,16 +18,16 @@ To enable the "Connect Salla" button, you must configure a Salla Developer App.
 ### Setup Steps:
 1. Go to [Salla Partners Portal](https://partners.salla.sa/).
 2. Create a new App.
-3. Set Redirect URI to: `https://your-domain.com/api/connect/salla/callback` (or `http://localhost:3000/api/connect/salla/callback` for dev).
+3. Set the production Redirect URI to `https://isaudi.ai/api/connect/salla/callback` (or `http://localhost:3000/api/connect/salla/callback` for local development).
 4. Copy `Client ID` and `Client Secret`.
-5. Add to `.env.local` (or Cloudflare Pages Environment Variables).
+5. Add local values to `.env.local`; configure production values as Cloudflare Worker secrets or variables.
 
 ### Environment Variables
 ```env
 # Salla OAuth
 SALLA_CLIENT_ID=your_client_id
 SALLA_CLIENT_SECRET=your_client_secret
-SALLA_REDIRECT_URL=http://localhost:3000/api/connect/salla/callback
+SALLA_REDIRECT_URL=https://isaudi.ai/api/connect/salla/callback
 
 # Security
 # Used to encrypt/decrypt tokens in the DB. Must be 32 bytes or use AUTH_SECRET fallback.
@@ -53,7 +53,7 @@ New tables added to SQLite (D1 compatible):
 - `orders`: Unified order schema.
 
 ## 4. Cloudflare Deployment Note
-This project uses Next.js App Router. When deploying to Cloudflare Pages:
-- The API routes (`/api/*`) run as Cloudflare Pages Functions.
-- Ensure all Environment Variables are set in the Cloudflare Dashboard.
-- `sqlite3` is used for local dev. For Prod, ensure D1 binding is configured if migrating to D1 (currently using file-based SQLite for MVP compatibility).
+This project uses the Next.js App Router through OpenNext on a Cloudflare Worker:
+- API routes are same-origin under `https://isaudi.ai/api/*`.
+- Production environment values are configured for the Cloudflare Worker.
+- Production storage uses D1 database `isaudi-db` through binding `DB`.
