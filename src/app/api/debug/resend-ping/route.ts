@@ -15,6 +15,10 @@ function safeCause(cause: unknown): string | undefined {
 }
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return new NextResponse(null, { status: 404 });
+  }
+
   let env: any = null;
   try {
     const ctx = getCloudflareContext();
