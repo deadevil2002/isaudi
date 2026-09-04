@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
 import { getDb } from '@/lib/db/client';
 import { getCurrentUser } from '@/lib/auth/utils';
+import { resolveReportForUser } from '@/lib/reports/ownership';
 import { createHash, randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
@@ -10,10 +11,19 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { reportId } = await req.json().catch(() => ({ reportId: null as string | null }));
-    const targetReportId = reportId || (await dbService.getLatestReport(user.id))?.id;
-    if (!targetReportId) {
-    return NextResponse.json({ error: 'No report context. Data files missing.' }, { status: 400 });
+    const requestedReportId =
+      typeof reportId === 'string' && reportId.trim() ? reportId.trim() : null;
+    const targetReport = await resolveReportForUser(
+      dbService,
+      user.id,
+      requestedReportId
+    );
+    if (!targetReport) {
+      return requestedReportId
+        ? NextResponse.json({ error: 'Report not found' }, { status: 404 })
+        : NextResponse.json({ error: 'No report context. Data files missing.' }, { status: 400 });
     }
+    const targetReportId = targetReport.id;
 
     const connection = await dbService.getStoreConnection(user.id);
     const db = await getDb();
@@ -40,23 +50,23 @@ export async function POST(req: NextRequest) {
              SUM(oi.allocated_revenue) as revenue, SUM(oi.qty) as qty
       FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
-      WHERE oi.report_id = ? AND COALESCE(o.status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
+       WHERE oi.report_id = ? AND o.userId = ? AND COALESCE(o.status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
       GROUP BY oi.sku, oi.product_name
       ORDER BY revenue DESC
       LIMIT 5
-    `).all(targetReportId, ...notCountedStatuses) as any[];
+    `).all(targetReportId, user.id, ...notCountedStatuses) as any[];
 
     const weakRows = await prepare(`
       SELECT COALESCE(oi.sku,'') as sku, COALESCE(oi.product_name,'') as product_name,
              SUM(oi.allocated_revenue) as revenue, SUM(oi.qty) as qty
       FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
-      WHERE oi.report_id = ? AND COALESCE(o.status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
+       WHERE oi.report_id = ? AND o.userId = ? AND COALESCE(o.status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
       GROUP BY oi.sku, oi.product_name
       HAVING SUM(oi.qty) > 0
       ORDER BY revenue ASC, qty ASC
       LIMIT 5
-    `).all(targetReportId, ...notCountedStatuses) as any[];
+    `).all(targetReportId, user.id, ...notCountedStatuses) as any[];
 
     const topProducts = topRows.map(r => ({ name: r.product_name || r.sku || 'غير مسمى', sku: r.sku || null, revenue: Math.round(r.revenue * 100) / 100, qty: r.qty }));
     const weakProducts = weakRows.map(r => ({ name: r.product_name || r.sku || 'غير مسمى', sku: r.sku || null, revenue: Math.round(r.revenue * 100) / 100, qty: r.qty }));
@@ -175,9 +185,9 @@ export async function POST(req: NextRequest) {
              SUM(oi.qty) as qty, SUM(oi.allocated_revenue) as revenue_sar
       FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
-      WHERE oi.report_id = ? AND COALESCE(o.status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
+       WHERE oi.report_id = ? AND o.userId = ? AND COALESCE(o.status,'') NOT IN (${notCountedStatuses.map(() => '?').join(',')})
       GROUP BY COALESCE(oi.sku,''), COALESCE(oi.product_name,'')
-    `).all(targetReportId, ...notCountedStatuses) as any[];
+    `).all(targetReportId, user.id, ...notCountedStatuses) as any[];
 
     const normalizeTitle = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
     const findProductBySku = async (sku: string): Promise<any | null> => {
@@ -358,8 +368,11 @@ export async function POST(req: NextRequest) {
         ...JSON.parse(reportPayload),
         snapshot: { id: snapshotId, deduped, sourceHash, timeRangeStart: startOfWeek, timeRangeEnd: endOfWeek }
       });
-      await dbService.updateReportJson(targetReportId, finalReportJson);
-      const updated = await dbService.getReportById(targetReportId);
+      await dbService.updateReportJsonForUser(user.id, targetReportId, finalReportJson);
+      const updated = await dbService.getReportForUser(user.id, targetReportId);
+      if (!updated) {
+        return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      }
       return NextResponse.json(updated);
     } else {
       snapshotId = randomUUID();
@@ -386,9 +399,12 @@ export async function POST(req: NextRequest) {
         ...JSON.parse(reportPayload),
         snapshot: { id: snapshotId, deduped, sourceHash, timeRangeStart: startOfWeek, timeRangeEnd: endOfWeek }
       });
-      await dbService.updateReportJson(targetReportId, finalReportJson);
+      await dbService.updateReportJsonForUser(user.id, targetReportId, finalReportJson);
       await dbService.incrementFreeReports(user.id);
-      const updated = await dbService.getReportById(targetReportId);
+      const updated = await dbService.getReportForUser(user.id, targetReportId);
+      if (!updated) {
+        return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      }
       return NextResponse.json(updated);
     }
 

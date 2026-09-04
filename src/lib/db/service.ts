@@ -603,14 +603,18 @@ export const dbService = {
     `).run(id, userId, storeId || null, JSON.stringify({ status: 'pending' }), Date.now());
   },
 
-  updateReportJson: async (id: string, reportJson: string): Promise<void> => {
+  updateReportJsonForUser: async (userId: string, id: string, reportJson: string): Promise<void> => {
     const db = await getDb();
-    db.prepare(`UPDATE reports SET reportJson = ? WHERE id = ?`).run(reportJson, id);
+    db.prepare(`
+      UPDATE reports SET reportJson = ? WHERE id = ? AND userId = ?
+    `).run(reportJson, id, userId);
   },
 
-  getReportById: async (id: string): Promise<any> => {
+  getReportForUser: async (userId: string, id: string): Promise<any> => {
     const db = await getDb();
-    return db.prepare('SELECT * FROM reports WHERE id = ?').get(id);
+    return db.prepare(`
+      SELECT * FROM reports WHERE id = ? AND userId = ?
+    `).get(id, userId);
   },
 
   listReportsByUser: async (userId: string): Promise<any[]> => {

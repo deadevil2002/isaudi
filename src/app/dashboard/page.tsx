@@ -40,8 +40,8 @@ export default async function DashboardPage({
     const requestedReportId = resolvedSearchParams?.reportId;
     let latestReport = null as any;
     if (requestedReportId) {
-      const candidate = await dbService.getReportById(requestedReportId);
-      latestReport = candidate && candidate.userId === user.id ? candidate : await dbService.getLatestReport(user.id);
+      const candidate = await dbService.getReportForUser(user.id, requestedReportId);
+      latestReport = candidate || await dbService.getLatestReport(user.id);
     } else {
       latestReport = await dbService.getLatestReport(user.id);
     }

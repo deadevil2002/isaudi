@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "tsx --test tests/*.test.ts",
     "lint": "eslint",
     "cf:build": "opennextjs-cloudflare build && npm run strip:source-maps",
     "cf:deploy": "wrangler deploy --config ./wrangler.toml",
