@@ -1,18 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbService } from '@/lib/db/service';
-
-const SALLA_WEBHOOK_SECRET = process.env.SALLA_WEBHOOK_SECRET;
+import { getSallaEnvironment } from '@/lib/salla/environment';
+import { verifySallaWebhookSignature } from '@/lib/salla/webhook-signature';
 
 export async function POST(request: NextRequest) {
   try {
-    // Basic Verification (if Salla sends signature, verify it here)
-    // For now, we assume it's valid if secret matches (if provided in header) or just accept it
-    // Salla webhooks structure varies.
-    
+    const { SALLA_WEBHOOK_SECRET } = getSallaEnvironment();
+    if (!SALLA_WEBHOOK_SECRET) {
+      return NextResponse.json(
+        { error: 'Webhook verification unavailable' },
+        { status: 500 }
+      );
+    }
+
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-salla-signature');
+    if (
+      !verifySallaWebhookSignature(
+        rawBody,
+        signature,
+        SALLA_WEBHOOK_SECRET
+      )
+    ) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // This is a scaffold. Real implementation needs Salla's specific event payloads.
     // Example: order.created, product.updated
-    
-    const payload = await request.json();
+    const payload = JSON.parse(rawBody);
     const event = payload.event;
     const data = payload.data;
 

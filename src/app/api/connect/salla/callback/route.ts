@@ -3,27 +3,77 @@ import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
 import { encrypt } from '@/lib/crypto';
 import { randomUUID } from 'crypto';
+import { getSallaEnvironment } from '@/lib/salla/environment';
+import {
+  consumeSallaOAuthState,
+  SALLA_OAUTH_STATE_COOKIE,
+} from '@/lib/salla/oauth-state';
 
-const SALLA_CLIENT_ID = process.env.SALLA_CLIENT_ID;
-const SALLA_CLIENT_SECRET = process.env.SALLA_CLIENT_SECRET;
-const SALLA_REDIRECT_URL = process.env.SALLA_REDIRECT_URL || 'https://isaudi.ai/api/connect/salla/callback';
+function redirectAndClearState(request: NextRequest, path: string) {
+  const response = NextResponse.redirect(new URL(path, request.url));
+  response.cookies.set(SALLA_OAUTH_STATE_COOKIE, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 0,
+    expires: new Date(0),
+    path: '/api/connect/salla/callback',
+  });
+  return response;
+}
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
+    const returnedState = searchParams.get('state');
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get('session_id')?.value ?? null;
+    const storedState =
+      cookieStore.get(SALLA_OAUTH_STATE_COOKIE)?.value ?? null;
+    const {
+      SALLA_CLIENT_ID,
+      SALLA_CLIENT_SECRET,
+      SALLA_REDIRECT_URL = 'https://isaudi.ai/api/connect/salla/callback',
+    } = getSallaEnvironment();
+    if (!SALLA_CLIENT_ID || !SALLA_CLIENT_SECRET) {
+      return redirectAndClearState(
+        request,
+        '/connect/salla?error=config_missing'
+      );
+    }
+
+    const validState = await consumeSallaOAuthState({
+      returnedState,
+      sessionId,
+      signingSecret: SALLA_CLIENT_SECRET,
+      takeStoredState: () => storedState,
+      consumeNonce: (nonceHash, boundSessionId, now) =>
+        dbService.consumeSallaOAuthStateNonce(
+          nonceHash,
+          boundSessionId,
+          now
+        ),
+    });
+    if (!validState) {
+      return redirectAndClearState(request, '/connect/salla?error=oauth_failed');
+    }
+
+    if (!sessionId) {
+      return redirectAndClearState(request, '/login');
+    }
+    const session = await dbService.getSession(sessionId);
+    if (!session) {
+      return redirectAndClearState(request, '/login');
+    }
 
     if (error) {
-      return NextResponse.redirect(new URL('/connect/salla?error=' + error, request.url));
+      return redirectAndClearState(request, '/connect/salla?error=oauth_failed');
     }
 
     if (!code) {
-      return NextResponse.redirect(new URL('/connect/salla?error=no_code', request.url));
-    }
-
-    if (!SALLA_CLIENT_ID || !SALLA_CLIENT_SECRET) {
-      return NextResponse.redirect(new URL('/connect/salla?error=config_missing', request.url));
+      return redirectAndClearState(request, '/connect/salla?error=oauth_failed');
     }
 
     // Exchange code for token
@@ -43,20 +93,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokenRes.ok) {
       console.error('Salla Token Error:', tokenData);
-      return NextResponse.redirect(new URL('/connect/salla?error=token_failed', request.url));
-    }
-
-    // Get current user from session
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get('session_id')?.value;
-
-    if (!sessionId) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-
-    const session = await dbService.getSession(sessionId);
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      return redirectAndClearState(request, '/connect/salla?error=token_failed');
     }
 
     // Fetch store profile (to get store name/url)
@@ -93,10 +130,10 @@ export async function GET(request: NextRequest) {
       createdAt: Date.now()
     });
 
-    return NextResponse.redirect(new URL('/dashboard?connected=true', request.url));
+    return redirectAndClearState(request, '/dashboard?connected=true');
 
   } catch (error) {
     console.error('Salla Callback Error:', error);
-    return NextResponse.redirect(new URL('/connect/salla?error=server_error', request.url));
+    return redirectAndClearState(request, '/connect/salla?error=server_error');
   }
 }

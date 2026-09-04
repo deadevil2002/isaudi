@@ -100,6 +100,57 @@ export const dbService = {
     db.prepare('DELETE FROM sessions WHERE sessionId = ?').run(sessionId);
   },
 
+  createSallaOAuthStateNonce: async (
+    nonceHash: string,
+    sessionId: string,
+    expiresAt: number
+  ): Promise<void> => {
+    const db = await getDb();
+    const now = Date.now();
+    await db
+      .prepare(`
+        CREATE TABLE IF NOT EXISTS salla_oauth_states (
+          nonceHash TEXT PRIMARY KEY,
+          sessionId TEXT NOT NULL,
+          expiresAt INTEGER NOT NULL,
+          createdAt INTEGER NOT NULL,
+          FOREIGN KEY(sessionId) REFERENCES sessions(sessionId)
+        )
+      `)
+      .run();
+    await db
+      .prepare(`
+        CREATE INDEX IF NOT EXISTS idx_salla_oauth_states_expiresAt
+        ON salla_oauth_states(expiresAt)
+      `)
+      .run();
+    await db
+      .prepare('DELETE FROM salla_oauth_states WHERE expiresAt <= ?')
+      .run(now);
+    await db
+      .prepare(`
+        INSERT INTO salla_oauth_states (nonceHash, sessionId, expiresAt, createdAt)
+        VALUES (?, ?, ?, ?)
+      `)
+      .run(nonceHash, sessionId, expiresAt, now);
+  },
+
+  consumeSallaOAuthStateNonce: async (
+    nonceHash: string,
+    sessionId: string,
+    now: number
+  ): Promise<boolean> => {
+    const db = await getDb();
+    const consumed = await db
+      .prepare(`
+        DELETE FROM salla_oauth_states
+        WHERE nonceHash = ? AND sessionId = ? AND expiresAt > ?
+        RETURNING nonceHash
+      `)
+      .get(nonceHash, sessionId, now);
+    return Boolean(consumed);
+  },
+
   getUserById: async (id: string): Promise<User | undefined> => {
     const db = await getDb();
     return db.prepare('SELECT *, free_reports_used as freeReportsUsed FROM users WHERE id = ?').get(id) as User | undefined;
