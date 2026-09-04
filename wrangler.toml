@@ -3,11 +3,6 @@ main = ".open-next/worker.js"
 compatibility_date = "2026-02-15"
 compatibility_flags = ["nodejs_compat"]
 
-routes = [
-  { pattern = "isaudi.ai/*", zone_name = "isaudi.ai" },
-  { pattern = "www.isaudi.ai/*", zone_name = "isaudi.ai" }
-]
-
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"

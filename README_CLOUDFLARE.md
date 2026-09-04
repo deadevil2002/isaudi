@@ -16,12 +16,12 @@ Next.js 16 → OpenNext → Cloudflare Worker
 - Worker entrypoint: `.open-next/worker.js`
 - Static assets: `.open-next/assets`
 
-`wrangler.toml` is the deployment source of truth. It preserves both custom routes:
+Cloudflare currently maps both custom routes to the Worker:
 
 - `isaudi.ai/*`
 - `www.isaudi.ai/*`
 
-The `workers.dev` hostname is not the canonical application URL.
+Route ownership remains in Cloudflare rather than in `wrangler.toml`, so the deployment token does not need to modify zone routes. The `workers.dev` hostname is not the canonical application URL.
 
 ## Deployment
 

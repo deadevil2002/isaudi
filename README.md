@@ -28,7 +28,7 @@ The workflow:
 - Runs `npm run build`
 - Runs `npm run deploy` using the project-pinned OpenNext and Wrangler versions
 
-The custom production routes are:
+Cloudflare maps these custom production routes to the Worker:
 
 - `isaudi.ai/*`
 - `www.isaudi.ai/*`
