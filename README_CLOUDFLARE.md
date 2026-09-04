@@ -1,56 +1,56 @@
-# Cloudflare Pages Deployment Guide for isaudi.ai
+# Cloudflare Worker Deployment for isaudi.ai
 
-This guide explains how to deploy the **isaudi.ai** landing page to Cloudflare Pages.
+> This file replaces the obsolete Cloudflare Pages/static-export instructions. The application is not deployed as a Pages project.
 
-## Prerequisites
+## Production architecture
 
-- A GitHub account connected to the `isaudi_html` repository.
-- A Cloudflare account.
+```text
+Next.js 16 → OpenNext → Cloudflare Worker
+```
 
-## 1. Connect GitHub Repository
+- Production URL: `https://isaudi.ai`
+- First-party API base: `https://isaudi.ai/api`
+- Worker: `isaudi`
+- D1 database: `isaudi-db`
+- D1 binding: `DB`
+- Worker entrypoint: `.open-next/worker.js`
+- Static assets: `.open-next/assets`
 
-1.  Log in to the [Cloudflare Dashboard](https://dash.cloudflare.com/).
-2.  Go to **Workers & Pages** > **Create Application** > **Pages** > **Connect to Git**.
-3.  Select the `isaudi_html` repository.
+`wrangler.toml` is the deployment source of truth. It preserves both custom routes:
 
-## 2. Configure Build Settings
+- `isaudi.ai/*`
+- `www.isaudi.ai/*`
 
-Use the following settings during the setup wizard:
+The `workers.dev` hostname is not the canonical application URL.
 
-- **Framework Preset**: `Next.js (Static Export)`
-- **Build command**: `npm run build`
-- **Build output directory**: `out`
+## Deployment
 
-> **Note**: This project is configured for static export (`output: "export"` in `next.config.ts`). It does **not** require a Node.js server to run. It serves pure HTML/CSS/JS.
-
-## 3. Environment Variables
-
-No environment variables are required for the static landing page.
-
-## 4. Custom Domain Setup
-
-After the first deployment is successful:
-
-1.  Go to your Pages project > **Custom Domains**.
-2.  Click **Set up a custom domain**.
-3.  Enter `isaudi.ai` and follow the DNS configuration steps (Cloudflare will guide you to update your DNS records).
-4.  Repeat for `www.isaudi.ai`.
-
-## Changed Files Reference
-
-The following files were modified to prepare for this deployment:
-
-1.  **`next.config.ts`**: Enabled static export (`output: "export"`) and unoptimized images.
-2.  **`src/app/layout.tsx`**: Added SEO metadata (Title, Description, Open Graph) and wrapped app in `LanguageProvider`.
-3.  **`src/components/providers/language-provider.tsx`**: Created new context for bilingual RTL/LTR toggling.
-4.  **`src/components/layout/header.tsx`**: Connected language toggle button to the provider.
-
-## Verification
-
-To verify the build locally before pushing:
+Pushes to `main` trigger `.github/workflows/deploy-worker.yml`. The workflow runs:
 
 ```bash
+npm ci
 npm run build
-# Check if the 'out' directory is created
-ls out
+npm run deploy
 ```
+
+`npm run deploy` builds the OpenNext Worker and deploys it with the project-pinned tooling.
+
+Required GitHub Actions secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+
+Runtime secrets and integration credentials remain in Cloudflare; never commit them.
+
+## Local validation
+
+Before pushing deployment configuration:
+
+```bash
+npm ci
+npm run build
+npm run cf:build
+npx wrangler deploy --dry-run --config ./wrangler.toml
+```
+
+These commands build locally and validate Worker packaging without changing production.
