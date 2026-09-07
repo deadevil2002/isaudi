@@ -8,8 +8,15 @@ import { Trust } from "@/components/sections/trust";
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
+import { createPageMetadata } from '@/lib/seo/metadata';
 
 export const dynamic = 'force-dynamic';
+export const metadata = createPageMetadata({
+  title: 'isaudi.ai | ذكاء اصطناعي لتحليل ونمو المتاجر الإلكترونية',
+  description:
+    'حلّل أداء متجرك الإلكتروني في السعودية واحصل على تقارير وتوصيات عملية تساعدك على فهم المبيعات واكتشاف فرص النمو.',
+  path: '/',
+});
 export const revalidate = 0;
 
 import { getCurrentUser } from "@/lib/auth/utils";

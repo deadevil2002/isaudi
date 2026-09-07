@@ -1,8 +1,12 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "isaudi.ai",
-};
+export const metadata = createPageMetadata({
+  title: "قصص النجاح | isaudi.ai",
+  description:
+    "قصص وتجارب مرتقبة لمتاجر إلكترونية استفادت من التحليل والتوصيات لفهم أدائها وتطوير أعمالها.",
+  path: "/stories",
+  index: false,
+});
 
 export default function Page() {
   return (

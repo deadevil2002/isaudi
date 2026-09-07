@@ -1,8 +1,11 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "isaudi.ai",
-};
+export const metadata = createPageMetadata({
+  title: "عن منصة isaudi.ai",
+  description:
+    "تعرّف على isaudi.ai، منصة سعودية تساعد المتاجر الإلكترونية على فهم الأداء واتخاذ قرارات أوضح من خلال التحليل والتقارير الذكية.",
+  path: "/about",
+});
 
 export default function Page() {
   return (

@@ -12,12 +12,12 @@ const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://isaudi.ai"),
   title: t("ar", "meta.title"),
   description: t("ar", "meta.description"),
   openGraph: {
     title: t("ar", "meta.title"),
     description: t("ar", "meta.description"),
-    url: "https://isaudi.ai",
     siteName: "isaudi.ai",
     locale: "ar_SA",
     type: "website",
