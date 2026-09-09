@@ -5,6 +5,12 @@ import { normalizeEmail } from '@/lib/auth/email';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { BUILD_ID, BUILD_ID_FALLBACK } from '@/lib/build-id';
 import { otpDigest, OTP_LIMITS } from '@/lib/auth/otp';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readJsonWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +73,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email } = await request.json();
+    let payload: unknown;
+    try {
+      payload = await readJsonWithLimit(request, REQUEST_BODY_LIMITS.auth);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    const email =
+      payload && typeof payload === 'object' && 'email' in payload
+        ? (payload as { email?: unknown }).email
+        : null;
     
     if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -150,8 +166,8 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ success: true, buildId });
     
-  } catch (error) {
-    console.error('Request OTP error:', error);
+  } catch {
+    console.error('Request OTP failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

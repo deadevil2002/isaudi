@@ -92,7 +92,10 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenRes.json();
 
     if (!tokenRes.ok) {
-      console.error('Salla Token Error:', tokenData);
+      console.error('Salla token exchange failed', {
+        provider: 'salla',
+        status: tokenRes.status,
+      });
       return redirectAndClearState(request, '/connect/salla?error=token_failed');
     }
 
@@ -132,8 +135,8 @@ export async function GET(request: NextRequest) {
 
     return redirectAndClearState(request, '/dashboard?connected=true');
 
-  } catch (error) {
-    console.error('Salla Callback Error:', error);
+  } catch {
+    console.error('Salla callback failed', { provider: 'salla' });
     return redirectAndClearState(request, '/connect/salla?error=server_error');
   }
 }

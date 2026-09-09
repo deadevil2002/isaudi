@@ -5,9 +5,16 @@ import { normalizeEmail } from '@/lib/auth/email';
 import type { User } from '@/lib/db/client';
 import { getDb } from '@/lib/db/client';
 import { randomBytes, randomUUID } from 'crypto';
+import { sessionCookieOptions } from '@/lib/auth/session-cookie';
 import { sendVerifyEmail } from '@/lib/email/resend';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { evaluateOtpChallenge, limiterDigest, OTP_LIMITS, genericOtpResponse } from '@/lib/auth/otp';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readJsonWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 function resolveAppUrl(): string {
   const fallbackProd = 'https://isaudi.ai';
@@ -77,7 +84,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, code } = await request.json();
+    let payload: unknown;
+    try {
+      payload = await readJsonWithLimit(request, REQUEST_BODY_LIMITS.auth);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
+    const body =
+      payload && typeof payload === 'object'
+        ? (payload as { email?: unknown; code?: unknown })
+        : {};
+    const { email, code } = body;
     const rawCode = code;
     let codeStr = String(rawCode ?? '').trim();
     const arabicIndic = '٠١٢٣٤٥٦٧٨٩';
@@ -92,7 +110,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
     }
 
-    const rawEmail = String(email).trim();
+    const rawEmail = String(email ?? '').trim();
     const normalizedEmail = normalizeEmail(rawEmail);
     const ip = isProd
       ? (request.headers.get('cf-connecting-ip') || '').trim()
@@ -251,11 +269,7 @@ export async function POST(request: NextRequest) {
         const now = Date.now();
 
         if (existingToken && existingExpiresAt && existingExpiresAt > now) {
-          console.log('[email-verify] OTP login: reuse existing active token', {
-            userId: user.id,
-            tokenPrefix: existingToken.slice(0, 6),
-            expiresAt: existingExpiresAt,
-          });
+          console.log('[email-verify] OTP login reused active verification token');
         } else {
           const token = randomBytes(32).toString('hex');
           const expiresAt = now + 24 * 60 * 60 * 1000;
@@ -267,25 +281,18 @@ export async function POST(request: NextRequest) {
             const appUrl = resolveAppUrl();
             const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
             await sendVerifyEmail(user.email, verifyUrl, emailEnv, isProd);
-            console.log('[email-verify] OTP login: issued new token', {
-              userId: user.id,
-              tokenPrefix: token.slice(0, 6),
-              expiresAt,
-            });
-          } catch (e) {
-            console.error('Failed to send verification email after OTP login', e);
+            console.log('[email-verify] OTP login issued verification token');
+          } catch {
+            console.error('Failed to send verification email after OTP login');
           }
         }
       }
 
-      (await cookies()).set('session_id', sessionId, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        expires: new Date(expiresAt),
-        path: '/',
-      });
+      (await cookies()).set(
+        'session_id',
+        sessionId,
+        sessionCookieOptions(expiresAt, process.env.NODE_ENV === 'production')
+      );
 
       return NextResponse.json({ success: true, redirectTo: '/dashboard' });
     }
@@ -404,11 +411,7 @@ export async function POST(request: NextRequest) {
       const now = Date.now();
 
       if (existingToken && existingExpiresAt && existingExpiresAt > now) {
-        console.log('[email-verify] OTP login: reuse existing active token', {
-          userId: user.id,
-          tokenPrefix: existingToken.slice(0, 6),
-          expiresAt: existingExpiresAt,
-        });
+        console.log('[email-verify] OTP login reused active verification token');
       } else {
         const token = randomBytes(32).toString('hex');
         const expiresAt = now + 24 * 60 * 60 * 1000;
@@ -417,30 +420,24 @@ export async function POST(request: NextRequest) {
           const appUrl = resolveAppUrl();
           const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
           await sendVerifyEmail(user.email, verifyUrl, emailEnv, isProd);
-          console.log('[email-verify] OTP login: issued new token', {
-            userId: user.id,
-            tokenPrefix: token.slice(0, 6),
-            expiresAt,
-          });
-        } catch (e) {
-          console.error('Failed to send verification email after OTP login', e);
+          console.log('[email-verify] OTP login issued verification token');
+        } catch {
+          console.error('Failed to send verification email after OTP login');
         }
       }
     }
     
     // 4. Set Cookie
-    (await cookies()).set('session_id', session.sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      expires: new Date(session.expiresAt),
-      path: '/',
-    });
+    (await cookies()).set(
+      'session_id',
+      session.sessionId,
+      sessionCookieOptions(session.expiresAt, process.env.NODE_ENV === 'production')
+    );
     
     return NextResponse.json({ success: true, redirectTo: '/dashboard' });
     
-  } catch (error) {
-    console.error('Verify OTP error:', error);
+  } catch {
+    console.error('Verify OTP failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

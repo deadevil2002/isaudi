@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { originGuard } from './lib/security/origin';
+import { bodySizeGuard } from './lib/security/request-size';
 
 const CANONICAL_ORIGIN = 'https://isaudi.ai';
 
@@ -35,6 +36,9 @@ function requestHost(request: NextRequest): string {
 }
 
 export function middleware(request: NextRequest) {
+  const bodySizeBlock = bodySizeGuard(request);
+  if (bodySizeBlock) return bodySizeBlock;
+
   const originBlock = originGuard(request);
   if (originBlock) return originBlock;
 

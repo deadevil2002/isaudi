@@ -134,7 +134,7 @@ export const dbService = {
   
   deleteSession: async (sessionId: string): Promise<void> => {
     const db = await getDb();
-    db.prepare('DELETE FROM sessions WHERE sessionId = ?').run(sessionId);
+    await db.prepare('DELETE FROM sessions WHERE sessionId = ?').run(sessionId);
   },
 
   createSallaOAuthStateNonce: async (
@@ -216,15 +216,6 @@ export const dbService = {
       process.env.DEBUG_EMAIL_VERIFY === '1';
 
     const cleanToken = typeof token === 'string' ? token.trim() : '';
-    const length = cleanToken.length;
-    const head = length <= 4 ? cleanToken : cleanToken.slice(0, 4);
-    const tail = length <= 8 ? cleanToken : cleanToken.slice(-4);
-    const tokenSummary = {
-      length,
-      head,
-      tail,
-    };
-
     const countRow = db
       .prepare('SELECT COUNT(*) as c FROM users WHERE email_verify_token = ?')
       .get(cleanToken) as { c?: number } | undefined;
@@ -235,7 +226,6 @@ export const dbService = {
     if (!user) {
       if (debugEmailVerify) {
         console.log('[email-verify] invalid token', {
-          token: tokenSummary,
           countMatches,
           dbPath: DB_PATH,
           reason: 'no_user_for_token',
@@ -250,8 +240,6 @@ export const dbService = {
     if (!expiresAt || expiresAt < now) {
       if (debugEmailVerify) {
         console.log('[email-verify] expired token', {
-          token: tokenSummary,
-          userId: user.id,
           expiresAt,
           now,
           dbPath: DB_PATH,
@@ -266,8 +254,6 @@ export const dbService = {
 
     if (debugEmailVerify) {
       console.log('[email-verify] success', {
-        token: tokenSummary,
-        userId: user.id,
         dbPath: DB_PATH,
       });
     }

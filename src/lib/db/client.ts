@@ -18,6 +18,10 @@ function createD1Adapter(d1: any): any {
         run: async (...params: any[]) => d1.prepare(sql).bind(...params).run(),
       };
     },
+    batch: async (operations: Array<{ sql: string; params?: unknown[] }>) =>
+      d1.batch(
+        operations.map(({ sql, params = [] }) => d1.prepare(sql).bind(...params))
+      ),
   };
 }
 
@@ -86,8 +90,18 @@ export interface Payment {
   providerPaymentId: string | null;
   amountHalala: number;
   currency: string;
+  planId?: string | null;
+  interval?: 'month' | 'year' | null;
   status: string;
   createdAt: number;
+  updatedAt?: number | null;
+  processedAt?: number | null;
+  integrityError?: string | null;
+  processingToken?: string | null;
+  receiptClaimedAt?: number | null;
+  receiptLeaseToken?: string | null;
+  receiptEmailSentAt?: number | null;
+  receiptEmailId?: string | null;
   rawJson?: string;
 }
 

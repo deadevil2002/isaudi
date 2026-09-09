@@ -102,8 +102,7 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
         success: false,
         error: {
           status: result.status,
-          message: result.error || 'Resend API error',
-          body: result.body,
+          message: 'Email provider request failed',
         },
       };
     }
@@ -113,7 +112,6 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
       success: false,
       error: {
         message: 'Resend API request failed',
-        detail: typeof error === 'string' ? error : JSON.stringify(error),
       },
     };
   }

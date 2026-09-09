@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  REQUEST_BODY_LIMITS,
+  contentLengthExceeds,
+  readBodyWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
@@ -108,6 +114,9 @@ function parseOrderItems(itemsField: string): Array<{ sku: string | null, name: 
 
 export async function POST(request: NextRequest) {
   try {
+    if (contentLengthExceeds(request, REQUEST_BODY_LIMITS.csvImport)) {
+      return requestTooLargeResponse();
+    }
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('session_id')?.value;
     if (!sessionId) {
@@ -118,11 +127,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const form = await request.formData();
+    let boundedBody: Uint8Array;
+    try {
+      boundedBody = await readBodyWithLimit(request, REQUEST_BODY_LIMITS.csvImport);
+    } catch {
+      return requestTooLargeResponse();
+    }
+    const form = await new Response(boundedBody as unknown as BodyInit, {
+      headers: { 'content-type': request.headers.get('content-type') || '' },
+    }).formData();
     const productsFile = form.get('productsFile') as File | null;
     const ordersFile = form.get('ordersFile') as File | null;
     if (!productsFile || !ordersFile) {
       return NextResponse.json({ error: 'Both productsFile and ordersFile are required' }, { status: 400 });
+    }
+    if (
+      productsFile.size + ordersFile.size > REQUEST_BODY_LIMITS.csvImport ||
+      productsFile.size > 6 * 1024 * 1024 ||
+      ordersFile.size > 6 * 1024 * 1024
+    ) {
+      return requestTooLargeResponse();
     }
 
     const now = Date.now();

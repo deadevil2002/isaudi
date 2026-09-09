@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
 import { getCurrentUser } from '@/lib/auth/utils';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readJsonWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { message } = await req.json();
+    let body: unknown;
+    try {
+      body = await readJsonWithLimit(req, REQUEST_BODY_LIMITS.analysis);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+    const message =
+      body && typeof body === 'object' && 'message' in body
+        ? (body as { message?: unknown }).message
+        : null;
 
-    if (!message) return NextResponse.json({ error: 'Message required' }, { status: 400 });
+    if (typeof message !== 'string' || !message.trim()) {
+      return NextResponse.json({ error: 'Message required' }, { status: 400 });
+    }
 
     // Check limits
     if (user.plan === 'free' && (user.freeReportsUsed || 0) >= 2) {

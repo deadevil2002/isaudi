@@ -52,6 +52,7 @@ export async function sendEmailResend(params: {
   to: string;
   subject: string;
   html: string;
+  idempotencyKey?: string;
 }): Promise<ResendResult> {
   const apiKey = (params.env.RESEND_API_KEY ?? '').toString().trim();
 
@@ -70,6 +71,9 @@ export async function sendEmailResend(params: {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(params.idempotencyKey
+          ? { 'Idempotency-Key': params.idempotencyKey }
+          : {}),
       },
       body: JSON.stringify({
         from: params.from,

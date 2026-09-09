@@ -1,54 +1,54 @@
+import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { sendPaymentReceiptEmail } from '@/lib/email/receipt';
-import { createHmac } from 'crypto';
 import { getDb } from '@/lib/db/client';
+import { activateTapPaymentAtomically, validateTapPayment } from '@/lib/billing/tap';
+import { sendTapReceiptOnce } from '@/lib/billing/receipt';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readTextWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 type Db = {
   prepare: (sql: string) => {
     run: (...params: unknown[]) => Promise<unknown>;
     get: (...params: unknown[]) => Promise<unknown>;
-    all: (...params: unknown[]) => Promise<unknown>;
   };
+  batch: (operations: Array<{ sql: string; params?: unknown[] }>) => Promise<unknown[]>;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
-function getNestedString(obj: unknown, path: string[]): string {
-  let cur: unknown = obj;
-  for (const key of path) {
-    if (!isRecord(cur)) return '';
-    cur = cur[key];
-  }
-  return typeof cur === 'string' ? cur : typeof cur === 'number' ? String(cur) : '';
+function nestedString(value: unknown, path: string[]): string {
+  let current: unknown = value;
+  for (const key of path) current = record(current)?.[key];
+  return typeof current === 'string'
+    ? current
+    : typeof current === 'number'
+      ? String(current)
+      : '';
 }
 
-function getAmountRoundedString(amountValue: unknown, currency: string): string {
-  if (currency === 'SAR') {
-    const n =
-      typeof amountValue === 'number'
-        ? amountValue
-        : typeof amountValue === 'string'
-        ? parseFloat(amountValue)
-        : NaN;
-    if (!isFinite(n)) return '0.00';
-    return (Math.round(n * 100) / 100).toFixed(2);
-  }
-  if (typeof amountValue === 'string') return amountValue;
-  if (typeof amountValue === 'number') return String(amountValue);
-  return '';
+function amountString(value: unknown, currency: string): string {
+  const amount = typeof value === 'number' ? value : Number(value);
+  return currency === 'SAR' && Number.isFinite(amount) ? amount.toFixed(2) : '';
 }
 
-function normalizeSubscriptionFailureStatus(statusRaw: string): string {
-  const s = (statusRaw || '').toUpperCase();
-  if (s.includes('CANCEL') || s === 'VOID' || s === 'ABANDONED') return 'cancelled';
-  return 'failed';
+function safeEqualHex(expected: string, received: string): boolean {
+  if (!/^[a-f0-9]{64}$/i.test(received)) return false;
+  const left = Buffer.from(expected, 'hex');
+  const right = Buffer.from(received, 'hex');
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 export async function POST(req: NextRequest) {
-  const hashStringHeader = req.headers.get('hashstring');
-  if (!hashStringHeader) {
+  const hashString = req.headers.get('hashstring') || '';
+  if (!hashString) {
     return NextResponse.json({ ok: false, error: 'hashstring missing' }, { status: 400 });
   }
 
@@ -56,117 +56,123 @@ export async function POST(req: NextRequest) {
     process.env.TAP_SECRET_KEY || process.env.TAP_SECRET || process.env.TAP_API_KEY || '';
   if (!tapSecret) {
     return NextResponse.json(
-      { ok: false, error: 'Tap secret key not configured' },
+      { ok: false, error: 'Payment provider unavailable' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }
 
-  const raw = await req.text();
-  const bodyJson = ((): unknown => {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  })();
-
-  if (!isRecord(bodyJson)) {
-    return NextResponse.json({ ok: true }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+  let raw: string;
+  try {
+    raw = await readTextWithLimit(req, REQUEST_BODY_LIMITS.webhook);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+    return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const id = getNestedString(bodyJson, ['id']);
-  const currency = getNestedString(bodyJson, ['currency']);
-  const amountRounded = getAmountRoundedString(isRecord(bodyJson) ? bodyJson.amount : undefined, currency);
-  const gateway_reference = getNestedString(bodyJson, ['reference', 'gateway']);
-  const payment_reference = getNestedString(bodyJson, ['reference', 'payment']);
-  const status = getNestedString(bodyJson, ['status']);
-  const created = getNestedString(bodyJson, ['transaction', 'created']);
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
+  const body = record(payload);
+  if (!body) return NextResponse.json({ ok: false }, { status: 400 });
 
-  const toBeHashedString =
+  const id = nestedString(body, ['id']);
+  const currency = nestedString(body, ['currency']);
+  const status = nestedString(body, ['status']);
+  const material =
     'x_id' +
     id +
     'x_amount' +
-    amountRounded +
+    amountString(body.amount, currency) +
     'x_currency' +
     currency +
     'x_gateway_reference' +
-    (gateway_reference || '') +
+    nestedString(body, ['reference', 'gateway']) +
     'x_payment_reference' +
-    (payment_reference || '') +
+    nestedString(body, ['reference', 'payment']) +
     'x_status' +
     status +
     'x_created' +
-    (created || '');
-
-  const computed = createHmac('sha256', tapSecret).update(toBeHashedString).digest('hex').toLowerCase();
-  if (computed !== hashStringHeader.toLowerCase()) {
-    return NextResponse.json({ ok: false }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
+    nestedString(body, ['transaction', 'created']);
+  const expected = createHmac('sha256', tapSecret).update(material).digest('hex');
+  if (!safeEqualHex(expected, hashString)) {
+    return NextResponse.json({ ok: false }, { status: 401 });
   }
-
-  if (!id) {
-    return NextResponse.json({ ok: true }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
-  }
+  if (!id) return NextResponse.json({ ok: false }, { status: 400 });
 
   const db = (await getDb()) as unknown as Db;
-
-  const rowRaw = await db.prepare('SELECT userId, planId, interval, status FROM subscriptions WHERE tapChargeId = ?').get(id);
-  const row = isRecord(rowRaw) ? rowRaw : null;
-  if (!row || typeof row.userId !== 'string') {
-    console.log('[tap-webhook] unknown tapChargeId', { id, status, currency });
-    return NextResponse.json({ ok: true }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+  const paymentRaw = await db
+    .prepare(
+      `SELECT id, userId, providerPaymentId, amountHalala, currency, planId, interval,
+              status, processedAt, receiptEmailSentAt
+       FROM payments WHERE provider = 'tap' AND providerPaymentId = ?`
+    )
+    .get(id);
+  const payment = record(paymentRaw);
+  if (!payment) {
+    console.warn('[tap-webhook] unknown payment', { provider: 'tap' });
+    return NextResponse.json({ ok: false }, { status: 404 });
   }
 
-  const userId = row.userId;
-  const plan = typeof row.planId === 'string' ? row.planId : null;
-  const interval = row.interval === 'year' ? 'year' : 'month';
-  const existingStatus = typeof row.status === 'string' ? row.status : '';
-
-  const normalizedStatus = (status || '').toUpperCase();
-  const isSuccess = (normalizedStatus === 'CAPTURED' || normalizedStatus === 'SUCCESS') && currency === 'SAR';
+  const validation = validateTapPayment({
+    providerId: id,
+    providerStatus: status,
+    providerAmount: body.amount,
+    providerCurrency: currency,
+    metadata: body.metadata,
+    payment: {
+      providerPaymentId: payment.providerPaymentId,
+      userId: payment.userId,
+      planId: payment.planId,
+      interval: payment.interval,
+      amountHalala: payment.amountHalala,
+      currency: payment.currency,
+    },
+  });
+  if (!validation.ok) {
+    if (validation.reason === 'status') {
+      return NextResponse.json(
+        { ok: true, processed: false },
+        { headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+    await db
+      .prepare('UPDATE payments SET integrityError = ?, updatedAt = ? WHERE id = ?')
+      .run(validation.reason, Date.now(), payment.id);
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
 
   const now = Date.now();
-  if (isSuccess) {
-    const expiresAt =
-      interval === 'year' ? now + 365 * 24 * 60 * 60 * 1000 : now + 30 * 24 * 60 * 60 * 1000;
-    if (existingStatus !== 'active') {
-      await db
-        .prepare('UPDATE subscriptions SET status = ?, startedAt = ?, updatedAt = ?, expiresAt = ? WHERE userId = ?')
-        .run('active', now, now, expiresAt, userId);
-    } else {
-      await db.prepare('UPDATE subscriptions SET updatedAt = ? WHERE userId = ?').run(now, userId);
-    }
+  const expiresAt =
+    validation.plan.interval === 'year'
+      ? now + 365 * 24 * 60 * 60 * 1000
+      : now + 30 * 24 * 60 * 60 * 1000;
+  const claim = await activateTapPaymentAtomically({
+    db,
+    paymentId: String(payment.id),
+    providerPaymentId: id,
+    userId: validation.userId,
+    entitlementPlanId: validation.plan.entitlementPlanId,
+    interval: validation.plan.interval,
+    now,
+    expiresAt,
+  });
+  await sendTapReceiptOnce({
+    db,
+    paymentId: String(payment.id),
+    providerPaymentId: id,
+    userId: validation.userId,
+    planName: validation.plan.entitlementPlanId,
+    amountHalala: validation.plan.amountHalala,
+    interval: validation.plan.interval,
+    processedAt:
+      claim === 'activated' ? now : Number(payment.processedAt) || now,
+  });
 
-    if (plan) {
-      await db.prepare('UPDATE users SET plan = ?, planExpiresAt = ? WHERE id = ?').run(plan, expiresAt, userId);
-    }
-
-    const payment = await db.prepare('SELECT * FROM payments WHERE providerPaymentId = ?').get(id) as any;
-    if (payment && !payment.receiptEmailSentAt) {
-      const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
-      if (user) {
-        const emailResult = await sendPaymentReceiptEmail({
-          to: user.email,
-          planName: plan || 'Unknown',
-          amountSAR: payment.amountHalala / 100,
-          interval,
-          startDate: new Date(now),
-          endDate: new Date(expiresAt),
-          transactionId: id,
-          chargeId: id,
-        });
-        if (emailResult.ok) {
-          await db.prepare('UPDATE payments SET receiptEmailSentAt = ?, receiptEmailId = ? WHERE id = ?').run(Date.now(), emailResult.id, payment.id);
-        }
-      }
-    }
-  } else {
-    const failedStatus = normalizeSubscriptionFailureStatus(normalizedStatus);
-    if (existingStatus !== failedStatus) {
-      await db.prepare('UPDATE subscriptions SET status = ?, updatedAt = ? WHERE userId = ?').run(failedStatus, now, userId);
-    } else {
-      await db.prepare('UPDATE subscriptions SET updatedAt = ? WHERE userId = ?').run(now, userId);
-    }
-  }
-
-  return NextResponse.json({ ok: true }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json(
+    { ok: true, ...(claim === 'duplicate' ? { duplicate: true } : {}) },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } }
+  );
 }

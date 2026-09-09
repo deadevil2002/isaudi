@@ -72,13 +72,25 @@ CREATE TABLE IF NOT EXISTS payments (
   id TEXT PRIMARY KEY,
   userId TEXT NOT NULL,
   provider TEXT NOT NULL,
-  providerPaymentId TEXT,
+  providerPaymentId TEXT UNIQUE,
   amountHalala INTEGER NOT NULL,
   currency TEXT NOT NULL,
+  planId TEXT,
+  interval TEXT,
   status TEXT NOT NULL,
   createdAt INTEGER NOT NULL,
-  rawJson TEXT
+  updatedAt INTEGER,
+  processedAt INTEGER,
+  integrityError TEXT,
+  processingToken TEXT,
+  receiptClaimedAt INTEGER,
+  receiptLeaseToken TEXT,
+  receiptEmailSentAt INTEGER,
+  receiptEmailId TEXT,
+  rawJson TEXT,
+  UNIQUE(provider, providerPaymentId)
 );
+CREATE INDEX IF NOT EXISTS idx_payments_user_status ON payments(userId, status, createdAt);
 
 CREATE TABLE IF NOT EXISTS store_connections (
   id TEXT PRIMARY KEY,

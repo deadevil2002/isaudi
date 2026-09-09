@@ -19,8 +19,8 @@ export async function getCurrentUser() {
   const d1 = env?.DB ?? null;
   if (d1) {
     const session = (await d1
-      .prepare('SELECT * FROM sessions WHERE sessionId = ?')
-      .bind(sessionId)
+      .prepare('SELECT * FROM sessions WHERE sessionId = ? AND expiresAt > ?')
+      .bind(sessionId, Date.now())
       .first()) as any | null;
     if (!session) return null;
 

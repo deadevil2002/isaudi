@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
 import { getCurrentUser } from '@/lib/auth/utils';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readJsonWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 // API accepts SAR values for cost fields and a percent for payment fee.
 // Server converts SAR -> halala (integer) and percent -> basis points (bps).
@@ -18,7 +24,12 @@ function toBps(percent: any): number {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await req.json().catch(() => ({}));
+  let body: any = {};
+  try {
+    body = await readJsonWithLimit(req, REQUEST_BODY_LIMITS.json);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+  }
   const { identityKey, costs } = body || {};
   if (!identityKey || !costs) {
     return NextResponse.json({ error: 'identityKey and costs are required' }, { status: 400 });

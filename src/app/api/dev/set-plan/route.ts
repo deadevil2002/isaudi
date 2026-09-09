@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { dbService } from '@/lib/db/service';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readJsonWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 const allowedPlans = ['free', 'starter', 'growth', 'business'];
 
@@ -10,7 +16,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
     }
 
-    const body = await req.json().catch(() => null);
+    let body: any = null;
+    try {
+      body = await readJsonWithLimit(req, REQUEST_BODY_LIMITS.json);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+    }
     const plan = body?.plan as string | undefined;
 
     if (!plan || !allowedPlans.includes(plan)) {

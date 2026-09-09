@@ -4,13 +4,28 @@ import { getDb } from '@/lib/db/client';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { resolveReportForUser } from '@/lib/reports/ownership';
 import { createHash, randomUUID } from 'crypto';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readJsonWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { reportId } = await req.json().catch(() => ({ reportId: null as string | null }));
+    let body: unknown = {};
+    try {
+      body = await readJsonWithLimit(req, REQUEST_BODY_LIMITS.analysis);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+    }
+    const reportId =
+      body && typeof body === 'object' && 'reportId' in body
+        ? (body as { reportId?: unknown }).reportId
+        : null;
     const requestedReportId =
       typeof reportId === 'string' && reportId.trim() ? reportId.trim() : null;
     const targetReport = await resolveReportForUser(

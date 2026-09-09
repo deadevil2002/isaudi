@@ -9,6 +9,7 @@ interface ReceiptDetails {
   endDate: Date;
   transactionId: string;
   chargeId: string;
+  idempotencyKey: string;
 }
 
 export async function sendPaymentReceiptEmail(details: ReceiptDetails) {
@@ -33,5 +34,12 @@ export async function sendPaymentReceiptEmail(details: ReceiptDetails) {
     EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? null, 
   }; 
   const fromEmail = process.env.RESEND_FROM?.trim() || 'no-reply@updates.isaudi.ai'; 
-  return sendEmailResend({ env, from: fromEmail, to: details.to, subject, html: body });
+  return sendEmailResend({
+    env,
+    from: fromEmail,
+    to: details.to,
+    subject,
+    html: body,
+    idempotencyKey: details.idempotencyKey,
+  });
 }

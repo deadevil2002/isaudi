@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSallaEnvironment } from '@/lib/salla/environment';
 import { verifySallaWebhookSignature } from '@/lib/salla/webhook-signature';
+import {
+  REQUEST_BODY_LIMITS,
+  RequestBodyTooLargeError,
+  readTextWithLimit,
+  requestTooLargeResponse,
+} from '@/lib/security/request-size';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +18,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rawBody = await request.text();
+    let rawBody: string;
+    try {
+      rawBody = await readTextWithLimit(request, REQUEST_BODY_LIMITS.webhook);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
     const signature = request.headers.get('x-salla-signature');
     if (
       !verifySallaWebhookSignature(
@@ -42,12 +54,15 @@ export async function POST(request: NextRequest) {
     
     // To fix this in production: Add merchantId to store_connections and look it up here.
 
-    console.log(`Received Salla Webhook: ${event}`);
+    console.log('Received Salla webhook', {
+      provider: 'salla',
+      eventType: typeof event === 'string' ? event : 'unknown',
+    });
 
     return NextResponse.json({ success: true });
 
-  } catch (error) {
-    console.error('Webhook error:', error);
+  } catch {
+    console.error('Salla webhook processing failed', { provider: 'salla' });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

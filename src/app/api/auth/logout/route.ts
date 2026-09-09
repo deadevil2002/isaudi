@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
+import { expiredSessionCookieOptions } from '@/lib/auth/session-cookie';
 
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
     const sessionId = cookieStore.get('session_id')?.value;
     
+    cookieStore.set(
+      'session_id',
+      '',
+      expiredSessionCookieOptions(process.env.NODE_ENV === 'production')
+    );
     if (sessionId) {
       await dbService.deleteSession(sessionId);
-      cookieStore.set('session_id', '', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        expires: new Date(0),
-      });
     }
     
     return NextResponse.json({ success: true, redirectTo: '/' });
     
-  } catch (error) {
-    console.error('Logout error:', error);
+  } catch {
+    console.error('Logout failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
