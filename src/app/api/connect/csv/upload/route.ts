@@ -8,12 +8,19 @@ import {
 import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import { parse } from 'csv-parse/sync';
+import {
+  InvalidCsvUploadError,
+  csvRecord,
+  decodeCsv,
+  parseCsvText,
+  validateCsvFileMetadata,
+  validateCsvTable,
+} from '@/lib/security/csv-upload';
 
 type ProductRow = Record<string, string>;
 type OrderRow = Record<string, string>;
 
-function normalize(str: any): string {
+function normalize(str: unknown): string {
   return String(str || '').trim().toLowerCase();
 }
 
@@ -54,7 +61,7 @@ function mapProduct(row: ProductRow) {
   const entries = Object.entries(row).reduce<Record<string, string>>((acc, [k, v]) => {
     acc[normalize(k)] = v;
     return acc;
-  }, {});
+  }, Object.create(null));
   const type = entries['النوع'] || entries['type'] || '';
   const title = entries['أسم المنتج'] || entries['اسم المنتج'] || entries['product name'] || entries['name'] || '';
   const sku = entries['sku'] || entries['رمز المنتج'] || entries['رمز'] || '';
@@ -70,7 +77,7 @@ function mapOrder(row: OrderRow) {
   const entries = Object.entries(row).reduce<Record<string, string>>((acc, [k, v]) => {
     acc[normalize(k)] = v;
     return acc;
-  }, {});
+  }, Object.create(null));
   const externalId = entries['رقم الطلب'] || entries['order id'] || entries['id'] || entries['no'] || '';
   const total = entries['إجمالي الطلب'] || entries['المبلغ الإجمالي'] || entries['total'] || entries['amount'] || '';
   const createdAt = entries['تاريخ الطلب'] || entries['order date'] || entries['created at'] || '';
@@ -148,6 +155,37 @@ export async function POST(request: NextRequest) {
     ) {
       return requestTooLargeResponse();
     }
+    try {
+      validateCsvFileMetadata(productsFile.name, productsFile.type);
+      validateCsvFileMetadata(ordersFile.name, ordersFile.type);
+    } catch (error) {
+      if (error instanceof InvalidCsvUploadError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
+
+    let prodRows: string[][];
+    let orderRows: string[][];
+    let prodHeaderIndex: number;
+    let orderHeaderIndex: number;
+    try {
+      prodRows = parseCsvText(
+        decodeCsv(new Uint8Array(await productsFile.arrayBuffer()))
+      );
+      orderRows = parseCsvText(
+        decodeCsv(new Uint8Array(await ordersFile.arrayBuffer()))
+      );
+      prodHeaderIndex = detectProductsHeaderIndex(prodRows);
+      orderHeaderIndex = detectOrdersHeaderIndex(orderRows);
+      validateCsvTable(prodRows, prodHeaderIndex);
+      validateCsvTable(orderRows, orderHeaderIndex);
+    } catch (error) {
+      if (error instanceof InvalidCsvUploadError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
 
     const now = Date.now();
     await dbService.createOrUpdateStoreConnection({
@@ -174,11 +212,10 @@ export async function POST(request: NextRequest) {
     let orderItemsCount = 0;
 
     // Parse products file
-    const productsText = Buffer.from(await productsFile.arrayBuffer()).toString('utf8');
-    const prodRows: string[][] = parse(productsText, { relaxQuotes: true, relaxColumnCount: true, skipEmptyLines: true });
-    const prodHeaderIndex = detectProductsHeaderIndex(prodRows);
-    const prodHeaders = prodRows[prodHeaderIndex].map((h: any) => String(h));
-  const prodRecords = prodRows.slice(prodHeaderIndex + 1).map(r => Object.fromEntries(r.map((v, i) => [prodHeaders[i] || `col${i}`, String(v)])));
+    const prodHeaders = prodRows[prodHeaderIndex].map((header: string) => String(header));
+    const prodRecords = prodRows
+      .slice(prodHeaderIndex + 1)
+      .map((row) => csvRecord(prodHeaders, row));
 
   for (let i = 0; i < prodRecords.length; i++) {
       const raw = prodRecords[i];
@@ -228,11 +265,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse orders file
-    const ordersText = Buffer.from(await ordersFile.arrayBuffer()).toString('utf8');
-    const orderRows: string[][] = parse(ordersText, { relaxQuotes: true, relaxColumnCount: true, skipEmptyLines: true });
-    const orderHeaderIndex = detectOrdersHeaderIndex(orderRows);
-    const orderHeaders = orderRows[orderHeaderIndex].map((h: any) => String(h));
-    const orderRecords = orderRows.slice(orderHeaderIndex + 1).map(r => Object.fromEntries(r.map((v, i) => [orderHeaders[i] || `col${i}`, String(v)])));
+    const orderHeaders = orderRows[orderHeaderIndex].map((header: string) => String(header));
+    const orderRecords = orderRows
+      .slice(orderHeaderIndex + 1)
+      .map((row) => csvRecord(orderHeaders, row));
 
     let orderNoItemsExamples = 0;
     for (const raw of orderRecords) {

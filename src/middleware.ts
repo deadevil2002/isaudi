@@ -5,14 +5,7 @@ import { bodySizeGuard } from './lib/security/request-size';
 
 const CANONICAL_ORIGIN = 'https://isaudi.ai';
 
-function firstHeaderValue(value: string | null): string {
-  return value?.split(',', 1)[0]?.trim().toLowerCase() ?? '';
-}
-
 function requestScheme(request: NextRequest): string {
-  const forwardedProto = firstHeaderValue(request.headers.get('x-forwarded-proto'));
-  if (forwardedProto) return forwardedProto;
-
   const cfVisitor = request.headers.get('cf-visitor');
   if (cfVisitor) {
     try {
@@ -27,12 +20,22 @@ function requestScheme(request: NextRequest): string {
 }
 
 function requestHost(request: NextRequest): string {
-  const forwardedHost = firstHeaderValue(request.headers.get('x-forwarded-host'));
-  const host =
-    forwardedHost ||
-    firstHeaderValue(request.headers.get('host')) ||
-    request.nextUrl.hostname.toLowerCase();
-  return host.replace(/:\d+$/, '');
+  return request.nextUrl.hostname.toLowerCase().replace(/:\d+$/, '');
+}
+
+function noStore(response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', 'private, no-store');
+  return response;
+}
+
+function isSensitivePath(pathname: string): boolean {
+  return (
+    pathname.startsWith('/api/') ||
+    pathname === '/dashboard' ||
+    pathname.startsWith('/dashboard/') ||
+    pathname === '/settings' ||
+    pathname === '/billing'
+  );
 }
 
 export function middleware(request: NextRequest) {
@@ -54,18 +57,23 @@ export function middleware(request: NextRequest) {
         `${request.nextUrl.pathname}${request.nextUrl.search}`,
         CANONICAL_ORIGIN
       );
-      return NextResponse.redirect(canonicalUrl, 308);
+      return noStore(NextResponse.redirect(canonicalUrl, 308));
     }
   }
   
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const session = request.cookies.get('session_id');
     if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      const loginUrl =
+        process.env.NODE_ENV === 'production'
+          ? new URL('/login', CANONICAL_ORIGIN)
+          : new URL('/login', request.url);
+      return noStore(NextResponse.redirect(loginUrl));
     }
   }
   
-  return NextResponse.next();
+  const response = NextResponse.next();
+  return isSensitivePath(request.nextUrl.pathname) ? noStore(response) : response;
 }
 
 export const config = {

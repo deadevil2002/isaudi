@@ -10,7 +10,13 @@ import {
 } from '@/lib/salla/oauth-state';
 
 function redirectAndClearState(request: NextRequest, path: string) {
-  const response = NextResponse.redirect(new URL(path, request.url));
+  const origin =
+    process.env.NODE_ENV === 'production'
+      ? 'https://isaudi.ai'
+      : request.nextUrl.origin;
+  const response = NextResponse.redirect(new URL(path, origin), {
+    headers: { 'Cache-Control': 'private, no-store' },
+  });
   response.cookies.set(SALLA_OAUTH_STATE_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

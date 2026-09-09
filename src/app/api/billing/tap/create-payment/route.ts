@@ -45,10 +45,7 @@ export async function POST(req: NextRequest) {
     const { checkoutPlanId: planId, interval, currency, amountHalala } = plan;
     const amount = amountHalala / 100;
 
-    const proto = req.headers.get('x-forwarded-proto') || 'https';
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'isaudi.ai';
-    const origin = `${proto}://${host}`;
-    const redirectUrl = new URL('/billing?status=processed', origin).toString();
+    const redirectUrl = 'https://isaudi.ai/billing?status=processed';
     const postUrl = 'https://isaudi.ai/api/billing/tap/webhook';
 
     const tapSecret = process.env.TAP_SECRET_KEY || process.env.TAP_API_KEY || '';
