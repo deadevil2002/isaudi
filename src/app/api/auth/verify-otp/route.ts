@@ -7,6 +7,7 @@ import { getDb } from '@/lib/db/client';
 import { randomBytes, randomUUID } from 'crypto';
 import { sendVerifyEmail } from '@/lib/email/resend';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { evaluateOtpChallenge, limiterDigest, OTP_LIMITS, genericOtpResponse } from '@/lib/auth/otp';
 
 function resolveAppUrl(): string {
   const fallbackProd = 'https://isaudi.ai';
@@ -26,8 +27,6 @@ function resolveAppUrl(): string {
   }
 }
 
-const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-secret-key-change-in-prod';
-
 export async function POST(request: NextRequest) {
   try {
     let env: any = null;
@@ -39,7 +38,10 @@ export async function POST(request: NextRequest) {
     }
     const d1 = env?.DB ?? null;
     const isCloudflare = Boolean(d1) || Boolean((globalThis as any).Cloudflare) || process.env.NEXT_RUNTIME === 'edge';
-    const isProd = process.env.NODE_ENV === 'production';
+    const isProd = Boolean((globalThis as any).Cloudflare) || process.env.NODE_ENV === 'production';
+    if (isProd && !(env?.OTP_HMAC_SECRET || process.env.OTP_HMAC_SECRET)) {
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 500 });
+    }
     const emailEnv = isCloudflare
       ? {
           RESEND_API_KEY: env?.RESEND_API_KEY ?? null,
@@ -70,7 +72,6 @@ export async function POST(request: NextRequest) {
           error: 'Email service not configured',
           hasResendKey,
           hasResendFrom,
-          envKeys: env ? Object.keys(env) : [],
         },
         { status: 500 }
       );
@@ -93,61 +94,86 @@ export async function POST(request: NextRequest) {
 
     const rawEmail = String(email).trim();
     const normalizedEmail = normalizeEmail(rawEmail);
+    const ip = isProd
+      ? (request.headers.get('cf-connecting-ip') || '').trim()
+      : (request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'development').split(',')[0].trim();
+    if (!ip) return NextResponse.json({ error: 'Authentication unavailable' }, { status: 500 });
 
     if (d1) {
+      const now = Date.now();
+      const windowStart = Math.floor(now / (15 * 60 * 1000)) * (15 * 60 * 1000);
+      const rate = async (key: string, limit: number, increment = false) => {
+        const hash = limiterDigest(key, isProd, env?.OTP_HMAC_SECRET);
+        await d1.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').bind(now).run();
+        if (!increment) {
+          const existing: any = await d1.prepare('SELECT count FROM otp_rate_limits WHERE key_hash = ? AND window_start = ?').bind(hash, windowStart).first();
+          return Number(existing?.count || 0) >= limit ? Math.max(1, Math.ceil((windowStart + 15 * 60 * 1000 - now) / 1000)) : 0;
+        }
+        const updated: any = await d1.prepare(`INSERT INTO otp_rate_limits (key_hash, window_start, expires_at, count) VALUES (?, ?, ?, 1)
+          ON CONFLICT(key_hash, window_start) DO UPDATE SET count = count + 1 WHERE count < ? RETURNING count`)
+          .bind(hash, windowStart, windowStart + 15 * 60 * 1000, limit).first();
+        return updated ? 0 : Math.max(1, Math.ceil((windowStart + 15 * 60 * 1000 - now) / 1000));
+      };
+      const emailRetry = await rate(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail);
+      const ipRetry = await rate(`verify-ip:${ip}`, OTP_LIMITS.verifyIp);
+      if (emailRetry || ipRetry) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(Math.max(emailRetry, ipRetry)) } });
+      }
       const record = (await d1
-        .prepare('SELECT * FROM otp_codes WHERE email = ?')
+        .prepare('SELECT * FROM otp_challenges WHERE email = ?')
         .bind(normalizedEmail)
         .first()) as any | null;
 
-      console.log('verify-otp diagnostics', {
-        normalizedEmail,
-        rawCodeType: typeof rawCode,
-        codeStrLength: codeStr.length,
-        codeStrDigitsOnly,
-        recordExists: !!record,
-        recordExpiresAt: record?.expires_at ?? null,
-        recordConsumedAt: record?.consumed_at ?? null,
-        recordAttempts: record?.attempts ?? null,
-        hasCodeHash: Boolean(record?.codeHash),
-      });
-      
       if (!record) {
-        return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
+        await rate(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail, true);
+        await rate(`verify-ip:${ip}`, OTP_LIMITS.verifyIp, true);
+        return NextResponse.json(genericOtpResponse(), { status: 400 });
       }
       
       const nowSec = Math.floor(Date.now() / 1000);
 
       if (record.expires_at < nowSec) {
-        return NextResponse.json({ error: 'Code expired' }, { status: 400 });
+        await rate(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail, true);
+        await rate(`verify-ip:${ip}`, OTP_LIMITS.verifyIp, true);
+        return NextResponse.json(genericOtpResponse(), { status: 400 });
       }
 
       if (record.consumed_at) {
-        return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
+        await rate(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail, true);
+        await rate(`verify-ip:${ip}`, OTP_LIMITS.verifyIp, true);
+        return NextResponse.json(genericOtpResponse(), { status: 400 });
       }
       
-      if (record.attempts >= 5) {
-        return NextResponse.json({ error: 'Too many attempts' }, { status: 400 });
+      if (record.attempts >= 8) {
+        return NextResponse.json(genericOtpResponse(), { status: 400 });
       }
       
-      // Verify hash (simple base64 check matching request-otp)
-      const inputHash = Buffer.from(codeStr).toString('base64');
-      const storedHash = record.codeHash ?? null;
-      const storedCode = record.code ?? null;
+      const evaluation = evaluateOtpChallenge(
+        record,
+        normalizedEmail,
+        codeStr,
+        nowSec,
+        isProd,
+        env?.OTP_HMAC_SECRET
+      );
 
-      if ((storedHash && inputHash !== storedHash) || (!storedHash && storedCode !== code)) {
+      if (!evaluation.valid) {
         await d1
-          .prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?')
+          .prepare('UPDATE otp_challenges SET attempts = attempts + 1 WHERE email = ? AND attempts < 8')
           .bind(normalizedEmail)
           .run();
-        return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
+        const emailFailure = await rate(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail, true);
+        const ipFailure = await rate(`verify-ip:${ip}`, OTP_LIMITS.verifyIp, true);
+        if (emailFailure || ipFailure) return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(Math.max(emailFailure, ipFailure)) } });
+        return NextResponse.json(genericOtpResponse(), { status: 400 });
       }
       
       // Code valid!
-      await d1
-        .prepare('UPDATE otp_codes SET consumed_at = ? WHERE email = ?')
-        .bind(nowSec, normalizedEmail)
+      const consumed = await d1
+        .prepare('UPDATE otp_challenges SET consumed_at = ? WHERE email = ? AND otp_hash = ? AND attempts < 8 AND consumed_at IS NULL AND expires_at > ?')
+        .bind(nowSec, normalizedEmail, evaluation.digest, nowSec)
         .run();
+      if (!consumed?.meta?.changes) return NextResponse.json(genericOtpResponse(), { status: 400 });
       
       // 2. Find or Create User
       const usersResult = await d1
@@ -279,42 +305,59 @@ export async function POST(request: NextRequest) {
     };
 
     const record = await dbService.getOTP(normalizedEmail);
-
-    console.log('verify-otp diagnostics', {
-      normalizedEmail,
-      rawCodeType: typeof rawCode,
-      codeStrLength: codeStr.length,
-      codeStrDigitsOnly,
-      recordExists: !!record,
-      recordExpiresAt: record?.expiresAt ?? null,
-      recordConsumedAt: null,
-      recordAttempts: record?.attempts ?? null,
-      hasCodeHash: Boolean(record?.codeHash),
-    });
+    const emailRate = await dbService.checkRateLimit(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail);
+    const ipRate = await dbService.checkRateLimit(`verify-ip:${ip}`, OTP_LIMITS.verifyIp);
+    if (!emailRate.allowed || !ipRate.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, {
+        status: 429,
+        headers: { 'Retry-After': String(Math.max(emailRate.retryAfter, ipRate.retryAfter)) },
+      });
+    }
     
     if (!record) {
-      return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
+      await dbService.consumeRateLimit(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail);
+      await dbService.consumeRateLimit(`verify-ip:${ip}`, OTP_LIMITS.verifyIp);
+      return NextResponse.json(genericOtpResponse(), { status: 400 });
     }
     
-    if (record.expiresAt < Date.now()) {
-      return NextResponse.json({ error: 'Code expired' }, { status: 400 });
+    if (record.expires_at < Date.now()) {
+      await dbService.consumeRateLimit(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail);
+      await dbService.consumeRateLimit(`verify-ip:${ip}`, OTP_LIMITS.verifyIp);
+      return NextResponse.json(genericOtpResponse(), { status: 400 });
     }
     
-    if (record.attempts >= 5) {
-      return NextResponse.json({ error: 'Too many attempts' }, { status: 400 });
+    if (record.attempts >= 8) {
+      return NextResponse.json(genericOtpResponse(), { status: 400 });
     }
     
-    // Verify hash (simple base64 check matching request-otp)
-    const inputHash = Buffer.from(codeStr).toString('base64');
+    const evaluation = evaluateOtpChallenge(
+      record,
+      normalizedEmail,
+      codeStr,
+      Date.now(),
+      isProd
+    );
     
-    if (inputHash !== record.codeHash) {
+    if (!evaluation.valid) {
       await dbService.incrementOTPAttempts(normalizedEmail);
-      return NextResponse.json({ error: 'Invalid code' }, { status: 400 });
+      const emailFailure = await dbService.consumeRateLimit(`verify-email:${normalizedEmail}`, OTP_LIMITS.verifyEmail);
+      const ipFailure = await dbService.consumeRateLimit(`verify-ip:${ip}`, OTP_LIMITS.verifyIp);
+      if (!emailFailure.allowed || !ipFailure.allowed) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(Math.max(emailFailure.retryAfter, ipFailure.retryAfter)) } });
+      }
+      return NextResponse.json(genericOtpResponse(), { status: 400 });
     }
     
     // Code valid! 
     // 1. Clean up OTP
-    await dbService.deleteOTP(normalizedEmail);
+    const consumed = await dbService.consumeOTP(
+      normalizedEmail,
+      evaluation.digest,
+      Date.now()
+    );
+    if (!consumed) {
+      return NextResponse.json(genericOtpResponse(), { status: 400 });
+    }
     
     // 2. Find or Create User
     const matches = await findUsersByNormalizedEmail(normalizedEmail);

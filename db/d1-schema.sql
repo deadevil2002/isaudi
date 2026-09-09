@@ -19,6 +19,24 @@ CREATE TABLE IF NOT EXISTS otp_codes (
   createdAt INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS otp_challenges (
+  email TEXT PRIMARY KEY,
+  otp_hash TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  consumed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_otp_challenges_expires_at ON otp_challenges(expires_at);
+CREATE TABLE IF NOT EXISTS otp_rate_limits (
+  key_hash TEXT NOT NULL,
+  window_start INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY(key_hash, window_start)
+);
+CREATE INDEX IF NOT EXISTS idx_otp_rate_limits_window_start ON otp_rate_limits(window_start, expires_at);
+
 CREATE TABLE IF NOT EXISTS sessions (
   sessionId TEXT PRIMARY KEY,
   userId TEXT NOT NULL,

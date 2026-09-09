@@ -59,7 +59,7 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
       =========================================
       [DEV MODE] OTP Request
       To: ${email}
-      Code: ${code}
+      Code: [redacted]
       =========================================
     `);
     return { success: true, mode: 'dev' };

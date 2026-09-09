@@ -4,6 +4,7 @@ import { randomInt } from 'crypto';
 import { normalizeEmail } from '@/lib/auth/email';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { BUILD_ID, BUILD_ID_FALLBACK } from '@/lib/build-id';
+import { otpDigest, OTP_LIMITS } from '@/lib/auth/otp';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +19,9 @@ export async function POST(request: NextRequest) {
     const d1 = env?.DB ?? null;
     const isCloudflare = Boolean(env) || Boolean((globalThis as any).Cloudflare);
     const isProd = isCloudflare ? true : process.env.NODE_ENV === 'production';
+    if (isProd && !(env?.OTP_HMAC_SECRET || process.env.OTP_HMAC_SECRET)) {
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 500 });
+    }
     const buildId = BUILD_ID || BUILD_ID_FALLBACK;
     const emailEnv = isCloudflare
       ? {
@@ -58,7 +62,6 @@ export async function POST(request: NextRequest) {
           buildId,
           hasResendKey,
           hasResendFrom,
-          envKeys: env ? Object.keys(env) : [],
         },
         { status: 500 }
       );
@@ -72,34 +75,54 @@ export async function POST(request: NextRequest) {
 
     const rawEmail = email.trim();
     const normalizedEmail = normalizeEmail(rawEmail);
+    const ip = isProd
+      ? (request.headers.get('cf-connecting-ip') || '').trim()
+      : (request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'development').split(',')[0].trim();
+    if (!ip) return NextResponse.json({ error: 'Authentication unavailable' }, { status: 500 });
+    const rate = async (key: string, limit: number) => {
+      if (d1) {
+        const now = Date.now();
+        const windowStart = Math.floor(now / (15 * 60 * 1000)) * (15 * 60 * 1000);
+        const { limiterDigest } = await import('@/lib/auth/otp');
+        const hash = limiterDigest(key, isProd, env?.OTP_HMAC_SECRET);
+        await d1.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').bind(now).run();
+        const row: any = await d1.prepare(`INSERT INTO otp_rate_limits (key_hash, window_start, expires_at, count) VALUES (?, ?, ?, 1)
+          ON CONFLICT(key_hash, window_start) DO UPDATE SET count = count + 1 WHERE count < ? RETURNING count`)
+          .bind(hash, windowStart, windowStart + 15 * 60 * 1000, limit).first();
+        return row ? 0 : Math.max(1, Math.ceil((windowStart + 15 * 60 * 1000 - now) / 1000));
+      }
+      const { dbService } = await import('@/lib/db/service');
+      const result = await dbService.consumeRateLimit(key, key.startsWith('email:') ? OTP_LIMITS.requestEmail : OTP_LIMITS.requestIp);
+      return result.allowed ? 0 : result.retryAfter;
+    };
+    const emailRetry = await rate(`email:${normalizedEmail}`, OTP_LIMITS.requestEmail);
+    const ipRetry = await rate(`ip:${ip}`, OTP_LIMITS.requestIp);
+    if (emailRetry || ipRetry) {
+      const retry = Math.max(emailRetry, ipRetry);
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(retry) } });
+    }
 
-    // Generate 6-digit code
     const code = randomInt(100000, 999999).toString();
-    
-    // In a real app, we should hash this code before storing. 
-    // For simplicity in this demo, we'll store it directly but treat it as "hashed" in logic 
-    // (or implement simple hashing if needed, but plain text in DB is risky for prod)
-    // Let's do a simple base64 "hash" just to show intent, though bcrypt is better.
-    const codeHash = Buffer.from(code).toString('base64');
+    const codeHash = otpDigest(normalizedEmail, code, isProd, env?.OTP_HMAC_SECRET);
     const nowSec = Math.floor(Date.now() / 1000);
     const expiresAtSec = nowSec + 10 * 60;
 
     if (d1) {
     const updateResult = await d1
       .prepare(
-        'UPDATE otp_codes '
-          + 'SET code = ?, codeHash = ?, expires_at = ?, consumed_at = NULL, attempts = 0, created_at = ? '
+        'UPDATE otp_challenges '
+          + 'SET otp_hash = ?, expires_at = ?, consumed_at = NULL, attempts = 0, created_at = ? '
           + 'WHERE email = ?'
       )
-      .bind(code, codeHash, expiresAtSec, nowSec, normalizedEmail)
+      .bind(codeHash, expiresAtSec, nowSec, normalizedEmail)
       .run();
 
     if (!updateResult?.meta?.changes) {
       await d1
         .prepare(
-          'INSERT INTO otp_codes (email, code, codeHash, attempts, expires_at, created_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT INTO otp_challenges (email, otp_hash, attempts, expires_at, created_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?)'
         )
-        .bind(normalizedEmail, code, codeHash, 0, expiresAtSec, nowSec, null)
+        .bind(normalizedEmail, codeHash, 0, expiresAtSec, nowSec, null)
         .run();
     }
     } else if (!isCloudflare) {
@@ -113,19 +136,13 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.success) {
       const status = emailResult?.error?.status ?? undefined;
-      const resend = {
-        status,
-        error: emailResult?.error?.message ?? 'Resend API request failed',
-        body: emailResult?.error?.body ?? undefined,
-      };
       console.error(
         `request-otp resend failed buildId=${buildId} status=${status ?? 'unknown'}`
       );
       return NextResponse.json(
         {
           error: 'Email send failed',
-          buildId,
-          resend,
+           buildId,
         },
         { status: 500 }
       );

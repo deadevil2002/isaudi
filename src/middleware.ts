@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { originGuard } from './lib/security/origin';
 
 const CANONICAL_ORIGIN = 'https://isaudi.ai';
 
@@ -34,6 +35,9 @@ function requestHost(request: NextRequest): string {
 }
 
 export function middleware(request: NextRequest) {
+  const originBlock = originGuard(request);
+  if (originBlock) return originBlock;
+
   if (process.env.NODE_ENV === 'production') {
     const scheme = requestScheme(request);
     const host = requestHost(request);

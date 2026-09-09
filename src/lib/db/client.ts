@@ -52,12 +52,13 @@ export interface Report {
   createdAt: number;
 }
 
-export interface OTPCode {
+export interface OTPChallenge {
   email: string;
-  codeHash: string;
+  otp_hash: string;
   attempts: number;
-  expiresAt: number;
-  createdAt: number;
+  expires_at: number;
+  created_at: number;
+  consumed_at?: number | null;
 }
 
 export interface Session {

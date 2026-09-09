@@ -1,5 +1,6 @@
-import { getDb, User, OTPCode, Session, DB_PATH } from './client';
+import { getDb, User, OTPChallenge, Session, DB_PATH } from './client';
 import { randomUUID, randomBytes } from 'crypto';
+import { limiterDigest, OTP_LIMITS, OTP_WINDOW_MS } from '@/lib/auth/otp';
 
 export const dbService = {
   // User operations
@@ -35,33 +36,69 @@ export const dbService = {
     const now = Date.now();
     const expiresAt = now + 10 * 60 * 1000; // 10 minutes
     
-    const otp: OTPCode = {
+    const otp: OTPChallenge = {
       email,
-      codeHash,
+      otp_hash: codeHash,
       attempts: 0,
-      expiresAt,
-      createdAt: now
+      expires_at: expiresAt,
+      created_at: now
     };
     
     db.prepare(`
-      INSERT OR REPLACE INTO otp_codes (email, codeHash, attempts, expiresAt, createdAt)
-      VALUES (@email, @codeHash, @attempts, @expiresAt, @createdAt)
+      INSERT OR REPLACE INTO otp_challenges (email, otp_hash, attempts, expires_at, created_at, consumed_at)
+      VALUES (@email, @otp_hash, @attempts, @expires_at, @created_at, NULL)
     `).run(otp);
   },
 
-  getOTP: async (email: string): Promise<OTPCode | undefined> => {
+  getOTP: async (email: string): Promise<OTPChallenge | undefined> => {
     const db = await getDb();
-    return db.prepare('SELECT * FROM otp_codes WHERE email = ?').get(email) as OTPCode | undefined;
+    return db.prepare('SELECT * FROM otp_challenges WHERE email = ?').get(email) as OTPChallenge | undefined;
   },
 
   incrementOTPAttempts: async (email: string): Promise<void> => {
     const db = await getDb();
-    db.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = ?').run(email);
+    db.prepare('UPDATE otp_challenges SET attempts = attempts + 1 WHERE email = ?').run(email);
   },
   
   deleteOTP: async (email: string): Promise<void> => {
     const db = await getDb();
-    db.prepare('DELETE FROM otp_codes WHERE email = ?').run(email);
+    db.prepare('DELETE FROM otp_challenges WHERE email = ?').run(email);
+  },
+
+  consumeOTP: async (email: string, otpHash: string, now: number): Promise<boolean> => {
+    const db = await getDb();
+    const row = await db
+      .prepare(`
+        DELETE FROM otp_challenges
+        WHERE email = ?
+          AND otp_hash = ?
+          AND attempts < ?
+          AND consumed_at IS NULL
+          AND expires_at > ?
+        RETURNING email
+      `)
+      .get(email, otpHash, OTP_LIMITS.verifyEmail, now);
+    return Boolean(row);
+  },
+
+  consumeRateLimit: async (key: string, limit: number, now = Date.now()): Promise<{ allowed: boolean; retryAfter: number }> => {
+    const db = await getDb();
+    const windowStart = Math.floor(now / OTP_WINDOW_MS) * OTP_WINDOW_MS;
+    const keyHash = limiterDigest(key);
+    db.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').run(now);
+    const row = db.prepare(`INSERT INTO otp_rate_limits (key_hash, window_start, expires_at, count)
+      VALUES (?, ?, ?, 1) ON CONFLICT(key_hash, window_start) DO UPDATE SET count = count + 1
+      WHERE count < ? RETURNING count`).get(keyHash, windowStart, windowStart + OTP_WINDOW_MS, limit) as any;
+    return row ? { allowed: true, retryAfter: 0 } : { allowed: false, retryAfter: Math.max(1, Math.ceil((windowStart + OTP_WINDOW_MS - now) / 1000)) };
+  },
+
+  checkRateLimit: async (key: string, limit: number, now = Date.now()): Promise<{ allowed: boolean; retryAfter: number }> => {
+    const db = await getDb();
+    const windowStart = Math.floor(now / OTP_WINDOW_MS) * OTP_WINDOW_MS;
+    const keyHash = limiterDigest(key);
+    db.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').run(now);
+    const row = db.prepare('SELECT count FROM otp_rate_limits WHERE key_hash = ? AND window_start = ?').get(keyHash, windowStart) as any;
+    return Number(row?.count || 0) < limit ? { allowed: true, retryAfter: 0 } : { allowed: false, retryAfter: Math.max(1, Math.ceil((windowStart + OTP_WINDOW_MS - now) / 1000)) };
   },
 
   // Session operations
