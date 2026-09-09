@@ -20,7 +20,7 @@
     "release": "npm run build && npm run cf:build && npm run deploy && npm run d1:migrate:remote"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "1.17.1",
+    "@opennextjs/cloudflare": "1.20.6",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-slot": "^1.2.4",
