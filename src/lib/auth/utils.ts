@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
-import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { dbService } from '@/lib/db/service';
+import { getD1Database } from '@/lib/db/d1';
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
@@ -8,15 +8,7 @@ export async function getCurrentUser() {
 
   if (!sessionId) return null;
 
-  let env: any = null;
-  try {
-    const ctx = getCloudflareContext();
-    env = (ctx as any)?.env ?? (ctx as any)?.context?.env ?? null;
-  } catch {
-    env = null;
-  }
-
-  const d1 = env?.DB ?? null;
+  const d1 = getD1Database() as any;
   if (d1) {
     const session = (await d1
       .prepare('SELECT * FROM sessions WHERE sessionId = ? AND expiresAt > ?')

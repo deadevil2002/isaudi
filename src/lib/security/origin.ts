@@ -81,11 +81,15 @@ export function originGuard(
   production = process.env.NODE_ENV === 'production'
 ): Response | null {
   const pathname = new URL(request.url).pathname;
+  const isAdminMutation =
+    pathname.startsWith('/admin/api/') &&
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
   if (
-    request.method !== ORIGIN_PROTECTED_METHOD ||
-    !ORIGIN_PROTECTED_POST_PATHS.includes(
-      pathname as (typeof ORIGIN_PROTECTED_POST_PATHS)[number]
-    )
+    !isAdminMutation &&
+    (request.method !== ORIGIN_PROTECTED_METHOD ||
+      !ORIGIN_PROTECTED_POST_PATHS.includes(
+        pathname as (typeof ORIGIN_PROTECTED_POST_PATHS)[number]
+      ))
   ) {
     return null;
   }

@@ -28,8 +28,27 @@ function noStore(response: NextResponse): NextResponse {
   return response;
 }
 
+function adminHeaders(request: NextRequest, response: NextResponse | Response) {
+  const isAdmin =
+    request.nextUrl.pathname === '/admin' ||
+    request.nextUrl.pathname.startsWith('/admin/');
+
+  response.headers.set(
+    'Referrer-Policy',
+    isAdmin ? 'no-referrer' : 'strict-origin-when-cross-origin'
+  );
+
+  if (isAdmin) {
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  }
+  return response;
+}
+
 function isSensitivePath(pathname: string): boolean {
   return (
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/') ||
     pathname.startsWith('/api/') ||
     pathname === '/dashboard' ||
     pathname.startsWith('/dashboard/') ||
@@ -40,10 +59,10 @@ function isSensitivePath(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const bodySizeBlock = bodySizeGuard(request);
-  if (bodySizeBlock) return bodySizeBlock;
+  if (bodySizeBlock) return adminHeaders(request, bodySizeBlock);
 
   const originBlock = originGuard(request);
-  if (originBlock) return originBlock;
+  if (originBlock) return adminHeaders(request, originBlock);
 
   if (process.env.NODE_ENV === 'production') {
     const scheme = requestScheme(request);
@@ -57,7 +76,7 @@ export function middleware(request: NextRequest) {
         `${request.nextUrl.pathname}${request.nextUrl.search}`,
         CANONICAL_ORIGIN
       );
-      return noStore(NextResponse.redirect(canonicalUrl, 308));
+      return adminHeaders(request, noStore(NextResponse.redirect(canonicalUrl, 308)));
     }
   }
   
@@ -68,12 +87,15 @@ export function middleware(request: NextRequest) {
         process.env.NODE_ENV === 'production'
           ? new URL('/login', CANONICAL_ORIGIN)
           : new URL('/login', request.url);
-      return noStore(NextResponse.redirect(loginUrl));
+      return adminHeaders(request, noStore(NextResponse.redirect(loginUrl)));
     }
   }
   
   const response = NextResponse.next();
-  return isSensitivePath(request.nextUrl.pathname) ? noStore(response) : response;
+  return adminHeaders(
+    request,
+    isSensitivePath(request.nextUrl.pathname) ? noStore(response) : response
+  );
 }
 
 export const config = {

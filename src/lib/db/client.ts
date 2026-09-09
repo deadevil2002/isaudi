@@ -1,13 +1,4 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare';
-
-function getD1FromContext(): any | null {
-  try {
-    const ctx = getCloudflareContext();
-    return (ctx as any)?.env?.DB ?? (ctx as any)?.context?.env?.DB ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getD1Database } from './d1';
 
 function createD1Adapter(d1: any): any {
   return {
@@ -26,7 +17,7 @@ function createD1Adapter(d1: any): any {
 }
 
 export async function getDb(): Promise<any> {
-  const d1 = getD1FromContext();
+  const d1 = getD1Database();
   if (!d1) {
     throw new Error('D1 binding DB is not available in this runtime');
   }

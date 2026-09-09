@@ -1,11 +1,13 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, DollarSign, Lightbulb } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 
 interface ReportViewProps {
-  report: any;
+  report: {
+    reportJson: string;
+    [key: string]: unknown;
+  };
 }
 
 export function ReportView({ report }: ReportViewProps) {
@@ -92,7 +94,7 @@ export function ReportView({ report }: ReportViewProps) {
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
-              {(data.top_products || []).map((prod: any, i: number) => {
+              {(data.top_products || []).map((prod: string | { name?: string; sku?: string; revenue?: number; qty?: number }, i: number) => {
                 const name =
                   typeof prod === "string"
                     ? prod
@@ -111,7 +113,10 @@ export function ReportView({ report }: ReportViewProps) {
                 return (
                 <li key={i} className="flex items-start gap-2 bg-green-50/50 p-2 rounded-lg">
                   <CheckCircle2 className="w-4 h-4 text-green-500 mt-1 shrink-0" />
-                  <span className="text-gray-700 font-medium">{name}<span className="text-gray-500 text-xs">{meta}</span></span>
+                  <span className="text-gray-700 font-medium break-words overflow-hidden">
+                    {name}
+                    <span className="text-gray-500 text-xs block sm:inline sm:ml-1">{meta}</span>
+                  </span>
                 </li>
               )})}
             </ul>
@@ -128,7 +133,7 @@ export function ReportView({ report }: ReportViewProps) {
           </CardHeader>
           <CardContent>
             <ul className="space-y-3">
-              {(data.weak_products || []).map((prod: any, i: number) => {
+              {(data.weak_products || []).map((prod: string | { name?: string; sku?: string; revenue?: number; qty?: number }, i: number) => {
                 const name =
                   typeof prod === "string"
                     ? prod
@@ -147,7 +152,10 @@ export function ReportView({ report }: ReportViewProps) {
                 return (
                 <li key={i} className="flex items-start gap-2 bg-red-50/50 p-2 rounded-lg">
                   <AlertCircle className="w-4 h-4 text-red-400 mt-1 shrink-0" />
-                  <span className="text-gray-700 font-medium">{name}<span className="text-gray-500 text-xs">{meta}</span></span>
+                  <span className="text-gray-700 font-medium break-words overflow-hidden">
+                    {name}
+                    <span className="text-gray-500 text-xs block sm:inline sm:ml-1">{meta}</span>
+                  </span>
                 </li>
               )})}
             </ul>
@@ -196,10 +204,10 @@ export function ReportView({ report }: ReportViewProps) {
                     {t("dashboard.reportView.profitability.topProfit")}
                   </div>
                   <ul className="space-y-2">
-                    {(profitability.topProfitProducts || []).map((p: any, i: number) => (
-                      <li key={i} className="text-sm text-gray-700 flex items-center justify-between">
-                        <span>{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
-                        <span className="text-isaudi-green">{(p.totalProfit || 0).toFixed(2)} SAR • {p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
+                    {(profitability.topProfitProducts || []).map((p: { name: string; sku?: string; totalProfit?: number; marginPct?: number }, i: number) => (
+                      <li key={i} className="text-sm text-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                        <span className="truncate">{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
+                        <span className="text-isaudi-green whitespace-nowrap">{(p.totalProfit || 0).toFixed(2)} SAR • {p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
                       </li>
                     ))}
                   </ul>
@@ -209,10 +217,10 @@ export function ReportView({ report }: ReportViewProps) {
                     {t("dashboard.reportView.profitability.worstMargins")}
                   </div>
                   <ul className="space-y-2">
-                    {(profitability.lowMarginProducts || []).map((p: any, i: number) => (
-                      <li key={i} className="text-sm text-gray-700 flex items-center justify-between">
-                        <span>{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
-                        <span className="text-red-500">{p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
+                    {(profitability.lowMarginProducts || []).map((p: { name: string; sku?: string; marginPct?: number }, i: number) => (
+                      <li key={i} className="text-sm text-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                        <span className="truncate">{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
+                        <span className="text-red-500 whitespace-nowrap">{p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
                       </li>
                     ))}
                   </ul>

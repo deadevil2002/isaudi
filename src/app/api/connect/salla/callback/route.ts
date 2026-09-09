@@ -8,6 +8,10 @@ import {
   consumeSallaOAuthState,
   SALLA_OAUTH_STATE_COOKIE,
 } from '@/lib/salla/oauth-state';
+import {
+  buildSallaTokenBody,
+  resolveSallaRedirectUri,
+} from '@/lib/salla/oauth-urls';
 
 function redirectAndClearState(request: NextRequest, path: string) {
   const origin =
@@ -38,11 +42,8 @@ export async function GET(request: NextRequest) {
     const sessionId = cookieStore.get('session_id')?.value ?? null;
     const storedState =
       cookieStore.get(SALLA_OAUTH_STATE_COOKIE)?.value ?? null;
-    const {
-      SALLA_CLIENT_ID,
-      SALLA_CLIENT_SECRET,
-      SALLA_REDIRECT_URL = 'https://isaudi.ai/api/connect/salla/callback',
-    } = getSallaEnvironment();
+    const { SALLA_CLIENT_ID, SALLA_CLIENT_SECRET, SALLA_REDIRECT_URL } =
+      getSallaEnvironment();
     if (!SALLA_CLIENT_ID || !SALLA_CLIENT_SECRET) {
       return redirectAndClearState(
         request,
@@ -75,30 +76,48 @@ export async function GET(request: NextRequest) {
     }
 
     if (error) {
-      return redirectAndClearState(request, '/connect/salla?error=oauth_failed');
+      return redirectAndClearState(request, '/connect/salla?error=access_denied');
     }
 
     if (!code) {
-      return redirectAndClearState(request, '/connect/salla?error=oauth_failed');
+      return redirectAndClearState(request, '/connect/salla?error=no_code');
     }
 
     // Exchange code for token
+    const redirectUri = resolveSallaRedirectUri(
+      SALLA_REDIRECT_URL,
+      process.env.NODE_ENV === 'production'
+    );
     const tokenRes = await fetch('https://accounts.salla.sa/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: SALLA_CLIENT_ID,
-        client_secret: SALLA_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: SALLA_REDIRECT_URL
+      body: buildSallaTokenBody({
+        clientId: SALLA_CLIENT_ID,
+        clientSecret: SALLA_CLIENT_SECRET,
+        code,
+        redirectUri,
       })
     });
 
-    const tokenData = await tokenRes.json();
+    const tokenData = await tokenRes.json() as {
+      access_token?: unknown;
+      refresh_token?: unknown;
+      expires_in?: unknown;
+    };
 
     if (!tokenRes.ok) {
       console.error('Salla token exchange failed', {
+        provider: 'salla',
+        status: tokenRes.status,
+      });
+      return redirectAndClearState(request, '/connect/salla?error=token_failed');
+    }
+    if (
+      typeof tokenData.access_token !== 'string' ||
+      !tokenData.access_token ||
+      typeof tokenData.expires_in !== 'number'
+    ) {
+      console.error('Salla token exchange returned an invalid response', {
         provider: 'salla',
         status: tokenRes.status,
       });
@@ -108,7 +127,7 @@ export async function GET(request: NextRequest) {
     // Fetch store profile (to get store name/url)
     const userRes = await fetch('https://api.salla.dev/admin/v2/oauth2/user/info', {
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`
+       'Authorization': `Bearer ${tokenData.access_token}`
       }
     });
     
@@ -134,7 +153,7 @@ export async function GET(request: NextRequest) {
       storeName: storeName,
       storeUrl: storeUrl,
       accessTokenEncrypted: encrypt(tokenData.access_token),
-      refreshTokenEncrypted: tokenData.refresh_token ? encrypt(tokenData.refresh_token) : null,
+      refreshTokenEncrypted: typeof tokenData.refresh_token === 'string' ? encrypt(tokenData.refresh_token) : null,
       tokenExpiresAt: Date.now() + (tokenData.expires_in * 1000),
       createdAt: Date.now()
     });

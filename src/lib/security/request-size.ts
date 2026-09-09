@@ -70,6 +70,7 @@ export function requestTooLargeResponse(): Response {
 }
 
 export function requestBodyLimit(pathname: string): number {
+  if (pathname.startsWith('/admin/api/')) return REQUEST_BODY_LIMITS.auth;
   if (
     pathname === '/api/auth/request-otp' ||
     pathname === '/api/auth/verify-otp' ||

@@ -7,6 +7,21 @@ import {
   readJsonWithLimit,
   requestTooLargeResponse,
 } from '@/lib/security/request-size';
+import {
+  OpenAIChatError,
+  requestOpenAIChat,
+} from '@/lib/ai/openai-chat';
+import { getRuntimeString } from '@/lib/runtime/environment';
+import { getDb } from '@/lib/db/client';
+import {
+  AI_CHAT_MAX_TOKENS,
+  AI_CHAT_MESSAGE_MAX_LENGTH,
+  boundedReportContext,
+  consumeAiChatQuota,
+} from '@/lib/ai/chat-guard';
+
+const AI_UNAVAILABLE_MESSAGE =
+  'عذراً، الخدمة الذكية غير متاحة حالياً. يرجى المحاولة لاحقاً.';
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,6 +43,13 @@ export async function POST(req: NextRequest) {
     if (typeof message !== 'string' || !message.trim()) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
     }
+    const normalizedMessage = message.trim();
+    if (normalizedMessage.length > AI_CHAT_MESSAGE_MAX_LENGTH) {
+      return NextResponse.json(
+        { error: 'الرسالة طويلة جداً. يرجى اختصارها والمحاولة مجدداً.' },
+        { status: 400 }
+      );
+    }
 
     // Check limits
     if (user.plan === 'free' && (user.freeReportsUsed || 0) >= 2) {
@@ -40,61 +62,84 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No report found. Please generate an analysis first.' }, { status: 404 });
     }
 
-    const context = JSON.parse(latestReport.reportJson);
+    let reportContext: string;
+    try {
+      reportContext = boundedReportContext(latestReport.reportJson);
+    } catch {
+      console.error('[analysis/chat] Stored report context is invalid');
+      return NextResponse.json(
+        { error: 'تعذر قراءة تقريرك حالياً. يرجى إنشاء تحليل جديد.' },
+        { status: 422 }
+      );
+    }
 
     // Prepare System Prompt with Context
     const systemPrompt = `
       You are a helpful Saudi ecommerce assistant.
       You have access to the following analysis report of the user's store:
-      ${JSON.stringify(context)}
+      ${reportContext}
       
       Answer the user's questions based on this report.
       Speak in professional but friendly Arabic.
       Keep answers concise and actionable.
     `;
 
-    if (process.env.OPENAI_API_KEY) {
-       try {
-         const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-              model: 'gpt-4-turbo-preview',
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: message }
-              ],
-              temperature: 0.7,
-              max_tokens: 500
-            })
-         });
-         
-         if (!response.ok) {
-           throw new Error('OpenAI API Failed');
-         }
-
-         const data = await response.json();
-         const reply = data.choices[0].message.content;
-         
-         return NextResponse.json({ reply });
-       } catch (error) {
-         console.error('Chat API Error:', error);
-         // Fallback
-         return NextResponse.json({ reply: "عذراً، أواجه مشكلة في الاتصال بالخدمة الذكية حالياً. يرجى المحاولة لاحقاً." });
-       }
-    } else {
-       // Mock response for dev
-       const topNames = (context.top_products || []).map((p: any) => typeof p === 'string' ? p : (p.name || p.sku || 'منتج')).join(', ');
-       return NextResponse.json({ 
-         reply: `[رد تجريبي] بناءً على التقرير، أرى أن أفضل منتجاتك هي: ${topNames}. هل تود معرفة كيفية زيادة مبيعاتها؟` 
-       });
+    const apiKey = getRuntimeString('OPENAI_API_KEY');
+    if (!apiKey) {
+      console.error('[analysis/chat] OpenAI configuration missing');
+      return NextResponse.json(
+        { error: AI_UNAVAILABLE_MESSAGE },
+        { status: 503 }
+      );
     }
 
-  } catch (error) {
-    console.error('Chat Error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    try {
+      const db = await getDb();
+      const quota = await consumeAiChatQuota({
+        db,
+        userId: user.id,
+        plan: user.plan,
+      });
+      if (!quota.allowed) {
+        return NextResponse.json(
+          { error: 'تم بلوغ حد استخدام المساعد مؤقتاً. يرجى المحاولة لاحقاً.' },
+          {
+            status: 429,
+            headers: { 'Retry-After': String(quota.retryAfterSeconds) },
+          }
+        );
+      }
+      const reply = await requestOpenAIChat({
+        apiKey,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: normalizedMessage },
+        ],
+        temperature: 0.7,
+        maxTokens: AI_CHAT_MAX_TOKENS,
+      });
+      return NextResponse.json({ reply });
+    } catch (error) {
+      if (!(error instanceof OpenAIChatError)) {
+        console.error('[analysis/chat] Quota storage unavailable');
+        return NextResponse.json(
+          { error: 'الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.' },
+          { status: 503 }
+        );
+      }
+      const diagnostic =
+        { kind: error.kind, status: error.status };
+      console.error('[analysis/chat] OpenAI request failed', diagnostic);
+      return NextResponse.json(
+        { error: AI_UNAVAILABLE_MESSAGE },
+        { status: 502 }
+      );
+    }
+  } catch {
+    console.error('[analysis/chat] Authentication or data storage unavailable');
+    return NextResponse.json(
+      { error: 'الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.' },
+      { status: 503 }
+    );
   }
 }

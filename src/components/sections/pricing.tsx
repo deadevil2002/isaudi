@@ -7,8 +7,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fadeIn, staggerContainer } from "@/lib/animations";
-import Image from "next/image";
+import { fadeIn } from "@/lib/animations";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import type { User } from "@/lib/db/client";
@@ -75,11 +74,14 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
   const [selectedPlan, setSelectedPlan] = useState("growth"); // Default to middle plan
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
 
+  const activePlan = plans.find(p => p.id === (hoveredPlan ?? selectedPlan)) || plans.find(p => p.id === "growth")!;
+  const globalSavings = Math.round((1 - (activePlan.priceYearly / (activePlan.priceMonthly * 12))) * 100);
+
   return (
     <section className="py-20 bg-white" id="pricing">
       <Container>
         <div className="text-center mb-12">
-          <motion.h2 
+          <motion.h2
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -88,7 +90,7 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
           >
             {t("pricing.title")}
           </motion.h2>
-          <motion.p 
+          <motion.p
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -99,42 +101,43 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
           </motion.p>
 
           {/* Toggle */}
-          <div className="flex items-center justify-center mb-12">
-            <div className="flex items-center gap-4 px-4 py-2 rounded-full border border-isaudi-green/60 bg-white shadow-sm">
-              <span className={cn("text-sm font-semibold transition-colors", !isYearly ? "text-isaudi-green" : "text-gray-600")}>
-              {t("pricing.monthly")}
-              </span>
-              <button
-              onClick={() => setIsYearly(!isYearly)}
-              className="relative w-16 h-8 bg-gray-200 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-isaudi-green border border-isaudi-green/60"
+          <div className="flex flex-col items-center justify-center mb-12">
+            <div
+              role="radiogroup"
+              aria-label="Payment interval"
+              className="flex items-center p-1 rounded-full border border-gray-200 bg-gray-50/50 shadow-sm"
             >
-              <div 
+              <button
+                role="radio"
+                aria-checked={!isYearly}
+                onClick={() => setIsYearly(false)}
                 className={cn(
-                  "absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300 border border-isaudi-green/60",
+                  "px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-isaudi-green",
+                  !isYearly ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 )}
-                style={{ 
-                    // Manual override to ensure correct movement
-                    transform: isYearly ? "translateX(-28px)" : "translateX(0)",
-                    right: "6px" // Start from right
-                }}
-              />
+              >
+                {t("pricing.monthly")}
               </button>
-              <span className={cn("text-sm font-semibold transition-colors", isYearly ? "text-isaudi-green" : "text-gray-600")}>
-              {t("pricing.yearly")}{" "}
-              <span className="text-isaudi-green text-xs font-bold">
-                {t("pricing.yearlyBadge")}
-              </span>
-              </span>
+              <button
+                role="radio"
+                aria-checked={isYearly}
+                onClick={() => setIsYearly(true)}
+                className={cn(
+                  "px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-isaudi-green flex items-center gap-2",
+                  isYearly ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                )}
+              >
+                {t("pricing.yearly")}
+                <span className="text-isaudi-green text-xs font-bold bg-isaudi-green/10 px-2 py-0.5 rounded-full">
+                  {lang === "ar" ? "وفر" : "Save"} {globalSavings}%
+                </span>
+              </button>
             </div>
           </div>
         </div>
 
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 lg:gap-8 items-start max-w-6xl mx-auto px-4 sm:px-0"
           onMouseLeave={() => setHoveredPlan(null)}
         >
           {plans.map((plan) => {
@@ -164,11 +167,9 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
               buttonText = lang === "ar" ? "اشترك" : "Subscribe";
             }
 
-
             return (
-              <motion.div
+              <div
                 key={plan.id}
-                variants={fadeIn}
                 onClick={() => setSelectedPlan(plan.id)}
                 onMouseEnter={() => setHoveredPlan(plan.id)}
                 onMouseLeave={() => setHoveredPlan(null)}
@@ -181,11 +182,11 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
                 }}
                 tabIndex={0}
                 className={cn(
-                  "relative flex flex-col p-8 rounded-2xl border transition-all duration-300 cursor-pointer will-change-transform",
+                  "relative flex flex-col p-6 md:p-8 rounded-2xl border transition-all duration-300 cursor-pointer",
                   // Active state styling (Hover or Selected) - Exclusive "Featured" look
                   isActive
-                    ? "scale-105 md:scale-110 border-isaudi-green shadow-2xl -translate-y-[6px] ring-1 ring-isaudi-green bg-white z-20"
-                    : "bg-white border-gray-100 shadow-md hover:shadow-lg z-0"
+                    ? "md:scale-105 border-isaudi-green shadow-xl ring-1 ring-isaudi-green bg-white z-20"
+                    : "bg-white border-gray-100 shadow-sm hover:shadow-md z-0"
                 )}
               >
                 {plan.popular && (
@@ -212,6 +213,11 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
                       / {isYearly ? t("pricing.perYear") : t("pricing.perMonth")}
                     </span>
                   </div>
+                  {isYearly && plan.priceYearly > 0 && plan.priceMonthly > 0 && (
+                    <div className="mt-3 inline-block bg-isaudi-green/10 text-isaudi-green text-xs font-bold px-3 py-1 rounded-full">
+                      {lang === "ar" ? "وفر" : "Save"} {Math.round((1 - (plan.priceYearly / (plan.priceMonthly * 12))) * 100)}%
+                    </div>
+                  )}
                 </div>
 
                 <ul className="space-y-4 mb-8 flex-1">
@@ -230,12 +236,12 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
                 </ul>
 
                 <Link href={buttonHref} className="w-full">
-                  <Button 
+                  <Button
                     disabled={buttonDisabled}
                     className={cn(
                       "w-full transition-colors duration-300",
-                      isActive 
-                        ? "bg-isaudi-green hover:bg-isaudi-green-dark text-white border-transparent" 
+                      isActive
+                        ? "bg-isaudi-green hover:bg-isaudi-green-dark text-white border-transparent"
                         : "bg-gray-900 hover:bg-gray-800 text-white border-transparent"
                     )}
                     variant={isActive ? "default" : "outline"}
@@ -243,10 +249,10 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
                     {buttonText}
                   </Button>
                 </Link>
-              </motion.div>
+              </div>
             );
           })}
-        </motion.div>
+        </div>
 
 
 

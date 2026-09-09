@@ -52,10 +52,6 @@ const nextConfig: NextConfig = {
             value: "DENY",
           },
           {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
             key: "Permissions-Policy",
             value:
               "camera=(), microphone=(), geolocation=(), payment=(), usb=()",

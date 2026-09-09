@@ -157,7 +157,7 @@ export function Hero() {
                         {t("hero.mock.totalSales")}
                       </div>
                       <div className="h-8 w-32 bg-isaudi-green/5 rounded text-isaudi-green flex items-center justify-center font-bold text-lg px-2 border border-isaudi-green/10">
-                        +12.5% 🚀
+                        +12.5%
                       </div>
                     </div>
                   </div>

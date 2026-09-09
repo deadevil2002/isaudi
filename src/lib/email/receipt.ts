@@ -1,4 +1,5 @@
 import { sendEmailResend } from './resend';
+import { getRuntimeString } from '@/lib/runtime/environment';
 
 interface ReceiptDetails {
   to: string;
@@ -29,11 +30,11 @@ export async function sendPaymentReceiptEmail(details: ReceiptDetails) {
   `;
 
   const env = { 
-    RESEND_API_KEY: process.env.RESEND_API_KEY ?? null, 
-    RESEND_FROM: process.env.RESEND_FROM ?? null, 
-    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? null, 
+    RESEND_API_KEY: getRuntimeString('RESEND_API_KEY') ?? null,
+    RESEND_FROM: getRuntimeString('RESEND_FROM') ?? null,
+    EMAIL_PROVIDER: getRuntimeString('EMAIL_PROVIDER') ?? null,
   }; 
-  const fromEmail = process.env.RESEND_FROM?.trim() || 'no-reply@updates.isaudi.ai'; 
+  const fromEmail = env.RESEND_FROM || 'no-reply@updates.isaudi.ai';
   return sendEmailResend({
     env,
     from: fromEmail,

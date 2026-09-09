@@ -14,15 +14,51 @@ import { ReportView } from '@/components/dashboard/report-view';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
 import { createTranslator } from "@/lib/i18n/translations";
 
-export function DashboardClient({ user, stats, storeConnection, latestReport }: { user: User, stats?: any, storeConnection?: any, latestReport?: any }) {
+interface InsightsBlock {
+  insights?: string[];
+  actionItems?: string[];
+  topProfitProducts?: { name: string; sku?: string; profitSar?: number; marginPct?: number }[];
+  lowMarginProducts?: { name: string; sku?: string; profitSar?: number; marginPct?: number }[];
+}
+
+interface CompareData {
+  status: 'improved' | 'declined' | 'noChange';
+  deltas: {
+    salesDeltaPct: number | null;
+    profitDeltaPct: number | null;
+    marginDeltaPct: number | null;
+  };
+}
+
+interface TrendSnapshot {
+  id: string;
+  timeRangeStart: string;
+  timeRangeEnd: string;
+  grossSales: number;
+  totalProfit: number;
+  marginPct: number;
+  ordersCount: number;
+}
+
+export function DashboardClient({
+  user,
+  stats,
+  storeConnection,
+  latestReport
+}: {
+  user: User,
+  stats?: { products: number; orders: number; sales: number; excludedOrdersCount?: number; excludedSalesHalala?: number } | null,
+  storeConnection?: Record<string, unknown> | null,
+  latestReport?: { id: string; reportJson: string; [key: string]: unknown } | null
+}) {
   const { lang } = useLanguage();
   const router = useRouter();
   const [report, setReport] = useState(latestReport);
-  const [trend, setTrend] = useState<any[]>([]);
-  const [compare, setCompare] = useState<any | null>(null);
+  const [trend, setTrend] = useState<TrendSnapshot[]>([]);
+  const [compare, setCompare] = useState<CompareData | null>(null);
   const [loadingTrend, setLoadingTrend] = useState(false);
   const isDev = process.env.NODE_ENV === 'development';
-  const [insightsBlock, setInsightsBlock] = useState<any | null>(null);
+  const [insightsBlock, setInsightsBlock] = useState<InsightsBlock | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const parsedReport = report?.reportJson ? JSON.parse(report.reportJson) : null;
@@ -51,9 +87,15 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
 
   useEffect(() => {
     if (!isPremium) {
-      setInsightsBlock(null);
-      setInsightsError(null);
-      return;
+      // Avoid calling setState synchronously during render by moving this
+      // to a microtask if needed, or better, we just derive it if possible.
+      // But for here, we can set it via a timeout or just know it's fine
+      // inside useEffect (ESLint warns about synchronous state updates in effects).
+      const tId = setTimeout(() => {
+        setInsightsBlock(null);
+        setInsightsError(null);
+      }, 0);
+      return () => clearTimeout(tId);
     }
     let cancelled = false;
     (async () => {
@@ -94,14 +136,14 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
     return () => {
       cancelled = true;
     };
-  }, [isPremium]);
+  }, [isPremium, t]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-12">
+    <div className="min-h-screen bg-gray-50 pt-20 md:pt-24 pb-12">
       <Container>
-        <div className="flex flex-col md:flex-row gap-8">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
           {/* Sidebar */}
-          <aside className="w-full md:w-64 space-y-2">
+          <aside className="hidden md:block w-full md:w-64 space-y-2 shrink-0">
             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
                <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-isaudi-green/10 flex items-center justify-center text-isaudi-green font-bold text-lg">
@@ -162,7 +204,7 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
 
             {isDev && (
               <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-xs text-gray-800 flex flex-col gap-2">
-                <div className="font-semibold">🔧 {t("dashboard.dev.modeTitle")}</div>
+                <div className="font-semibold">{t("dashboard.dev.modeTitle")}</div>
                 <div>{t("dashboard.dev.currentPlan")} <span className="font-bold">{planName}</span> ({user.plan})</div>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {['free', 'starter', 'growth', 'business'].map((p) => (
@@ -242,11 +284,11 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
                     </div>
                   </div>
                 </div>
-                {(stats.excludedOrdersCount > 0 || stats.excludedSalesHalala > 0) && (
+                {((stats.excludedOrdersCount ?? 0) > 0 || (stats.excludedSalesHalala ?? 0) > 0) && (
                   <div className="text-xs text-gray-500">
                     {t("dashboard.stats.excluded")
                       .replace("{orders}", String(stats.excludedOrdersCount || 0))
-                      .replace("{amount}", (stats.excludedSalesHalala / 100).toFixed(2))}
+                      .replace("{amount}", ((stats.excludedSalesHalala ?? 0) / 100).toFixed(2))}
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -429,7 +471,7 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
                           </div>
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          {trend.slice(0, 4).map((w: any) => (
+                          {trend.slice(0, 4).map((w: TrendSnapshot) => (
                             <div key={w.id} className="p-3 rounded-lg border bg-gray-50">
                               <div className="text-xs text-gray-500">
                                 {new Date(w.timeRangeStart).toLocaleDateString()} —{" "}
@@ -558,7 +600,7 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
                             </div>
                             {Array.isArray(insightsBlock.topProfitProducts) && insightsBlock.topProfitProducts.length > 0 ? (
                               <ul className="space-y-1">
-                                {insightsBlock.topProfitProducts.map((p: any, idx: number) => {
+                                {insightsBlock.topProfitProducts.map((p, idx: number) => {
                                   const profitText = p.profitSar?.toLocaleString?.() ?? p.profitSar;
                                   const marginText = p.marginPct?.toFixed?.(2) ?? p.marginPct;
                                   const template = t("dashboard.insights.productProfitLine");
@@ -586,7 +628,7 @@ export function DashboardClient({ user, stats, storeConnection, latestReport }: 
                             </div>
                             {Array.isArray(insightsBlock.lowMarginProducts) && insightsBlock.lowMarginProducts.length > 0 ? (
                               <ul className="space-y-1">
-                                {insightsBlock.lowMarginProducts.map((p: any, idx: number) => {
+                                {insightsBlock.lowMarginProducts.map((p, idx: number) => {
                                   const profitText = p.profitSar?.toLocaleString?.() ?? p.profitSar;
                                   const marginText = p.marginPct?.toFixed?.(2) ?? p.marginPct;
                                   const template = t("dashboard.insights.productProfitLine");

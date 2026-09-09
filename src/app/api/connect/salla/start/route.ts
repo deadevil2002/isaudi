@@ -8,6 +8,10 @@ import {
   SALLA_OAUTH_STATE_COOKIE,
   SALLA_OAUTH_STATE_TTL_SECONDS,
 } from '@/lib/salla/oauth-state';
+import {
+  buildSallaAuthorizationUrl,
+  resolveSallaRedirectUri,
+} from '@/lib/salla/oauth-urls';
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -17,11 +21,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  const {
-    SALLA_CLIENT_ID,
-    SALLA_CLIENT_SECRET,
-    SALLA_REDIRECT_URL = 'https://isaudi.ai/api/connect/salla/callback',
-  } = getSallaEnvironment();
+  const { SALLA_CLIENT_ID, SALLA_CLIENT_SECRET, SALLA_REDIRECT_URL } =
+    getSallaEnvironment();
   if (!SALLA_CLIENT_ID || !SALLA_CLIENT_SECRET) {
     return NextResponse.json({ error: 'Salla OAuth is not configured' }, { status: 500 });
   }
@@ -34,12 +35,16 @@ export async function GET(request: NextRequest) {
     sessionId,
     challenge.expiresAt
   );
-  const sallaAuthUrl = new URL('https://accounts.salla.sa/oauth2/auth');
-  sallaAuthUrl.searchParams.set('client_id', SALLA_CLIENT_ID);
-  sallaAuthUrl.searchParams.set('redirect_uri', SALLA_REDIRECT_URL);
-  sallaAuthUrl.searchParams.set('response_type', 'code');
-  sallaAuthUrl.searchParams.set('scope', scopes);
-  sallaAuthUrl.searchParams.set('state', challenge.state);
+  const redirectUri = resolveSallaRedirectUri(
+    SALLA_REDIRECT_URL,
+    process.env.NODE_ENV === 'production'
+  );
+  const sallaAuthUrl = buildSallaAuthorizationUrl({
+    clientId: SALLA_CLIENT_ID,
+    redirectUri,
+    scopes,
+    state: challenge.state,
+  });
 
   const response = NextResponse.redirect(sallaAuthUrl);
   response.cookies.set(SALLA_OAUTH_STATE_COOKIE, challenge.cookieValue, {

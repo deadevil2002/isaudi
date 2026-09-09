@@ -1,4 +1,5 @@
 import { sendEmailResend, type ResendResult } from './resend';
+import { getRuntimeString } from '@/lib/runtime/environment';
 
 type EmailEnv = {
   RESEND_API_KEY?: string | null;
@@ -90,7 +91,7 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
       subject: 'رمز الدخول لمنصة isaudi.ai',
       html: `
         <div dir="rtl" style="font-family: sans-serif; padding: 20px;">
-          <h2>مرحبًا 👋</h2>
+          <h2>مرحبًا</h2>
           <p>رمز الدخول الخاص بك هو:</p>
           <h1 style="color: #006C35; letter-spacing: 5px; font-size: 32px;">${code}</h1>
           <p>هذا الرمز صالح لمدة 10 دقائق.</p>
@@ -120,7 +121,12 @@ export async function sendOTPEmail(email: string, code: string, env: EmailEnv = 
 export async function sendEmail(env: { RESEND_API_KEY?: string; RESEND_FROM?: string }, args: SendEmailArgs): Promise<any>;
 export async function sendEmail(args: SendEmailArgs): Promise<any>;
 export async function sendEmail(arg1: any, arg2?: any): Promise<any> {
-  const env = arg2 ? (arg1 as { RESEND_API_KEY?: string; RESEND_FROM?: string }) : process.env;
+  const env = arg2
+    ? (arg1 as { RESEND_API_KEY?: string; RESEND_FROM?: string })
+    : {
+        RESEND_API_KEY: getRuntimeString('RESEND_API_KEY'),
+        RESEND_FROM: getRuntimeString('RESEND_FROM'),
+      };
   const args: SendEmailArgs = arg2 ? arg2 : arg1;
 
   const apiKey = (env.RESEND_API_KEY || '').trim();

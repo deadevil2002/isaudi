@@ -168,7 +168,7 @@ export async function sendVerifyEmail(
     subject: 'تأكيد البريد الإلكتروني لمنصة isaudi.ai',
     html: `
       <div dir="rtl" style="font-family: sans-serif; padding: 20px;">
-        <h2>مرحبًا 👋</h2>
+        <h2>مرحبًا</h2>
         <p>اضغط على الزر التالي لتفعيل بريدك الإلكتروني:</p>
         <p style="margin: 24px 0;">
           <a href="${verifyUrl}" style="background-color: #006C35; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none;">
