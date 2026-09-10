@@ -1,4 +1,75 @@
-step1.description": {
+export type Lang = "ar" | "en";
+
+const translations: Record<string, { ar: string; en: string }> = {
+  "hero.badge": {
+    ar: "جديد: الذكاء الاصطناعي للتجارة الإلكترونية",
+    en: "New: AI for ecommerce in Saudi Arabia",
+  },
+  "hero.title.main": {
+    ar: "ذكاء اصطناعي يحلل متجرك ويعطيك",
+    en: "AI that analyzes your store and gives you a",
+  },
+  "hero.title.highlight": {
+    ar: "خطة واضحة",
+    en: "clear plan",
+  },
+  "hero.title.suffix": {
+    ar: "لزيادة مبيعاتك",
+    en: "to increase your sales",
+  },
+  "hero.subtitle": {
+    ar: "اربط متجرك في سلة أو زد أو شوبيفاي واحصل على تقرير عملي بدون أرقام معقدة. اكتشف فرص النمو الضائعة فوراً.",
+    en: "Connect your Salla, Zid or Shopify store and get a practical report without complex numbers. Discover missed growth opportunities instantly.",
+  },
+  "hero.cta.how": {
+    ar: "شاهد كيف يعمل",
+    en: "See how it works",
+  },
+  "hero.cta.freeReport": {
+    ar: "احصل على تقرير مجاني",
+    en: "Get a free report",
+  },
+  "hero.disclaimer": {
+    ar: "التقرير المجاني عرض تجريبي لمرة واحدة، مبني على البيانات المدخلة فقط، ولا يتم حفظ البيانات أو تقديم دعم مباشر إلا بعد إنشاء حساب.",
+    en: "The free report is a one-time demo based only on the data you provide. Data is not stored and direct support is available only after creating an account.",
+  },
+  "hero.badge.fast": {
+    ar: "تحليل سريع",
+    en: "Fast analysis",
+  },
+  "hero.badge.security": {
+    ar: "نطبق أفضل ممارسات الأمان",
+    en: "We follow security best practices",
+  },
+  "hero.mock.totalSales": {
+    ar: "إجمالي المبيعات",
+    en: "Total sales",
+  },
+  "hero.mock.expectedProfit": {
+    ar: "الأرباح المتوقعة",
+    en: "Expected profit",
+  },
+  "hero.mock.currencySar": {
+    ar: "ريال",
+    en: "SAR",
+  },
+  "hero.mock.competitorAnalysis": {
+    ar: "تحليل المنافسين",
+    en: "Competitor analysis",
+  },
+  "how.heading": {
+    ar: "كيف يعمل isaudi.ai؟",
+    en: "How does isaudi.ai work?",
+  },
+  "how.subtitle": {
+    ar: "ثلاث خطوات بسيطة تفصلك عن فهم أعمق لمتجرك ونمو مبيعاتك",
+    en: "Three simple steps separate you from deeper store insights and higher sales.",
+  },
+  "how.step1.title": {
+    ar: "اربط متجرك",
+    en: "Connect your store",
+  },
+  "how.step1.description": {
     ar: "بضغطة زر واحدة، اربط متجرك مع سلة أو زد لاستيراد البيانات بشكل آمن.",
     en: "With one click, connect your store on Salla or Zid and import data securely.",
   },
