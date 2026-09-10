@@ -29,6 +29,7 @@ function usable(connection: SallaConnection, now: number): boolean {
   return connection.status === 'connected' &&
     Boolean(connection.userId) &&
     Boolean(connection.accessTokenEncrypted) &&
+    connection.refreshState !== 'uncertain' &&
     Boolean(connection.tokenExpiresAt && connection.tokenExpiresAt > now + EXPIRY_SKEW_MS);
 }
 
@@ -48,6 +49,13 @@ export async function refreshSallaToken(
     getConnection?: typeof getSallaConnectionByMerchant;
     wait?: (milliseconds: number) => Promise<void>;
     fetchTimeoutMs?: number;
+    /**
+     * When a provider rejected this exact access token, a still-unexpired
+     * token must not be reused.  The comparison is made while holding the
+     * persisted refresh lock so a concurrent loser can safely use the
+     * winner's newer token without rotating again.
+     */
+    rejectedAccessToken?: string;
   } = {}
 ): Promise<string> {
   if (connection.status !== 'connected' || !connection.userId) {
@@ -68,7 +76,18 @@ export async function refreshSallaToken(
     while (Date.now() < deadline) {
       await wait(REFRESH_POLL_MS);
       const current = await getConnection(connection.merchantId);
-      if (current && usable(current, Date.now())) {
+      let currentTokenWasRejected = false;
+      if (dependencies.rejectedAccessToken && current?.accessTokenEncrypted) {
+        try {
+          currentTokenWasRejected =
+            (dependencies.decryptToken || decryptSallaToken)(
+              current.accessTokenEncrypted
+            ) === dependencies.rejectedAccessToken;
+        } catch {
+          // An unreadable ciphertext is not a reusable winner.
+        }
+      }
+      if (current && usable(current, Date.now()) && !currentTokenWasRejected) {
         return (dependencies.decryptToken || decryptSallaToken)(
           current.accessTokenEncrypted!
         );
@@ -81,7 +100,17 @@ export async function refreshSallaToken(
   let providerRequestStarted = false;
   try {
     const decryptToken = dependencies.decryptToken || decryptSallaToken;
-    if (usable(locked, Date.now())) {
+    let lockedTokenWasRejected = false;
+    if (dependencies.rejectedAccessToken && locked.accessTokenEncrypted) {
+      try {
+        lockedTokenWasRejected =
+          decryptToken(locked.accessTokenEncrypted) === dependencies.rejectedAccessToken;
+      } catch {
+        // A ciphertext that cannot be inspected cannot be safely reused for a
+        // provider rejection; continue through the existing fail-closed path.
+      }
+    }
+    if (usable(locked, Date.now()) && !lockedTokenWasRejected) {
       await (dependencies.releaseLock || releaseSallaRefreshAttemptBeforeRequest)(
         connection.merchantId,
         lockToken,
@@ -219,5 +248,36 @@ export async function getAuthenticatedSallaAccessToken(
   return {
     merchantId: connection.merchantId,
     accessToken: await getSallaAccessTokenForMerchant(connection.merchantId, options),
+  };
+}
+
+/**
+ * Refresh a provider-rejected access token only when the token still belongs
+ * to the authenticated user's connection.  The token-service lock and
+ * tokenVersion compare make a concurrent caller re-check the persisted winner
+ * instead of submitting the refresh grant a second time.
+ */
+export async function refreshAuthenticatedSallaAccessTokenForRejectedToken(
+  userId: string,
+  rejectedAccessToken: string,
+  options: { fetcher?: typeof fetch; now?: number } = {}
+): Promise<{ merchantId: string; accessToken: string }> {
+  const connection = await getSallaConnectionForUser(userId);
+  if (
+    !connection ||
+    connection.userId !== userId ||
+    connection.status !== 'connected'
+  ) {
+    throw new SallaTokenUnavailableError();
+  }
+
+  return {
+    merchantId: connection.merchantId,
+    accessToken: await refreshSallaToken(
+      connection,
+      options.fetcher || fetch,
+      options.now ?? Date.now(),
+      { rejectedAccessToken }
+    ),
   };
 }

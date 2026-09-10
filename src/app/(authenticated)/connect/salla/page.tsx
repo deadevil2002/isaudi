@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, AlertCircle, Loader2, Copy, Check, ExternalLink } from "lucide-react";
+import { ShoppingBag, AlertCircle, Loader2, Copy, Check, CheckCircle2, ExternalLink } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -10,6 +10,44 @@ import { createTranslator } from "@/lib/i18n/translations";
 import { SALLA_INSTALL_URL } from "@/lib/salla/constants";
 
 type ConnectState = "before_install" | "waiting_for_link" | "reconnect_required" | "connected" | "disconnected";
+
+type VerificationOperation = {
+  ok: boolean;
+  count?: number;
+};
+
+type VerificationResponse = {
+  connected: boolean;
+  products: VerificationOperation;
+  orders: VerificationOperation;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readVerificationOperation(value: unknown): VerificationOperation | null {
+  if (!isRecord(value) || typeof value.ok !== "boolean") return null;
+
+  const count =
+    typeof value.count === "number" &&
+    Number.isSafeInteger(value.count) &&
+    value.count >= 0
+      ? value.count
+      : undefined;
+
+  return { ok: value.ok, count };
+}
+
+function readVerificationResponse(value: unknown): VerificationResponse | null {
+  if (!isRecord(value) || typeof value.connected !== "boolean") return null;
+
+  const products = readVerificationOperation(value.products);
+  const orders = readVerificationOperation(value.orders);
+  if (!products || !orders) return null;
+
+  return { connected: value.connected, products, orders };
+}
 
 function ConnectSallaContent() {
   const searchParams = useSearchParams();
@@ -22,6 +60,10 @@ function ConnectSallaContent() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [codeError, setCodeError] = useState<"generation_error" | "email_unverified" | null>(null);
   const [copied, setCopied] = useState(false);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResponse | null>(null);
+  const [verificationError, setVerificationError] = useState(false);
+  const verificationBusyRef = useRef(false);
 
   const { lang } = useLanguage();
   const t = createTranslator(lang);
@@ -134,6 +176,41 @@ function ConnectSallaContent() {
     window.location.href = SALLA_INSTALL_URL;
   };
 
+  const verifyConnection = async () => {
+    if (verificationBusyRef.current) return;
+
+    verificationBusyRef.current = true;
+    setVerificationLoading(true);
+    setVerificationResult(null);
+    setVerificationError(false);
+
+    try {
+      const response = await fetch("/api/connect/salla/verify", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        setVerificationError(true);
+        return;
+      }
+
+      const body: unknown = await response.json().catch(() => null);
+      const result = readVerificationResponse(body);
+      if (!result) {
+        setVerificationError(true);
+        return;
+      }
+
+      setVerificationResult(result);
+    } catch {
+      setVerificationError(true);
+    } finally {
+      verificationBusyRef.current = false;
+      setVerificationLoading(false);
+    }
+  };
+
   const renderCodeSection = () => {
     if (!linkCode) return null;
 
@@ -213,6 +290,12 @@ function ConnectSallaContent() {
     );
   };
 
+  const verificationFailed =
+    verificationResult !== null &&
+    (!verificationResult.connected ||
+      !verificationResult.products.ok ||
+      !verificationResult.orders.ok);
+
   return (
     <div className="max-w-xl mx-auto">
       <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm text-center">
@@ -251,13 +334,32 @@ function ConnectSallaContent() {
 
         <div className="space-y-4">
           {connectState === "connected" ? (
-            <Button
-              className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9]"
-              disabled
-            >
-              <Check className={`w-5 h-5 ${isRtl ? "ml-2" : "mr-2"}`} />
-              {t("connect.salla.button.connected")}
-            </Button>
+            <>
+              <Button
+                className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9]"
+                disabled
+              >
+                <Check className={`w-5 h-5 ${isRtl ? "ml-2" : "mr-2"}`} />
+                {t("connect.salla.button.connected")}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={verifyConnection}
+                disabled={verificationLoading}
+                aria-busy={verificationLoading}
+                data-testid="button-test-salla-connection"
+                className="w-full py-6 text-lg font-bold border-isaudi-green/30 text-[#004D5A] hover:bg-isaudi-green/5 hover:text-[#004D5A]"
+              >
+                {verificationLoading ? (
+                  <Loader2 className={`h-5 w-5 animate-spin ${isRtl ? "ml-2" : "mr-2"}`} />
+                ) : (
+                  <CheckCircle2 className={`h-5 w-5 ${isRtl ? "ml-2" : "mr-2"}`} />
+                )}
+                {t(verificationLoading ? "connect.salla.button.testing" : "connect.salla.button.test")}
+              </Button>
+            </>
           ) : connectState === "reconnect_required" || connectState === "disconnected" ? (
             <Button
               onClick={handleInstallClick}
@@ -284,6 +386,115 @@ function ConnectSallaContent() {
             </Button>
           </Link>
         </div>
+
+        {(verificationLoading || verificationError || verificationResult) && (
+          <div
+            dir={isRtl ? "rtl" : "ltr"}
+            role="status"
+            aria-live="polite"
+            data-testid="status-salla-verification"
+            className={`mt-6 rounded-2xl border p-5 ${
+              verificationError || verificationFailed
+                ? "border-red-100 bg-red-50/70"
+                : "border-isaudi-green/20 bg-[#f4fffd]"
+            } ${isRtl ? "text-right" : "text-left"}`}
+          >
+            {verificationLoading ? (
+              <div className="flex items-start gap-3 text-gray-700">
+                <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-isaudi-green" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold">{t("connect.salla.verification.loading")}</p>
+                  <p className="mt-1 text-sm text-gray-600">{t("connect.salla.verification.loadingDescription")}</p>
+                </div>
+              </div>
+            ) : verificationError ? (
+              <div className="flex items-start gap-3 text-red-800">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold">{t("connect.salla.verification.errorTitle")}</p>
+                  <p className="mt-1 text-sm text-red-700">{t("connect.salla.verification.errorDescription")}</p>
+                </div>
+              </div>
+            ) : verificationResult ? (
+              <>
+                <div className={`flex items-start gap-3 ${verificationFailed ? "text-red-800" : "text-[#004D5A]"}`}>
+                  {verificationFailed ? (
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-isaudi-green" aria-hidden="true" />
+                  )}
+                  <div>
+                    <p className="font-semibold">
+                      {t(
+                        verificationFailed
+                          ? "connect.salla.verification.partialTitle"
+                          : "connect.salla.verification.successTitle",
+                      )}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {t(
+                        verificationFailed
+                          ? "connect.salla.verification.partialDescription"
+                          : "connect.salla.verification.successDescription",
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {[
+                    {
+                      key: "products" as const,
+                      label: t("connect.salla.verification.products"),
+                      operation: verificationResult.products,
+                    },
+                    {
+                      key: "orders" as const,
+                      label: t("connect.salla.verification.orders"),
+                      operation: verificationResult.orders,
+                    },
+                  ].map(({ key, label, operation }) => (
+                    <div
+                      key={key}
+                      data-testid={`status-salla-verification-${key}`}
+                      className={`rounded-xl border bg-white/80 p-4 ${
+                        operation.ok ? "border-isaudi-green/15" : "border-red-100"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        {operation.ok ? (
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-isaudi-green" aria-hidden="true" />
+                        ) : (
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900">{label}</p>
+                          <p className={`mt-1 text-sm ${operation.ok ? "text-isaudi-green-dark" : "text-red-700"}`}>
+                            {t(
+                              operation.ok
+                                ? "connect.salla.verification.operationSuccess"
+                                : "connect.salla.verification.operationFailure",
+                            )}
+                          </p>
+                          {operation.ok && operation.count !== undefined && (
+                            <p className="mt-2 text-xs text-gray-600">
+                              {t("connect.salla.verification.firstPageCount")}:{" "}
+                              <span className="font-semibold text-gray-800">{operation.count}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="mt-4 text-xs leading-5 text-gray-500">
+                  {t("connect.salla.verification.firstPageNote")}
+                </p>
+              </>
+            ) : null}
+          </div>
+        )}
 
         <div className="mt-8 text-xs text-gray-400">
           {t("connect.salla.note")}

@@ -19,9 +19,10 @@ const request = (
 
 test('exports the exact protected POST allowlist', () => {
   assert.deepEqual(CSRF_PROTECTED_PATHS, ORIGIN_PROTECTED_POST_PATHS);
-  assert.equal(CSRF_PROTECTED_PATHS.length, 11);
+  assert.equal(CSRF_PROTECTED_PATHS.length, 12);
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/analysis/chat'));
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/connect/salla/link-code'));
+  assert.ok(CSRF_PROTECTED_PATHS.includes('/api/connect/salla/verify'));
 });
 
 test('production accepts the canonical Origin and rejects invalid or missing origins', () => {
@@ -29,13 +30,18 @@ test('production accepts the canonical Origin and rejects invalid or missing ori
     originGuard(request('/api/analysis/chat', { Origin: 'https://isaudi.ai' }), true),
     null
   );
-  assert.equal(
-    originGuard(
-      request('/api/analysis/chat', { Origin: 'https://evil.example' }),
-      true
-    )?.status,
-    403
+  const blocked = originGuard(
+    request('/api/analysis/chat', { Origin: 'https://evil.example' }),
+    true
   );
+  assert.equal(blocked?.status, 403);
+  assert.equal(blocked?.headers.get('Cache-Control'), null);
+  const verifyBlocked = originGuard(
+    request('/api/connect/salla/verify', { Origin: 'https://evil.example' }),
+    true
+  );
+  assert.equal(verifyBlocked?.status, 403);
+  assert.equal(verifyBlocked?.headers.get('Cache-Control'), 'private, no-store');
   assert.equal(originGuard(request('/api/analysis/chat'), true)?.status, 403);
 });
 

@@ -945,6 +945,14 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "متصل بسلة",
     en: "Connected to Salla",
   },
+  "connect.salla.button.test": {
+    ar: "اختبار الاتصال",
+    en: "Test connection",
+  },
+  "connect.salla.button.testing": {
+    ar: "جاري اختبار الاتصال...",
+    en: "Testing connection...",
+  },
   "connect.salla.button.reconnect": {
     ar: "إعادة ربط متجر سلة",
     en: "Reconnect Salla store",
@@ -1016,6 +1024,62 @@ const translations: Record<string, { ar: string; en: string }> = {
   "connect.salla.note": {
     ar: "نحن نطلب فقط أذونات القراءة (read-only) للبيانات اللازمة للتحليل.",
     en: "We only request read-only permissions for the data needed for analysis.",
+  },
+  "connect.salla.verification.loading": {
+    ar: "جاري التحقق من الاتصال...",
+    en: "Checking your connection...",
+  },
+  "connect.salla.verification.loadingDescription": {
+    ar: "نختبر صلاحيات القراءة للمنتجات والطلبات دون استيراد أو تغيير أي بيانات.",
+    en: "We are checking read access for products and orders without importing or changing any data.",
+  },
+  "connect.salla.verification.successTitle": {
+    ar: "تم التحقق من الاتصال بنجاح",
+    en: "Connection verified successfully",
+  },
+  "connect.salla.verification.successDescription": {
+    ar: "يمكن لـ iSaudi قراءة بيانات المنتجات والطلبات من متجرك في سلة باستخدام صلاحيات القراءة فقط.",
+    en: "iSaudi can read product and order data from your Salla store using read-only permissions.",
+  },
+  "connect.salla.verification.partialTitle": {
+    ar: "تعذر التحقق من الاتصال بالكامل",
+    en: "We could not fully verify the connection",
+  },
+  "connect.salla.verification.partialDescription": {
+    ar: "تعذر قراءة بعض بيانات المتجر. يرجى المحاولة مرة أخرى.",
+    en: "Some store data could not be read. Please try again.",
+  },
+  "connect.salla.verification.errorTitle": {
+    ar: "تعذر اختبار الاتصال",
+    en: "Connection test failed",
+  },
+  "connect.salla.verification.errorDescription": {
+    ar: "تعذر التحقق من الاتصال. يرجى المحاولة مرة أخرى.",
+    en: "We could not verify the connection. Please try again.",
+  },
+  "connect.salla.verification.products": {
+    ar: "المنتجات",
+    en: "Products",
+  },
+  "connect.salla.verification.orders": {
+    ar: "الطلبات",
+    en: "Orders",
+  },
+  "connect.salla.verification.operationSuccess": {
+    ar: "تم الاتصال بنجاح",
+    en: "Connected successfully",
+  },
+  "connect.salla.verification.operationFailure": {
+    ar: "تعذر قراءة البيانات",
+    en: "Could not read data",
+  },
+  "connect.salla.verification.firstPageCount": {
+    ar: "عدد عناصر الصفحة الأولى",
+    en: "First-page item count",
+  },
+  "connect.salla.verification.firstPageNote": {
+    ar: "هذه الأعداد تخص الصفحة الأولى من اختبار واجهة سلة فقط، وليست إجمالي البيانات المستوردة أو بيانات CSV الحالية.",
+    en: "These counts are from the first page of the Salla API test only. They are not total imported data or current CSV data.",
   },
   "connect.csv.title": {
     ar: "رفع البيانات يدويًا (CSV)",

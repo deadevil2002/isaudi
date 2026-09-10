@@ -7,6 +7,7 @@ export const ORIGIN_PROTECTED_POST_PATHS = [
   '/api/costs/upsert',
   '/api/connect/csv/upload',
   '/api/connect/salla/link-code',
+  '/api/connect/salla/verify',
   '/api/analysis/generate',
   '/api/analysis/chat',
   '/api/reports/generate-weekly',
@@ -110,6 +111,11 @@ export function originGuard(
     ? null
     : new Response('Forbidden', {
         status: 403,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        headers: {
+          ...(pathname === '/api/connect/salla/verify'
+            ? { 'Cache-Control': 'private, no-store' }
+            : {}),
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
       });
 }
