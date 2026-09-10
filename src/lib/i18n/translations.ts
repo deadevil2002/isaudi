@@ -1,75 +1,4 @@
-export type Lang = "ar" | "en";
-
-const translations: Record<string, { ar: string; en: string }> = {
-  "hero.badge": {
-    ar: "جديد: الذكاء الاصطناعي للتجارة الإلكترونية",
-    en: "New: AI for ecommerce in Saudi Arabia",
-  },
-  "hero.title.main": {
-    ar: "ذكاء اصطناعي يحلل متجرك ويعطيك",
-    en: "AI that analyzes your store and gives you a",
-  },
-  "hero.title.highlight": {
-    ar: "خطة واضحة",
-    en: "clear plan",
-  },
-  "hero.title.suffix": {
-    ar: "لزيادة مبيعاتك",
-    en: "to increase your sales",
-  },
-  "hero.subtitle": {
-    ar: "اربط متجرك في سلة أو زد أو شوبيفاي واحصل على تقرير عملي بدون أرقام معقدة. اكتشف فرص النمو الضائعة فوراً.",
-    en: "Connect your Salla, Zid or Shopify store and get a practical report without complex numbers. Discover missed growth opportunities instantly.",
-  },
-  "hero.cta.how": {
-    ar: "شاهد كيف يعمل",
-    en: "See how it works",
-  },
-  "hero.cta.freeReport": {
-    ar: "احصل على تقرير مجاني",
-    en: "Get a free report",
-  },
-  "hero.disclaimer": {
-    ar: "التقرير المجاني عرض تجريبي لمرة واحدة، مبني على البيانات المدخلة فقط، ولا يتم حفظ البيانات أو تقديم دعم مباشر إلا بعد إنشاء حساب.",
-    en: "The free report is a one-time demo based only on the data you provide. Data is not stored and direct support is available only after creating an account.",
-  },
-  "hero.badge.fast": {
-    ar: "تحليل سريع",
-    en: "Fast analysis",
-  },
-  "hero.badge.security": {
-    ar: "نطبق أفضل ممارسات الأمان",
-    en: "We follow security best practices",
-  },
-  "hero.mock.totalSales": {
-    ar: "إجمالي المبيعات",
-    en: "Total sales",
-  },
-  "hero.mock.expectedProfit": {
-    ar: "الأرباح المتوقعة",
-    en: "Expected profit",
-  },
-  "hero.mock.currencySar": {
-    ar: "ريال",
-    en: "SAR",
-  },
-  "hero.mock.competitorAnalysis": {
-    ar: "تحليل المنافسين",
-    en: "Competitor analysis",
-  },
-  "how.heading": {
-    ar: "كيف يعمل isaudi.ai؟",
-    en: "How does isaudi.ai work?",
-  },
-  "how.subtitle": {
-    ar: "ثلاث خطوات بسيطة تفصلك عن فهم أعمق لمتجرك ونمو مبيعاتك",
-    en: "Three simple steps separate you from deeper store insights and higher sales.",
-  },
-  "how.step1.title": {
-    ar: "اربط متجرك",
-    en: "Connect your store",
-  },
-  "how.step1.description": {
+step1.description": {
     ar: "بضغطة زر واحدة، اربط متجرك مع سلة أو زد لاستيراد البيانات بشكل آمن.",
     en: "With one click, connect your store on Salla or Zid and import data securely.",
   },
@@ -930,8 +859,32 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "An unknown error occurred.",
   },
   "connect.salla.button.primary": {
-    ar: "بدء الربط مع سلة",
-    en: "Start connecting with Salla",
+    ar: "تثبيت تطبيق iSaudi.ai من سلة",
+    en: "Install iSaudi.ai from Salla",
+  },
+  "connect.salla.button.connected": {
+    ar: "متصل بسلة",
+    en: "Connected to Salla",
+  },
+  "connect.salla.button.reconnect": {
+    ar: "إعادة ربط متجر سلة",
+    en: "Reconnect Salla store",
+  },
+  "connect.salla.status.beforeInstall": {
+    ar: "لم يتم تثبيت التطبيق بعد.",
+    en: "The app has not been installed yet.",
+  },
+  "connect.salla.status.pending": {
+    ar: "تعذر ربط هذا التثبيت بحسابك. تأكد أن بريد حسابك في سلة مطابق لبريد حسابك الموثّق في iSaudi.ai.",
+    en: "This installation could not be linked to your account. Make sure your Salla email matches your verified iSaudi.ai account email.",
+  },
+  "connect.salla.status.connected": {
+    ar: "متجرك متصل بسلة.",
+    en: "Your store is connected to Salla.",
+  },
+  "connect.salla.status.reconnectRequired": {
+    ar: "يلزم إعادة ربط متجر سلة لتحديث الاتصال بأمان.",
+    en: "Reconnect your Salla store to refresh the connection securely.",
   },
   "connect.salla.button.csv": {
     ar: "أو استخدم رفع ملف CSV",

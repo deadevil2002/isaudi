@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSallaEnvironment } from '@/lib/salla/environment';
 import { verifySallaWebhookSignature } from '@/lib/salla/webhook-signature';
 import {
+  processSallaWebhook,
+  SallaWebhookValidationError,
+} from '@/lib/salla/webhook';
+import {
   REQUEST_BODY_LIMITS,
   RequestBodyTooLargeError,
   readTextWithLimit,
@@ -36,28 +40,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // This is a scaffold. Real implementation needs Salla's specific event payloads.
-    // Example: order.created, product.updated
-    const payload = JSON.parse(rawBody);
-    const event = payload.event;
-    const data = payload.data;
-
-    if (!data) {
-       return NextResponse.json({ success: true }); // Acknowledge anyway
+    let payload: unknown;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
-
-    // We need to know which user this store belongs to.
-    // Salla webhooks usually include merchant_id or store_id.
-    // We would need to map that to our userId. 
-    // Since we didn't store merchant_id in store_connections, we can't map easily yet.
-    // For this MVP, we will skip actual processing unless we can identify the user.
-    
-    // To fix this in production: Add merchantId to store_connections and look it up here.
-
-    console.log('Received Salla webhook', {
-      provider: 'salla',
-      eventType: typeof event === 'string' ? event : 'unknown',
-    });
+    try {
+      await processSallaWebhook(payload);
+    } catch (error) {
+      if (error instanceof SallaWebhookValidationError) {
+        return NextResponse.json({ error: 'Invalid webhook' }, { status: 400 });
+      }
+      throw error;
+    }
 
     return NextResponse.json({ success: true });
 

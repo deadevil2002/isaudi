@@ -1,25 +1,40 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, AlertCircle, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
+import { SALLA_INSTALL_URL } from "@/lib/salla/constants";
+
+type ConnectState = "before_install" | "pending" | "reconnect_required" | "connected";
 
 function ConnectSallaContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const [loading, setLoading] = useState(false);
+  const [connectState, setConnectState] = useState<ConnectState>("before_install");
   const { lang } = useLanguage();
   const t = createTranslator(lang);
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/connect/salla/status", { credentials: "same-origin" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((body) => {
+        if (active && ["before_install", "pending", "reconnect_required", "connected"].includes(body?.state)) {
+          setConnectState(body.state);
+        }
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
   const handleConnect = () => {
     setLoading(true);
-    // Redirect to API which redirects to Salla
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = '/api/connect/salla/start';
+    window.location.href = SALLA_INSTALL_URL;
   };
 
   return (
@@ -33,6 +48,13 @@ function ConnectSallaContent() {
         <p className="text-gray-600 mb-8">
           {t("connect.salla.description")}
         </p>
+
+        <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+          {connectState === "connected" && t("connect.salla.status.connected")}
+          {connectState === "reconnect_required" && t("connect.salla.status.reconnectRequired")}
+          {connectState === "pending" && t("connect.salla.status.pending")}
+          {connectState === "before_install" && t("connect.salla.status.beforeInstall")}
+        </div>
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl flex items-center gap-3 border border-red-100 text-right">
@@ -52,9 +74,14 @@ function ConnectSallaContent() {
           <Button 
             onClick={handleConnect} 
             className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9]"
-            disabled={loading}
+            disabled={loading || connectState === "connected"}
           >
-            {loading ? <Loader2 className="animate-spin" /> : t("connect.salla.button.primary")}
+            {loading ? <Loader2 className="animate-spin" /> :
+              connectState === "connected"
+                ? t("connect.salla.button.connected")
+                : connectState === "reconnect_required"
+                  ? t("connect.salla.button.reconnect")
+                  : t("connect.salla.button.primary")}
           </Button>
           
           <Link href="/connect/csv" className="block">
