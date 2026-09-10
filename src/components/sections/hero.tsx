@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/container";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, PlayCircle } from "lucide-react";
+import { ArrowLeft, CircleHelp } from "lucide-react";
 import { slideUp, slideInLeft, staggerContainer } from "@/lib/animations";
 import { AiInsight } from "@/components/illustrations/ai-insight";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -35,7 +35,7 @@ export function Hero() {
             <motion.div variants={slideUp} className="mb-8 flex justify-end">
               <div className="relative w-32 h-32 md:w-40 md:h-40">
                 <Image 
-                  src="/brand/isaudi-mark-v1.png"
+                  src="/brand/isaudi-mark-v3.png"
                   alt="isaudi.ai Logo" 
                   fill
                   className="object-contain"
@@ -70,9 +70,9 @@ export function Hero() {
               variants={slideUp}
               className="flex flex-wrap gap-4 justify-end"
             >
-              <Link href="#how-it-works">
+              <Link href="/how-it-works">
                 <Button size="lg" variant="outline" className="gap-2 group">
-                  <PlayCircle className="w-5 h-5 group-hover:text-isaudi-green transition-colors" />
+                  <CircleHelp className="w-5 h-5 group-hover:text-isaudi-green transition-colors" />
                   {t("hero.cta.how")}
                 </Button>
               </Link>
@@ -140,7 +140,7 @@ export function Hero() {
                   </div>
                   <div className="relative w-20 h-6 opacity-80">
                     <Image 
-                        src="/brand/isaudi-mark-v1.png"
+                        src="/brand/isaudi-mark-v3.png"
                         alt="isaudi.ai" 
                         fill
                         className="object-contain"

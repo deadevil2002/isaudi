@@ -31,6 +31,7 @@ test('sitemap contains only the approved canonical public URLs', () => {
 
   assert.deepEqual(SITEMAP_PATHS, [
     '/',
+    '/how-it-works',
     '/pricing',
     '/about',
     '/contact',
@@ -40,6 +41,7 @@ test('sitemap contains only the approved canonical public URLs', () => {
   ]);
   assert.deepEqual(urls, [
     `${SEO_ORIGIN}/`,
+    `${SEO_ORIGIN}/how-it-works`,
     `${SEO_ORIGIN}/pricing`,
     `${SEO_ORIGIN}/about`,
     `${SEO_ORIGIN}/contact`,

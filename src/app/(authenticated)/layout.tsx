@@ -1,13 +1,14 @@
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { unstable_noStore as noStore } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
-import { BillingClient } from './billing-client';
-import { Header } from '@/components/layout/header';
+import { AuthenticatedShell } from '@/components/layout/authenticated-shell';
 
-export const dynamic = 'force-dynamic';
-
-export default async function BillingPage() {
+export default async function AuthenticatedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   noStore();
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('session_id')?.value;
@@ -26,12 +27,9 @@ export default async function BillingPage() {
     redirect('/login');
   }
 
-  const subscription = await dbService.getSubscriptionByUserId(user.id);
-
   return (
-    <>
-      <Header userEmail={user.email} />
-      <BillingClient user={user} subscription={subscription} />
-    </>
+    <AuthenticatedShell userEmail={user.email}>
+      {children}
+    </AuthenticatedShell>
   );
 }

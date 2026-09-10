@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
-import { Header } from '@/components/layout/header';
 import { SettingsClient } from './settings-client';
 import { getUserEntitlements } from '@/lib/subscription/service';
 
@@ -28,15 +27,14 @@ export default async function SettingsPage() {
   const subscription = await getUserEntitlements(user.id);
 
   return (
-    <>
-      <Header userEmail={user.email} />
-      <SettingsClient
-        userEmail={user.email}
-        emailVerified={Boolean((user as any).email_verified)}
-        plan={user.plan}
-        planExpiresAt={user.planExpiresAt || null}
-        subscription={subscription}
-      />
-    </>
+    <SettingsClient
+      userEmail={user.email}
+      emailVerified={Boolean(
+        (user as typeof user & { email_verified?: unknown }).email_verified
+      )}
+      plan={user.plan}
+      planExpiresAt={user.planExpiresAt || null}
+      subscription={subscription}
+    />
   );
 }

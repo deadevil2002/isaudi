@@ -19,7 +19,7 @@ export function Footer() {
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="relative w-8 h-8">
                  <Image 
-                  src="/brand/isaudi-mark-v1.png"
+                  src="/brand/isaudi-mark-v3.png"
                   alt="isaudi.ai Logo" 
                   fill
                   className="object-contain"
@@ -51,7 +51,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="#how-it-works" className="hover:text-isaudi-green transition-colors">
+                <Link href="/how-it-works" className="hover:text-isaudi-green transition-colors">
                   {t("footer.link.howItWorks")}
                 </Link>
               </li>

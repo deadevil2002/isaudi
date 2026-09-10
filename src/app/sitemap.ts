@@ -3,6 +3,7 @@ import { SEO_ORIGIN } from '@/lib/seo/metadata';
 
 export const SITEMAP_PATHS = [
   '/',
+  '/how-it-works',
   '/pricing',
   '/about',
   '/contact',

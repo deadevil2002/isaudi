@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 
 export const SEO_ORIGIN = 'https://isaudi.ai';
-export const BRAND_ICON_PATH = '/brand/isaudi-mark-v1.png';
-export const BRAND_APPLE_ICON_PATH = '/brand/isaudi-apple-touch-v1.png';
-export const SOCIAL_IMAGE_PATH = '/brand/isaudi-social-v1.png';
+export const BRAND_ICON_PATH = '/brand/isaudi-mark-v3.png';
+export const BRAND_APPLE_ICON_PATH = '/brand/isaudi-apple-touch-v3.png';
+export const SOCIAL_IMAGE_PATH = '/brand/isaudi-social-v3.png';
 export const BRAND_ICON_URL = `${SEO_ORIGIN}${BRAND_ICON_PATH}`;
 export const BRAND_APPLE_ICON_URL = `${SEO_ORIGIN}${BRAND_APPLE_ICON_PATH}`;
 export const SOCIAL_IMAGE_URL = `${SEO_ORIGIN}${SOCIAL_IMAGE_PATH}`;

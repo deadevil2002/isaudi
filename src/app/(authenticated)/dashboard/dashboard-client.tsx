@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import { User } from "@/lib/db/client";
-import { LayoutDashboard, TrendingUp, ShoppingBag, Settings, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { StoreSetup } from '@/components/dashboard/store-setup';
 import { GenerateAnalysis } from '@/components/dashboard/generate-analysis';
@@ -139,65 +137,9 @@ export function DashboardClient({
   }, [isPremium, t]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 md:pt-24 pb-12">
-      <Container>
-        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-          {/* Sidebar */}
-          <aside className="hidden md:block w-full md:w-64 space-y-2 shrink-0">
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-               <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-isaudi-green/10 flex items-center justify-center text-isaudi-green font-bold text-lg">
-                    {user.email.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-sm font-bold truncate">{user.email}</div>
-                    <div className="text-xs text-gray-500 capitalize">{planName}</div>
-                  </div>
-               </div>
-            </div>
-            
-            <nav className="space-y-1">
-              <Button variant="ghost" className="w-full justify-start gap-2 bg-white shadow-sm text-isaudi-green font-bold">
-                <LayoutDashboard className="w-4 h-4" />
-                {t("dashboard.menu.dashboard")}
-              </Button>
-              <Link href="/dashboard/reports">
-                <Button variant="ghost" className="w-full justify-start gap-2 text-gray-600 hover:bg-white hover:shadow-sm">
-                  <TrendingUp className="w-4 h-4" />
-                  {t("dashboard.menu.reports")}
-                </Button>
-              </Link>
-              <Link href="/dashboard/costs">
-                <Button variant="ghost" className="w-full justify-start gap-2 text-gray-600 hover:bg-white hover:shadow-sm">
-                  <TrendingUp className="w-4 h-4" />
-                  {t("dashboard.menu.costs")}
-                </Button>
-              </Link>
-              <Link href="/connect/salla">
-                <Button variant="ghost" className="w-full justify-start gap-2 text-gray-600 hover:bg-white hover:shadow-sm">
-                  <ShoppingBag className="w-4 h-4" />
-                  {t("dashboard.menu.connectStore")}
-                </Button>
-              </Link>
-              <Link href="/billing" className="block">
-                <Button variant="ghost" className="w-full justify-start gap-2 text-gray-600 hover:bg-white hover:shadow-sm">
-                  <CreditCard className="w-4 h-4" />
-                  {isPremium ? t("dashboard.plan.manage") : t("dashboard.plan.upgrade")}
-                </Button>
-              </Link>
-              <Link href="/settings" className="block">
-                <Button variant="ghost" className="w-full justify-start gap-2 text-gray-600 hover:bg-white hover:shadow-sm">
-                  <Settings className="w-4 h-4" />
-                  {t("dashboard.menu.settings")}
-                </Button>
-              </Link>
-            </nav>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 space-y-6">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">
                 {t("dashboard.welcomeLine").replace("{email}", user.email)}
               </h1>
             </div>
@@ -715,9 +657,6 @@ export function DashboardClient({
               )}
             </div>
 
-          </main>
-        </div>
-      </Container>
     </div>
   );
 }

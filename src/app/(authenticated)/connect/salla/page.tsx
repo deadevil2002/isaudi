@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, FileSpreadsheet, Check, AlertCircle, Loader2 } from "lucide-react";
+import { ShoppingBag, AlertCircle, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -19,6 +18,7 @@ function ConnectSallaContent() {
   const handleConnect = () => {
     setLoading(true);
     // Redirect to API which redirects to Salla
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = '/api/connect/salla/start';
   };
 
@@ -74,12 +74,8 @@ function ConnectSallaContent() {
 
 export default function ConnectSallaPage() {
   return (
-    <div className="min-h-screen bg-gray-50 pt-32 pb-20">
-      <Container>
-        <Suspense fallback={<div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-isaudi-green" /></div>}>
-          <ConnectSallaContent />
-        </Suspense>
-      </Container>
-    </div>
+    <Suspense fallback={<div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-isaudi-green" /></div>}>
+      <ConnectSallaContent />
+    </Suspense>
   );
 }

@@ -44,9 +44,9 @@ test("page metadata uses canonical HTTPS iSaudi icon and social URLs", () => {
     path: "/pricing",
   });
 
-  assert.equal(BRAND_ICON_URL, `${SEO_ORIGIN}/brand/isaudi-mark-v1.png`);
-  assert.equal(BRAND_APPLE_ICON_URL, `${SEO_ORIGIN}/brand/isaudi-apple-touch-v1.png`);
-  assert.equal(SOCIAL_IMAGE_URL, `${SEO_ORIGIN}/brand/isaudi-social-v1.png`);
+  assert.equal(BRAND_ICON_URL, `${SEO_ORIGIN}/brand/isaudi-mark-v3.png`);
+  assert.equal(BRAND_APPLE_ICON_URL, `${SEO_ORIGIN}/brand/isaudi-apple-touch-v3.png`);
+  assert.equal(SOCIAL_IMAGE_URL, `${SEO_ORIGIN}/brand/isaudi-social-v3.png`);
   assert.equal(MANIFEST_URL, `${SEO_ORIGIN}/manifest.webmanifest`);
   assert.deepEqual(metadata.openGraph?.images, [
     {
@@ -68,7 +68,29 @@ test("web manifest uses only versioned same-origin iSaudi icons", () => {
   assert.equal(result.theme_color, "#006C35");
   assert.deepEqual(
     result.icons?.map((icon) => icon.src),
-    ["/brand/isaudi-mark-v1.png", "/brand/isaudi-apple-touch-v1.png"],
+    ["/brand/isaudi-mark-v3.png", "/brand/isaudi-apple-touch-v3.png"],
   );
   assert.equal(result.icons?.some((icon) => /^https?:\/\//.test(icon.src)), false);
+});
+
+test("new brand filenames map to the approved source assets without query-only cache busting", () => {
+  const configSource = readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
+  const activeSource = [
+    readFileSync(new URL("../src/lib/seo/metadata.ts", import.meta.url), "utf8"),
+    readFileSync(new URL("../src/components/layout/header.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../src/components/layout/footer.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../src/components/sections/hero.tsx", import.meta.url), "utf8"),
+  ].join("\n");
+
+  for (const [versioned, approved] of [
+    ["isaudi-mark-v3.png", "isaudi-mark-v1.png"],
+    ["isaudi-apple-touch-v3.png", "isaudi-apple-touch-v1.png"],
+    ["isaudi-social-v3.png", "isaudi-social-v1.png"],
+  ]) {
+    assert.match(configSource, new RegExp(`source: "/brand/${versioned}"`));
+    assert.match(configSource, new RegExp(`destination: "/brand/${approved}"`));
+    assert.doesNotMatch(activeSource, new RegExp(`${approved.replace(".", "\\.")}`));
+  }
+
+  assert.doesNotMatch(activeSource, /PlayCircle/);
 });

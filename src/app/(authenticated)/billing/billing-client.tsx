@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { SubscriptionEntitlements } from "@/lib/subscription/types";
 import { User } from "@/lib/db/client";
@@ -11,7 +10,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { calculateMinimumAnnualSavingsPercent } from "@/lib/pricing/annual-savings";
-import Link from "next/link";
 
 const basePlans = [
   {
@@ -176,20 +174,12 @@ export function BillingClient({ user, subscription }: { user: User, subscription
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 pt-24 md:pb-20 md:pt-32">
-      <Container>
-        <div className="max-w-5xl mx-auto space-y-12">
+    <div className="max-w-5xl mx-auto space-y-12">
           
           {/* Current Plan Status */}
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8">
             <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h1 className="text-2xl font-bold">{t("billing.title")}</h1>
-              <Link
-                href="/dashboard"
-                className="min-h-11 self-start py-3 text-sm font-medium text-isaudi-green"
-              >
-                {t("billing.backToDashboard")}
-              </Link>
             </div>
             
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-gray-50 rounded-xl border border-gray-100">
@@ -345,8 +335,6 @@ export function BillingClient({ user, subscription }: { user: User, subscription
             </div>
           </div>
 
-        </div>
-      </Container>
     </div>
   );
 }

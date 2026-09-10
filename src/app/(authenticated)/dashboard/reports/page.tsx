@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
-import { Header } from '@/components/layout/header';
 import { ReportsClient } from './reports-client';
 
 export const dynamic = 'force-dynamic';
@@ -27,9 +26,6 @@ export default async function ReportsPage() {
   const isFree = user.plan === 'free';
 
   return (
-    <>
-      <Header userEmail={user.email} />
-      <ReportsClient isFree={isFree} />
-    </>
+    <ReportsClient isFree={isFree} />
   );
 }

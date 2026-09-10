@@ -1,6 +1,5 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { getLoadViewState } from "@/lib/ui/load-state";
@@ -303,7 +302,6 @@ export default function CostsPage() {
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-900">{t("costs.title")}</h1>
-        <Link href="/dashboard" className="min-h-11 self-start py-3 text-sm font-medium text-isaudi-green">{t("costs.backToDashboard")}</Link>
       </div>
       <p className="text-sm text-gray-600">{t("costs.description")}</p>
       

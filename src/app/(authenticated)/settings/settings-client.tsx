@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
-import { BackToDashboardLink } from "@/components/common/back-to-dashboard";
 import { SubscriptionEntitlements } from "@/lib/subscription/types";
 
 interface SettingsClientProps {
@@ -27,7 +25,7 @@ function formatDate(timestamp: number | null, lang: "ar" | "en"): string | null 
   }
 }
 
-export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, subscription }: SettingsClientProps) {
+export function SettingsClient({ userEmail, emailVerified, plan, subscription }: SettingsClientProps) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
   const [sending, setSending] = useState(false);
@@ -51,13 +49,16 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, 
       }
       if (data.alreadyVerified) {
         setVerified(true);
-        setVerified(true);
         setStatusMessage(t("settings.verification.alreadyVerified"));
       } else {
         setStatusMessage(t("settings.verification.sent"));
       }
-    } catch (err: any) {
-      setStatusError(err.message || t("settings.verification.error.unexpected"));
+    } catch (error: unknown) {
+      setStatusError(
+        error instanceof Error
+          ? error.message
+          : t("settings.verification.error.unexpected")
+      );
     } finally {
       setSending(false);
     }
@@ -67,6 +68,8 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, 
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      // A full navigation guarantees the authenticated document is discarded.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/login";
     } catch {
       setLoggingOut(false);
@@ -83,7 +86,6 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, 
       : plan === "business"
       ? t("billing.plan.business")
       : plan;
-  const planExpiry = formatDate(planExpiresAt, lang);
   const startedMs = (() => {
     const v = subscription?.startedAt ?? null;
     if (!v) return null;
@@ -102,9 +104,7 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, 
   const subStatus = subscription?.status || "none";
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-32 pb-20">
-      <Container>
-        <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -114,21 +114,6 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, 
                 {t("settings.subtitle")}
               </p>
             </div>
-            <div className="hidden md:inline-flex">
-              <BackToDashboardLink />
-            </div>
-          </div>
-
-          <div className="md:hidden">
-            <Button
-              asChild
-              variant="outline"
-              className="w-full"
-            >
-              <a href="/dashboard">
-                {t("settings.backToDashboard")}
-              </a>
-            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -258,7 +243,5 @@ export function SettingsClient({ userEmail, emailVerified, plan, planExpiresAt, 
             </Button>
           </div>
         </div>
-      </Container>
-    </div>
   );
 }

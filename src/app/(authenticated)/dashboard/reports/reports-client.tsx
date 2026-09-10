@@ -103,11 +103,9 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-12">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="max-w-6xl mx-auto">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">{t("reports.title")}</h1>
-          <Link href="/dashboard" className="min-h-11 self-start py-3 text-sm font-medium text-isaudi-green">{t("reports.backToDashboard")}</Link>
         </div>
         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -306,7 +304,6 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }

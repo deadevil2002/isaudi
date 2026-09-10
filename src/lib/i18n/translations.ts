@@ -985,6 +985,14 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "يدعم رؤوس عربية ومتعددة الأسطر. استخدم تصدير سلة.",
     en: "Supports Arabic headers and multi-line rows. Use Salla export.",
   },
+  "connect.csv.products.select": {
+    ar: "اختيار ملف المنتجات",
+    en: "Choose products file",
+  },
+  "connect.csv.products.remove": {
+    ar: "إزالة ملف المنتجات",
+    en: "Remove products file",
+  },
   "connect.csv.orders.title": {
     ar: "ملف الطلبات (Salla)",
     en: "Orders file (Salla)",
@@ -992,6 +1000,18 @@ const translations: Record<string, { ar: string; en: string }> = {
   "connect.csv.orders.help": {
     ar: "يجب أن يحتوي على عمود أسماء المنتجات مع SKU.",
     en: "Must contain a column with product names and SKU.",
+  },
+  "connect.csv.orders.select": {
+    ar: "اختيار ملف الطلبات",
+    en: "Choose orders file",
+  },
+  "connect.csv.orders.remove": {
+    ar: "إزالة ملف الطلبات",
+    en: "Remove orders file",
+  },
+  "connect.csv.empty": {
+    ar: "لم يتم اختيار ملف — أو اسحب ملف CSV هنا",
+    en: "No file selected — or drag a CSV file here",
   },
   "connect.csv.button.loading": {
     ar: "جاري التشغيل...",
@@ -1756,6 +1776,102 @@ const translations: Record<string, { ar: string; en: string }> = {
   "reports.compare.interpretation.unchanged": {
     ar: "أداؤك هذا الأسبوع قريب من الأسبوع السابق، ولا يوجد تغير جوهري.",
     en: "Your performance is close to the previous week with no significant change.",
+  },
+  "howPage.eyebrow": {
+    ar: "من البيانات إلى قرار أوضح",
+    en: "From store data to clearer decisions",
+  },
+  "howPage.title": {
+    ar: "كيف يعمل iSaudi؟",
+    en: "How does iSaudi work?",
+  },
+  "howPage.subtitle": {
+    ar: "اربط متجرك أو ارفع ملفاتك، ودع iSaudi يرتّب الأرقام ويحوّلها إلى تقارير مبسطة تساعدك على فهم أداء تجارتك.",
+    en: "Connect your store or upload your files, and iSaudi organizes the numbers into clear reports that help you understand business performance.",
+  },
+  "howPage.step1.title": {
+    ar: "اربط متجرك أو ارفع CSV",
+    en: "Connect your store or upload CSV",
+  },
+  "howPage.step1.description": {
+    ar: "ابدأ بربط متجر سلة أو اختر ملفات المنتجات والطلبات بصيغة CSV.",
+    en: "Start by connecting your Salla store or selecting product and order CSV files.",
+  },
+  "howPage.step2.title": {
+    ar: "نستورد بياناتك اللازمة",
+    en: "We import the needed data",
+  },
+  "howPage.step2.description": {
+    ar: "يستورد iSaudi بيانات المنتجات والطلبات بصلاحيات القراءة اللازمة للتحليل.",
+    en: "iSaudi imports product and order data using the read access needed for analysis.",
+  },
+  "howPage.step3.title": {
+    ar: "نحلل المبيعات والربحية",
+    en: "We analyze sales and profitability",
+  },
+  "howPage.step3.description": {
+    ar: "نرتّب مؤشرات المبيعات والتكاليف والأرباح لتكوين صورة واضحة عن الأداء.",
+    en: "We organize sales, cost, and profit metrics to build a clear performance picture.",
+  },
+  "howPage.step4.title": {
+    ar: "تحصل على تقارير عملية",
+    en: "You receive practical reports",
+  },
+  "howPage.step4.description": {
+    ar: "يعرض iSaudi النتائج بلغة مبسطة مع توصيات عملية مبنية على بياناتك الحالية.",
+    en: "iSaudi explains results in plain language with practical recommendations based on your current data.",
+  },
+  "howPage.step5.title": {
+    ar: "تابع النتائج أسبوعياً",
+    en: "Track results every week",
+  },
+  "howPage.step5.description": {
+    ar: "قارن الأداء بمرور الوقت واتخذ قرارات أوضح بناءً على التغيّرات الفعلية.",
+    en: "Compare performance over time and make clearer decisions from actual changes.",
+  },
+  "howPage.details.title": {
+    ar: "تفاصيل تجعل التحليل أدق",
+    en: "Details that improve the analysis",
+  },
+  "howPage.details.subtitle": {
+    ar: "كل جزء يضيف سياقاً يساعدك على قراءة النتائج بصورة أقرب إلى واقع تجارتك.",
+    en: "Each part adds context that helps you read results closer to the reality of your business.",
+  },
+  "howPage.costs.title": {
+    ar: "التكاليف تحسّن دقة الربح",
+    en: "Costs improve profit accuracy",
+  },
+  "howPage.costs.description": {
+    ar: "إضافة تكاليف التشغيل تساعد التقرير على عرض الربحية بصورة أدق من الاعتماد على المبيعات وحدها.",
+    en: "Adding operating costs helps reports show profitability more accurately than sales alone.",
+  },
+  "howPage.reports.title": {
+    ar: "التقارير تقارن الأداء",
+    en: "Reports compare performance",
+  },
+  "howPage.reports.description": {
+    ar: "توضح المقارنات الأسبوعية كيف تغيّرت المبيعات والربح والهامش بمرور الوقت.",
+    en: "Weekly comparisons show how sales, profit, and margin change over time.",
+  },
+  "howPage.ai.title": {
+    ar: "المساعد يشرح تحليلاتك",
+    en: "The assistant explains your analytics",
+  },
+  "howPage.ai.description": {
+    ar: "يساعدك المساعد الذكي على فهم التحليلات الموجودة بلغة واضحة دون تغيير بياناتك.",
+    en: "The AI assistant helps explain your existing analytics in plain language without changing your data.",
+  },
+  "howPage.cta.title": {
+    ar: "جاهز لرؤية أرقامك بوضوح؟",
+    en: "Ready to see your numbers clearly?",
+  },
+  "howPage.cta.description": {
+    ar: "سجّل الدخول ثم اربط متجرك أو ارفع ملفات CSV لبدء التحليل.",
+    en: "Sign in, then connect your store or upload CSV files to begin the analysis.",
+  },
+  "howPage.cta.action": {
+    ar: "ابدأ الآن",
+    en: "Get started",
   },
 };
 

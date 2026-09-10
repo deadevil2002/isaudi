@@ -89,7 +89,7 @@ export function Header({ userEmail }: HeaderProps) {
               <Link href={userEmail ? "/dashboard" : "/"} className="flex items-center gap-2">
                 <div className="relative w-8 h-8 md:w-10 md:h-10">
                    <Image
-                    src="/brand/isaudi-mark-v1.png"
+                    src="/brand/isaudi-mark-v3.png"
                     alt="isaudi.ai Logo"
                     fill
                     className="object-contain"
@@ -105,7 +105,7 @@ export function Header({ userEmail }: HeaderProps) {
                 <Link href={userEmail ? "/billing" : "/pricing"} className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
                   {t("header.nav.pricing")}
                 </Link>
-                <Link href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
+                <Link href="/how-it-works" className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
                   {t("header.nav.how")}
                 </Link>
               </nav>
@@ -178,7 +178,7 @@ export function Header({ userEmail }: HeaderProps) {
           <Link href={userEmail ? "/dashboard" : "/"} className="flex items-center gap-2" onClick={closeDrawer}>
             <div className="relative w-8 h-8">
                <Image
-                 src="/brand/isaudi-mark-v1.png"
+                 src="/brand/isaudi-mark-v3.png"
                 alt="isaudi.ai Logo"
                 fill
                 className="object-contain"
@@ -252,7 +252,7 @@ export function Header({ userEmail }: HeaderProps) {
                   {t("header.nav.pricing")}
                 </Button>
               </Link>
-              <Link href="#how-it-works" onClick={closeDrawer}>
+              <Link href="/how-it-works" onClick={closeDrawer}>
                 <Button variant="ghost" className="w-full justify-start text-gray-700">
                   {t("header.nav.how")}
                 </Button>

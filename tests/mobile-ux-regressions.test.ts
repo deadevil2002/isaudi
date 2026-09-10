@@ -113,7 +113,7 @@ test("weekly comparison formatter produces plain Arabic and English explanations
 
 test("interaction guards prevent stale comparisons and nested CTA key capture", () => {
   const reportsSource = readFileSync(
-    new URL("../src/app/dashboard/reports/reports-client.tsx", import.meta.url),
+    new URL("../src/app/(authenticated)/dashboard/reports/reports-client.tsx", import.meta.url),
     "utf8",
   );
   const pricingSource = readFileSync(
@@ -121,7 +121,7 @@ test("interaction guards prevent stale comparisons and nested CTA key capture", 
     "utf8",
   );
   const billingSource = readFileSync(
-    new URL("../src/app/billing/billing-client.tsx", import.meta.url),
+    new URL("../src/app/(authenticated)/billing/billing-client.tsx", import.meta.url),
     "utf8",
   );
 
@@ -133,4 +133,62 @@ test("interaction guards prevent stale comparisons and nested CTA key capture", 
   assert.match(pricingSource, /e\.target !== e\.currentTarget/);
   assert.match(billingSource, /\[status, tapId, router\]/);
   assert.doesNotMatch(billingSource, /\[status, tapId, router, lang\]/);
+});
+
+test("authenticated routes share one accessible navigation shell", () => {
+  const shellSource = readFileSync(
+    new URL("../src/components/layout/authenticated-shell.tsx", import.meta.url),
+    "utf8",
+  );
+  const layoutSource = readFileSync(
+    new URL("../src/app/(authenticated)/layout.tsx", import.meta.url),
+    "utf8",
+  );
+  const csvSource = readFileSync(
+    new URL("../src/app/(authenticated)/connect/csv/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  for (const href of [
+    "/dashboard",
+    "/dashboard/reports",
+    "/dashboard/costs",
+    "/connect/salla",
+    "/billing",
+    "/settings",
+  ]) {
+    assert.match(shellSource, new RegExp(`href: "${href.replaceAll("/", "\\/")}"`));
+  }
+
+  assert.match(shellSource, /aria-current=\{active \? "page"/);
+  assert.match(shellSource, /aria-expanded=\{drawerOpen\}/);
+  assert.match(shellSource, /renderNavigation\(true\)/);
+  assert.match(shellSource, /renderNavigation\(\)/);
+  assert.match(layoutSource, /noStore\(\)/);
+  assert.match(layoutSource, /<AuthenticatedShell userEmail=\{user\.email\}>/);
+  assert.match(csvSource, /type="file"/);
+  assert.match(csvSource, /focus-within:border-isaudi-green/);
+  assert.match(csvSource, /className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"/);
+  assert.match(csvSource, /window\.requestAnimationFrame\(\(\) => inputRef\.current\?\.focus\(\)\)/);
+  assert.doesNotMatch(csvSource, /10 \* 1024 \* 1024/);
+  assert.doesNotMatch(csvSource, /File must be a CSV/);
+});
+
+test("public How It Works links use the canonical page", () => {
+  for (const relativePath of [
+    "../src/components/layout/header.tsx",
+    "../src/components/layout/footer.tsx",
+    "../src/components/sections/hero.tsx",
+  ]) {
+    const source = readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    assert.match(source, /href="\/how-it-works"/);
+    assert.doesNotMatch(source, /href="#how-it-works"/);
+  }
+
+  const pageSource = readFileSync(
+    new URL("../src/app/how-it-works/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(pageSource, /path: "\/how-it-works"/);
+  assert.match(pageSource, /How iSaudi Works/);
 });

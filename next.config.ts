@@ -26,8 +26,37 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   reactCompiler: true,
+  async rewrites() {
+    return [
+      {
+        source: "/brand/isaudi-mark-v3.png",
+        destination: "/brand/isaudi-mark-v1.png",
+      },
+      {
+        source: "/brand/isaudi-apple-touch-v3.png",
+        destination: "/brand/isaudi-apple-touch-v1.png",
+      },
+      {
+        source: "/brand/isaudi-social-v3.png",
+        destination: "/brand/isaudi-social-v1.png",
+      },
+    ];
+  },
   async headers() {
     return [
+      ...[
+        "/brand/isaudi-mark-v3.png",
+        "/brand/isaudi-apple-touch-v3.png",
+        "/brand/isaudi-social-v3.png",
+      ].map((source) => ({
+        source,
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      })),
       {
         source: "/(.*)",
         headers: [
