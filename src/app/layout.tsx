@@ -4,6 +4,13 @@ import "./globals.css";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { cookies } from "next/headers";
 import { t } from "@/lib/i18n/translations";
+import {
+  BRAND_APPLE_ICON_URL,
+  BRAND_ICON_URL,
+  MANIFEST_URL,
+  SEO_ORIGIN,
+  SOCIAL_IMAGE_URL,
+} from "@/lib/seo/metadata";
 
 const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
   subsets: ["arabic"],
@@ -12,7 +19,7 @@ const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://isaudi.ai"),
+  metadataBase: new URL(SEO_ORIGIN),
   title: t("ar", "meta.title"),
   description: t("ar", "meta.description"),
   openGraph: {
@@ -21,12 +28,28 @@ export const metadata: Metadata = {
     siteName: "isaudi.ai",
     locale: "ar_SA",
     type: "website",
+    url: SEO_ORIGIN,
+    images: [
+      {
+        url: SOCIAL_IMAGE_URL,
+        width: 1200,
+        height: 630,
+        alt: "isaudi.ai",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: t("ar", "meta.title"),
+    description: t("ar", "meta.description"),
+    images: [SOCIAL_IMAGE_URL],
   },
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: [{ url: BRAND_ICON_URL, type: "image/png", sizes: "512x512" }],
+    shortcut: BRAND_ICON_URL,
+    apple: [{ url: BRAND_APPLE_ICON_URL, type: "image/png", sizes: "180x180" }],
   },
+  manifest: MANIFEST_URL,
 };
 
 export default async function RootLayout({

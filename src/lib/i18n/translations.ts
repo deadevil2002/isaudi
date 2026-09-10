@@ -375,7 +375,7 @@ const translations: Record<string, { ar: string; en: string }> = {
   },
   "dashboard.compare.delta.marginPts": {
     ar: " نقطة",
-    en: " pts",
+    en: " percentage points",
   },
   "dashboard.welcomeLine": {
     ar: "مرحبًا، {email}",
@@ -646,8 +646,8 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Loading...",
   },
   "costs.empty": {
-    ar: "لا توجد منتجات متاحة.",
-    en: "No products available.",
+    ar: "لا توجد تكاليف مسجلة حالياً",
+    en: "No costs are currently recorded.",
   },
   "costs.summary.noPrice": {
     ar: "لا تتوفر لدينا حالياً قيمة سعر بيع لهذا المنتج.",
@@ -833,6 +833,10 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "اختر خطتك المناسبة",
     en: "Choose the right plan for you",
   },
+  "billing.backToDashboard": {
+    ar: "العودة إلى لوحة التحكم",
+    en: "Back to dashboard",
+  },
   "billing.toggle.monthly": {
     ar: "شهريًا",
     en: "Monthly",
@@ -842,8 +846,12 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Yearly",
   },
   "billing.toggle.save": {
-    ar: "(وفر 20%)",
-    en: "(Save 20%)",
+    ar: "وفر {percent}%",
+    en: "Save {percent}%",
+  },
+  "billing.toggle.aria": {
+    ar: "اختيار دورة الدفع الشهرية أو السنوية",
+    en: "Choose monthly or yearly billing",
   },
   "billing.badge.popular": {
     ar: "الأكثر شيوعاً",
@@ -872,6 +880,22 @@ const translations: Record<string, { ar: string; en: string }> = {
   "billing.button.subscribeMonthly": {
     ar: "اشترك شهريًا",
     en: "Subscribe monthly",
+  },
+  "billing.button.downgrade": {
+    ar: "لا يمكن الرجوع إلى باقة أقل",
+    en: "Downgrade not available",
+  },
+  "billing.verify.missingTransaction": {
+    ar: "رقم عملية الدفع غير موجود. تواصل مع الدعم إذا تم الخصم منك.",
+    en: "The payment transaction ID is missing. Contact support if you were charged.",
+  },
+  "billing.verify.failedCharged": {
+    ar: "تعذر التحقق من الدفع. تواصل مع الدعم إذا تم الخصم منك.",
+    en: "Payment verification failed. Contact support if you were charged.",
+  },
+  "billing.verify.failedRetry": {
+    ar: "تعذر التحقق من الدفع. حدّث الصفحة وحاول مرة أخرى.",
+    en: "Payment verification failed. Refresh the page and try again.",
   },
   "billing.error.generic": {
     ar: "حدث خطأ أثناء إنشاء عملية الدفع. يرجى المحاولة مرة أخرى.",
@@ -1082,8 +1106,12 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Yearly",
   },
   "pricing.yearlyBadge": {
-    ar: "(وفر 20%)",
-    en: "(Save 20%)",
+    ar: "وفر {percent}%",
+    en: "Save {percent}%",
+  },
+  "pricing.subscribe": {
+    ar: "اشترك",
+    en: "Subscribe",
   },
   "pricing.mostPopular": {
     ar: "الأكثر طلباً",
@@ -1588,6 +1616,146 @@ const translations: Record<string, { ar: string; en: string }> = {
   "footer.rights": {
     ar: "جميع الحقوق محفوظة.",
     en: "All rights reserved.",
+  },
+  "header.nav.menu": {
+    ar: "القائمة",
+    en: "Menu",
+  },
+  "header.nav.openMenu": {
+    ar: "فتح قائمة التنقل",
+    en: "Open navigation menu",
+  },
+  "header.nav.closeMenu": {
+    ar: "إغلاق قائمة التنقل",
+    en: "Close navigation menu",
+  },
+  "header.lang.aria": {
+    ar: "التبديل إلى اللغة الإنجليزية",
+    en: "Switch to Arabic",
+  },
+  "dashboard.menu.billing": {
+    ar: "الاشتراك والفوترة",
+    en: "Subscription and billing",
+  },
+  "costs.error.fetch": {
+    ar: "تعذر تحميل بيانات التكاليف. حاول مرة أخرى.",
+    en: "Could not load cost data. Please try again.",
+  },
+  "costs.error.save": {
+    ar: "حدث خطأ أثناء حفظ التكاليف.",
+    en: "An error occurred while saving costs.",
+  },
+  "costs.retry": {
+    ar: "إعادة المحاولة",
+    en: "Retry",
+  },
+  "costs.saving": {
+    ar: "جاري الحفظ...",
+    en: "Saving...",
+  },
+  "common.currency.short": {
+    ar: "ر.س",
+    en: "SAR",
+  },
+  "reports.error": {
+    ar: "تعذر تحميل التقارير. حاول مرة أخرى.",
+    en: "Could not load reports. Please try again.",
+  },
+  "reports.retry": {
+    ar: "إعادة المحاولة",
+    en: "Retry",
+  },
+  "reports.compare.error": {
+    ar: "تعذرت مقارنة التقريرين. حاول مرة أخرى.",
+    en: "Could not compare these reports. Please try again.",
+  },
+  "reports.compare.sales.increased": {
+    ar: "المبيعات ارتفعت من {previous} إلى {current}.",
+    en: "Sales increased from {previous} to {current}.",
+  },
+  "reports.compare.sales.decreased": {
+    ar: "المبيعات انخفضت من {previous} إلى {current}.",
+    en: "Sales decreased from {previous} to {current}.",
+  },
+  "reports.compare.sales.unchanged": {
+    ar: "المبيعات بقيت عند {current}.",
+    en: "Sales remained at {current}.",
+  },
+  "reports.compare.profit.increased": {
+    ar: "الربح ارتفع من {previous} إلى {current}.",
+    en: "Profit increased from {previous} to {current}.",
+  },
+  "reports.compare.profit.decreased": {
+    ar: "الربح انخفض من {previous} إلى {current}.",
+    en: "Profit decreased from {previous} to {current}.",
+  },
+  "reports.compare.profit.unchanged": {
+    ar: "الربح بقي عند {current}.",
+    en: "Profit remained at {current}.",
+  },
+  "reports.compare.margin.increased": {
+    ar: "هامش الربح تحسن من {previous} إلى {current}.",
+    en: "Profit margin improved from {previous} to {current}.",
+  },
+  "reports.compare.margin.decreased": {
+    ar: "هامش الربح انخفض من {previous} إلى {current}.",
+    en: "Profit margin declined from {previous} to {current}.",
+  },
+  "reports.compare.margin.unchanged": {
+    ar: "هامش الربح بقي عند {current}.",
+    en: "Profit margin remained at {current}.",
+  },
+  "reports.compare.orders.increased": {
+    ar: "عدد الطلبات ارتفع من {previous} إلى {current}.",
+    en: "Orders increased from {previous} to {current}.",
+  },
+  "reports.compare.orders.decreased": {
+    ar: "عدد الطلبات انخفض من {previous} إلى {current}.",
+    en: "Orders decreased from {previous} to {current}.",
+  },
+  "reports.compare.orders.unchanged": {
+    ar: "عدد الطلبات بقي عند {current}.",
+    en: "Orders remained at {current}.",
+  },
+  "reports.compare.change.increased": {
+    ar: "الزيادة: {value}",
+    en: "Increase: {value}",
+  },
+  "reports.compare.change.decreased": {
+    ar: "الانخفاض: {value}",
+    en: "Decrease: {value}",
+  },
+  "reports.compare.change.unchanged": {
+    ar: "لا يوجد تغيير",
+    en: "No change",
+  },
+  "reports.compare.rate.increased": {
+    ar: "نسبة النمو: {value}",
+    en: "Growth: {value}",
+  },
+  "reports.compare.rate.decreased": {
+    ar: "نسبة الانخفاض: {value}",
+    en: "Decline: {value}",
+  },
+  "reports.compare.rate.unchanged": {
+    ar: "نسبة التغير: {value}",
+    en: "Change: {value}",
+  },
+  "reports.compare.points": {
+    ar: "{value} نقطة مئوية",
+    en: "{value} percentage points",
+  },
+  "reports.compare.interpretation.improved": {
+    ar: "أداؤك الإجمالي هذا الأسبوع أفضل من الأسبوع السابق. راجع تفاصيل كل مؤشر لمعرفة أسباب التحسن.",
+    en: "Your overall performance improved this week. Review each metric to understand what changed.",
+  },
+  "reports.compare.interpretation.declined": {
+    ar: "أداؤك الإجمالي هذا الأسبوع أقل من الأسبوع السابق. راجع تفاصيل كل مؤشر لمعرفة أسباب التراجع.",
+    en: "Your overall performance declined this week. Review each metric to understand what changed.",
+  },
+  "reports.compare.interpretation.unchanged": {
+    ar: "أداؤك هذا الأسبوع قريب من الأسبوع السابق، ولا يوجد تغير جوهري.",
+    en: "Your performance is close to the previous week with no significant change.",
   },
 };
 

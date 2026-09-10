@@ -13,6 +13,10 @@ import { createTranslator } from "@/lib/i18n/translations";
 import type { User } from "@/lib/db/client";
 import type { SubscriptionEntitlements } from "@/lib/subscription/types";
 import { comparePlans, type PlanId } from "@/lib/subscription/plans";
+import {
+  calculateAnnualSavingsPercent,
+  calculateMinimumAnnualSavingsPercent,
+} from "@/lib/pricing/annual-savings";
 
 const plans = [
   {
@@ -67,22 +71,29 @@ const plans = [
   },
 ];
 
-export function Pricing({ user, subscription }: { user: User | null, subscription: SubscriptionEntitlements | null }) {
+export function Pricing({
+  user,
+  subscription,
+  compact = false,
+}: {
+  user: User | null;
+  subscription: SubscriptionEntitlements | null;
+  compact?: boolean;
+}) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
   const [isYearly, setIsYearly] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("growth"); // Default to middle plan
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
 
-  const activePlan = plans.find(p => p.id === (hoveredPlan ?? selectedPlan)) || plans.find(p => p.id === "growth")!;
-  const globalSavings = Math.round((1 - (activePlan.priceYearly / (activePlan.priceMonthly * 12))) * 100);
+  const minimumSavings = calculateMinimumAnnualSavingsPercent(plans);
 
   return (
-    <section className="py-20 bg-white" id="pricing">
+    <section className={cn("bg-white", compact ? "py-12 md:py-16" : "py-20")} id="pricing">
       <Container>
-        <div className="text-center mb-12">
+        <div className={cn("text-center", compact ? "mb-8" : "mb-12")}>
           <motion.h2
-            initial="hidden"
+            initial={compact ? false : "hidden"}
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeIn}
@@ -91,7 +102,7 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
             {t("pricing.title")}
           </motion.h2>
           <motion.p
-            initial="hidden"
+            initial={compact ? false : "hidden"}
             whileInView="visible"
             viewport={{ once: true }}
             variants={fadeIn}
@@ -104,34 +115,47 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
           <div className="flex flex-col items-center justify-center mb-12">
             <div
               role="radiogroup"
-              aria-label="Payment interval"
-              className="flex items-center p-1 rounded-full border border-gray-200 bg-gray-50/50 shadow-sm"
+              aria-label={t("billing.toggle.aria")}
+              data-pricing-interval={isYearly ? "year" : "month"}
+              className="flex max-w-full items-center justify-center rounded-full border border-gray-200 bg-gray-50/50 p-1 shadow-sm"
             >
-              <button
-                role="radio"
-                aria-checked={!isYearly}
+              <label
                 onClick={() => setIsYearly(false)}
                 className={cn(
-                  "px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-isaudi-green",
+                  "relative cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-all duration-300 focus-within:ring-2 focus-within:ring-isaudi-green md:px-5 md:py-2.5 md:text-sm",
                   !isYearly ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 )}
               >
-                {t("pricing.monthly")}
-              </button>
-              <button
-                role="radio"
-                aria-checked={isYearly}
+                <input
+                  type="radio"
+                  name="pricing-interval"
+                  value="monthly"
+                  checked={!isYearly}
+                  onChange={() => setIsYearly(false)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+                <span className="pointer-events-none">{t("pricing.monthly")}</span>
+              </label>
+              <label
                 onClick={() => setIsYearly(true)}
                 className={cn(
-                  "px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-isaudi-green flex items-center gap-2",
+                  "relative flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all duration-300 focus-within:ring-2 focus-within:ring-isaudi-green md:px-5 md:py-2.5 md:text-sm",
                   isYearly ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 )}
               >
-                {t("pricing.yearly")}
-                <span className="text-isaudi-green text-xs font-bold bg-isaudi-green/10 px-2 py-0.5 rounded-full">
-                  {lang === "ar" ? "وفر" : "Save"} {globalSavings}%
+                <input
+                  type="radio"
+                  name="pricing-interval"
+                  value="yearly"
+                  checked={isYearly}
+                  onChange={() => setIsYearly(true)}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+                <span className="pointer-events-none">{t("pricing.yearly")}</span>
+                <span className="pointer-events-none whitespace-nowrap rounded-full bg-isaudi-green/10 px-2 py-0.5 text-[10px] font-bold text-isaudi-green md:text-xs">
+                  {t("pricing.yearlyBadge").replace("{percent}", String(minimumSavings))}
                 </span>
-              </button>
+              </label>
             </div>
           </div>
         </div>
@@ -159,12 +183,12 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
               buttonDisabled = true;
               buttonHref = "/billing";
             } else if (isDowngrade) {
-              buttonText = lang === "ar" ? "غير متاح الرجوع لأقل" : "Downgrade not available";
+              buttonText = t("billing.button.downgrade");
               buttonDisabled = true;
             } else if (user) {
               buttonText = t("dashboard.plan.upgrade");
             } else {
-              buttonText = lang === "ar" ? "اشترك" : "Subscribe";
+              buttonText = t("pricing.subscribe");
             }
 
             return (
@@ -175,6 +199,7 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
                 onMouseLeave={() => setHoveredPlan(null)}
                 // Add keyboard support for accessibility
                 onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     setSelectedPlan(plan.id);
@@ -215,7 +240,10 @@ export function Pricing({ user, subscription }: { user: User | null, subscriptio
                   </div>
                   {isYearly && plan.priceYearly > 0 && plan.priceMonthly > 0 && (
                     <div className="mt-3 inline-block bg-isaudi-green/10 text-isaudi-green text-xs font-bold px-3 py-1 rounded-full">
-                      {lang === "ar" ? "وفر" : "Save"} {Math.round((1 - (plan.priceYearly / (plan.priceMonthly * 12))) * 100)}%
+                      {t("pricing.yearlyBadge").replace(
+                        "{percent}",
+                        String(calculateAnnualSavingsPercent(plan.priceMonthly, plan.priceYearly)),
+                      )}
                     </div>
                   )}
                 </div>

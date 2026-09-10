@@ -8,7 +8,7 @@ import { Globe, LogOut, Menu, X, LayoutDashboard, TrendingUp, ShoppingBag, Setti
 import { useLanguage } from "@/components/providers/language-provider";
 import { useRouter } from "next/navigation";
 import { createTranslator } from "@/lib/i18n/translations";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -20,6 +20,8 @@ export function Header({ userEmail }: HeaderProps) {
   const router = useRouter();
   const t = createTranslator(lang);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDialogElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Close drawer on resize to md
   useEffect(() => {
@@ -31,6 +33,28 @@ export function Header({ userEmail }: HeaderProps) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+
+    if (!drawerOpen) {
+      if (drawer.open) drawer.close();
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    if (!drawer.open) drawer.showModal();
+    const frameId = window.requestAnimationFrame(() => {
+      drawer.querySelector<HTMLElement>("[data-drawer-close]")?.focus();
+    });
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [drawerOpen]);
 
   const handleLogout = async () => {
     try {
@@ -53,15 +77,19 @@ export function Header({ userEmail }: HeaderProps) {
               <Button
                 variant="ghost"
                 size="icon"
+                ref={menuButtonRef}
                 className="md:hidden text-gray-700"
                 onClick={() => setDrawerOpen(true)}
+                aria-label={t("header.nav.openMenu")}
+                aria-controls="mobile-navigation"
+                aria-expanded={drawerOpen}
               >
                 <Menu className="w-5 h-5" />
               </Button>
               <Link href={userEmail ? "/dashboard" : "/"} className="flex items-center gap-2">
                 <div className="relative w-8 h-8 md:w-10 md:h-10">
                    <Image
-                    src="/logo.png"
+                    src="/brand/isaudi-mark-v1.png"
                     alt="isaudi.ai Logo"
                     fill
                     className="object-contain"
@@ -73,7 +101,7 @@ export function Header({ userEmail }: HeaderProps) {
               </Link>
 
               {/* Desktop Navigation */}
-              <nav className="hidden md:flex items-center gap-6 mr-8">
+              <nav className="ms-8 hidden items-center gap-6 md:flex">
                 <Link href={userEmail ? "/billing" : "/pricing"} className="text-sm font-medium text-gray-600 hover:text-isaudi-green transition-colors">
                   {t("header.nav.pricing")}
                 </Link>
@@ -89,6 +117,7 @@ export function Header({ userEmail }: HeaderProps) {
                 size="sm"
                 className="flex gap-2 text-gray-600"
                 onClick={toggleLanguage}
+                aria-label={t("header.lang.aria")}
               >
                 <Globe className="w-4 h-4" />
                 <span className="hidden sm:inline">{t("header.lang.toggle")}</span>
@@ -105,7 +134,7 @@ export function Header({ userEmail }: HeaderProps) {
                     onClick={handleLogout}
                     className="text-gray-600 hover:text-red-600 hover:bg-red-50 border-gray-200 hidden sm:flex"
                   >
-                    <LogOut className="w-4 h-4 md:mr-2" />
+                    <LogOut className="w-4 h-4 md:ms-2" />
                     <span className="hidden md:inline">
                       {t("header.logout")}
                     </span>
@@ -123,27 +152,33 @@ export function Header({ userEmail }: HeaderProps) {
         </Container>
       </header>
 
-      {/* Mobile Drawer Overlay */}
-      {drawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-50 md:hidden transition-opacity"
-          onClick={closeDrawer}
-        />
-      )}
-
       {/* Mobile Drawer */}
-      <div
+      <dialog
+        ref={drawerRef}
+        id="mobile-navigation"
+        aria-label={t("header.nav.menu")}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeDrawer();
+        }}
+        onClose={() => {
+          setDrawerOpen(false);
+          menuButtonRef.current?.focus();
+        }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) closeDrawer();
+        }}
         className={cn(
-          "fixed top-0 bottom-0 z-50 w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out md:hidden flex flex-col",
-          lang === "ar" ? "right-0" : "left-0",
-          drawerOpen ? "translate-x-0" : lang === "ar" ? "translate-x-full" : "-translate-x-full"
+          "fixed bottom-0 top-0 z-50 m-0 h-dvh w-[min(18rem,calc(100vw-1.5rem))] max-h-none max-w-full border-0 bg-white p-0 shadow-xl md:hidden [&::backdrop]:bg-black/40",
+          lang === "ar" ? "left-auto right-0" : "left-0 right-auto",
         )}
       >
+        <div className="flex h-full flex-col">
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <Link href={userEmail ? "/dashboard" : "/"} className="flex items-center gap-2" onClick={closeDrawer}>
             <div className="relative w-8 h-8">
                <Image
-                src="/logo.png"
+                 src="/brand/isaudi-mark-v1.png"
                 alt="isaudi.ai Logo"
                 fill
                 className="object-contain"
@@ -153,7 +188,14 @@ export function Header({ userEmail }: HeaderProps) {
               isaudi.ai
             </span>
           </Link>
-          <Button variant="ghost" size="icon" onClick={closeDrawer} className="text-gray-500">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={closeDrawer}
+            className="text-gray-500"
+            aria-label={t("header.nav.closeMenu")}
+            data-drawer-close
+          >
             <X className="w-5 h-5" />
           </Button>
         </div>
@@ -163,7 +205,7 @@ export function Header({ userEmail }: HeaderProps) {
             <>
               <div className="mb-4 px-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-2 font-semibold">
-                  {t("header.nav.menu") || "Menu"}
+                  {t("header.nav.menu")}
                 </p>
               </div>
               <Link href="/dashboard" onClick={closeDrawer}>
@@ -193,7 +235,7 @@ export function Header({ userEmail }: HeaderProps) {
               <Link href="/billing" onClick={closeDrawer}>
                 <Button variant="ghost" className="w-full justify-start gap-3 text-gray-700">
                   <CreditCard className="w-4 h-4" />
-                  {t("dashboard.menu.billing") || "Billing"}
+                  {t("dashboard.menu.billing")}
                 </Button>
               </Link>
               <Link href="/settings" onClick={closeDrawer}>
@@ -232,12 +274,13 @@ export function Header({ userEmail }: HeaderProps) {
                 handleLogout();
               }}
             >
-              <LogOut className="w-4 h-4 mr-2" />
+               <LogOut className="me-2 w-4 h-4" />
               {t("header.logout")}
             </Button>
           </div>
         )}
-      </div>
+        </div>
+      </dialog>
     </>
   );
 }

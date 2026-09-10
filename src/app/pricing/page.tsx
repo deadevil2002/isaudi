@@ -20,7 +20,7 @@ export default async function PricingPage() {
     <main className="min-h-screen bg-white selection:bg-isaudi-green/20 selection:text-isaudi-green-dark">
       <Header userEmail={user?.email} />
       <div className="pt-24">
-        <Pricing user={user} subscription={subscription} />
+        <Pricing user={user} subscription={subscription} compact />
       </div>
       <Footer />
     </main>

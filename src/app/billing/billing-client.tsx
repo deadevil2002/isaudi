@@ -5,11 +5,13 @@ import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
 import { SubscriptionEntitlements } from "@/lib/subscription/types";
 import { User } from "@/lib/db/client";
-import { Check, Loader2, CreditCard, ShieldCheck, AlertCircle } from "lucide-react";
+import { Check, Loader2, ShieldCheck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
+import { calculateMinimumAnnualSavingsPercent } from "@/lib/pricing/annual-savings";
+import Link from "next/link";
 
 const basePlans = [
   {
@@ -76,10 +78,11 @@ export function BillingClient({ user, subscription }: { user: User, subscription
       features: featureKeys.map((k) => t(k)),
     };
   });
+  const annualSavings = calculateMinimumAnnualSavingsPercent(basePlans);
 
   const [isYearly, setIsYearly] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyErrorKey, setVerifyErrorKey] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   const planOrder = Array.from(new Set(['free', ...plans.map(p => p.id)]));
@@ -96,7 +99,7 @@ export function BillingClient({ user, subscription }: { user: User, subscription
           const finalTapId = tapId || storedTapChargeId || "";
 
           if (!finalTapId) {
-            setVerifyError("Missing Tap transaction ID. Please contact support if you were charged.");
+            setVerifyErrorKey("billing.verify.missingTransaction");
             return;
           }
 
@@ -110,13 +113,14 @@ export function BillingClient({ user, subscription }: { user: User, subscription
             try {
               window.sessionStorage.removeItem("tapChargeId");
             } catch {}
-            window.location.href = "/billing?updated=1";
+            router.replace("/billing?updated=1");
+            router.refresh();
             return;
           }
-          setVerifyError("Payment verification failed. If you were charged, please contact support.");
+          setVerifyErrorKey("billing.verify.failedCharged");
           router.refresh();
         } catch {
-          setVerifyError("Payment verification failed. Please refresh and try again.");
+          setVerifyErrorKey("billing.verify.failedRetry");
           router.refresh();
         }
       })();
@@ -157,7 +161,7 @@ export function BillingClient({ user, subscription }: { user: User, subscription
         } catch {}
       }
       if (redirectUrl) {
-        window.location.href = redirectUrl;
+        window.location.assign(redirectUrl);
       }
     } catch (error) {
       console.error('Subscription error:', error);
@@ -172,13 +176,21 @@ export function BillingClient({ user, subscription }: { user: User, subscription
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-32 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-16 pt-24 md:pb-20 md:pt-32">
       <Container>
         <div className="max-w-5xl mx-auto space-y-12">
           
           {/* Current Plan Status */}
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-            <h1 className="text-2xl font-bold mb-6">{t("billing.title")}</h1>
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8">
+            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-2xl font-bold">{t("billing.title")}</h1>
+              <Link
+                href="/dashboard"
+                className="min-h-11 self-start py-3 text-sm font-medium text-isaudi-green"
+              >
+                {t("billing.backToDashboard")}
+              </Link>
+            </div>
             
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-4">
@@ -215,10 +227,10 @@ export function BillingClient({ user, subscription }: { user: User, subscription
               </div>
             )}
 
-            {status === "processed" && verifyError && (
+            {status === "processed" && verifyErrorKey && (
               <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl flex items-center gap-3 border border-red-100">
                 <AlertCircle className="w-5 h-5" />
-                <span>{verifyError}</span>
+                <span>{t(verifyErrorKey)}</span>
               </div>
             )}
           </div>
@@ -229,25 +241,32 @@ export function BillingClient({ user, subscription }: { user: User, subscription
               <h2 className="text-3xl font-bold mb-4">{t("billing.choosePlan")}</h2>
               
               {/* Toggle */}
-              <div className="flex items-center justify-center gap-4 mt-8">
+              <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
                 <span className={cn("text-sm font-medium transition-colors", !isYearly ? "text-gray-900" : "text-gray-500")}>
                   {t("billing.toggle.monthly")}
                 </span>
                 <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isYearly}
+                  aria-label={t("billing.toggle.aria")}
                   onClick={() => setIsYearly(!isYearly)}
-                  className="relative w-14 h-8 bg-gray-200 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-isaudi-green"
+                  className={cn(
+                    "relative h-8 w-14 shrink-0 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-isaudi-green focus:ring-offset-2",
+                    isYearly ? "bg-isaudi-green" : "bg-gray-200",
+                  )}
                 >
                   <div 
-                    className={cn(
-                      "absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform duration-300",
-                      isYearly ? "translate-x-1" : "translate-x-7"
-                    )}
+                    className="absolute top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-[inset-inline-start] duration-300"
+                    style={{
+                      insetInlineStart: isYearly ? "calc(100% - 1.75rem)" : "0.25rem",
+                    }}
                   />
                 </button>
-                <span className={cn("text-sm font-medium transition-colors", isYearly ? "text-gray-900" : "text-gray-500")}>
+                <span className={cn("text-sm font-medium transition-colors flex items-center gap-1", isYearly ? "text-gray-900" : "text-gray-500")}>
                   {t("billing.toggle.yearly")}
-                  <span className="text-isaudi-green text-xs mr-2 font-normal">
-                    {t("billing.toggle.save")}
+                  <span className="text-isaudi-green text-xs font-normal bg-isaudi-green/10 px-2 py-0.5 rounded-full">
+                    {t("billing.toggle.save").replace("{percent}", String(annualSavings))}
                   </span>
                 </span>
               </div>
@@ -258,15 +277,14 @@ export function BillingClient({ user, subscription }: { user: User, subscription
                 const currentPlanIndex = planOrder.indexOf(subscription?.planId || 'free');
                 const planIndex = planOrder.indexOf(plan.id);
                 const isCurrentPlan = subscription?.planId === plan.id && subscription?.isActiveNow;
-                const isUpgrade = planIndex > currentPlanIndex;
                 const isDowngrade = planIndex < currentPlanIndex;
 
                 return (
                   <div 
                     key={plan.id}
                     className={cn(
-                      "relative bg-white rounded-2xl p-8 border transition-all duration-300",
-                      plan.popular ? "border-isaudi-green shadow-lg scale-105 z-10" : "border-gray-100 hover:border-gray-200 hover:shadow-md"
+                      "relative bg-white rounded-2xl p-6 sm:p-8 border transition-all duration-300",
+                      plan.popular ? "border-isaudi-green shadow-lg md:scale-105 z-10" : "border-gray-100 hover:border-gray-200 hover:shadow-md"
                     )}
                   >
                     {plan.popular && (

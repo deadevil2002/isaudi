@@ -19,7 +19,7 @@ export function Footer() {
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="relative w-8 h-8">
                  <Image 
-                  src="/logo.png" 
+                  src="/brand/isaudi-mark-v1.png"
                   alt="isaudi.ai Logo" 
                   fill
                   className="object-contain"

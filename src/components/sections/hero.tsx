@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, PlayCircle } from "lucide-react";
-import { fadeIn, slideUp, slideInRight, slideInLeft, staggerContainer } from "@/lib/animations";
+import { slideUp, slideInLeft, staggerContainer } from "@/lib/animations";
 import { AiInsight } from "@/components/illustrations/ai-insight";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
@@ -35,7 +35,7 @@ export function Hero() {
             <motion.div variants={slideUp} className="mb-8 flex justify-end">
               <div className="relative w-32 h-32 md:w-40 md:h-40">
                 <Image 
-                  src="/logo.png" 
+                  src="/brand/isaudi-mark-v1.png"
                   alt="isaudi.ai Logo" 
                   fill
                   className="object-contain"
@@ -140,7 +140,7 @@ export function Hero() {
                   </div>
                   <div className="relative w-20 h-6 opacity-80">
                     <Image 
-                        src="/logo.png" 
+                        src="/brand/isaudi-mark-v1.png"
                         alt="isaudi.ai" 
                         fill
                         className="object-contain"
@@ -240,13 +240,3 @@ export function Hero() {
     </section>
   );
 }
-
-const staggerChildren = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2
-    }
-  }
-};
