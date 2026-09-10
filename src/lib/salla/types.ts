@@ -26,3 +26,10 @@ export interface SallaAuthorizer {
   name: string | null;
   role: string | null;
 }
+
+export type SallaConnectState =
+  | 'before_install'
+  | 'waiting_for_link'
+  | 'reconnect_required'
+  | 'connected'
+  | 'disconnected';

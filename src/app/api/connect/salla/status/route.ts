@@ -1,19 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { dbService } from '@/lib/db/service';
+import { getCurrentUser } from '@/lib/auth/utils';
 import { getSallaConnectState } from '@/lib/salla/repository';
 
 export async function GET() {
-  const sessionId = (await cookies()).get('session_id')?.value;
-  if (!sessionId) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const session = await dbService.getSession(sessionId);
-  const user = session ? await dbService.getUserById(session.userId) : null;
-  if (!session || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const state = await getSallaConnectState(user.id, user.email);
+  const state = await getSallaConnectState(String(user.id));
   return NextResponse.json(
     { state },
     { headers: { 'Cache-Control': 'private, no-store' } }

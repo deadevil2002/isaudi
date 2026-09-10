@@ -6,6 +6,7 @@ export const ORIGIN_PROTECTED_POST_PATHS = [
   '/api/auth/send-verification',
   '/api/costs/upsert',
   '/api/connect/csv/upload',
+  '/api/connect/salla/link-code',
   '/api/analysis/generate',
   '/api/analysis/chat',
   '/api/reports/generate-weekly',

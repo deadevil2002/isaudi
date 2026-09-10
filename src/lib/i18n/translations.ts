@@ -906,8 +906,8 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Connect Salla store",
   },
   "connect.salla.description": {
-    ar: "سيتم توجيهك إلى صفحة سلة للموافقة على الأذونات المطلوبة لاستيراد المنتجات والطلبات لتحليلها.",
-    en: "You will be redirected to Salla to approve the permissions needed to import products and orders for analysis.",
+    ar: "قم بربط متجرك عبر إدخال رمز الربط في إعدادات التطبيق في سلة لتبدأ رحلة استيراد وتحليل بياناتك بذكاء وأمان.",
+    en: "Connect your store by entering the linking code in the Salla app settings to securely begin importing and analyzing your data.",
   },
   "connect.salla.error.config_missing": {
     ar: "ربط سلة يحتاج إعداد تطبيق مطور. استخدم CSV مؤقتًا.",
@@ -929,6 +929,14 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "حدث خطأ غير معروف.",
     en: "An unknown error occurred.",
   },
+  "connect.salla.error.email_unverified": {
+    ar: "يجب توثيق البريد الإلكتروني لإنشاء رمز الربط.",
+    en: "Email must be verified to generate a linking code.",
+  },
+  "connect.salla.error.generation": {
+    ar: "حدث خطأ أثناء إنشاء الرمز. يرجى المحاولة مرة أخرى.",
+    en: "An error occurred while generating the code. Please try again.",
+  },
   "connect.salla.button.primary": {
     ar: "تثبيت تطبيق iSaudi.ai من سلة",
     en: "Install iSaudi.ai from Salla",
@@ -945,9 +953,13 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "لم يتم تثبيت التطبيق بعد.",
     en: "The app has not been installed yet.",
   },
-  "connect.salla.status.pending": {
-    ar: "تعذر ربط هذا التثبيت بحسابك. تأكد أن بريد حسابك في سلة مطابق لبريد حسابك الموثّق في iSaudi.ai.",
-    en: "This installation could not be linked to your account. Make sure your Salla email matches your verified iSaudi.ai account email.",
+  "connect.salla.status.waitingForLink": {
+    ar: "في انتظار إدخال رمز الربط في متجر سلة...",
+    en: "Waiting for link code to be entered in Salla...",
+  },
+  "connect.salla.status.disconnected": {
+    ar: "تم إلغاء تثبيت التطبيق. يرجى إعادة التثبيت.",
+    en: "The app was uninstalled. Please reinstall it.",
   },
   "connect.salla.status.connected": {
     ar: "متجرك متصل بسلة.",
@@ -956,6 +968,46 @@ const translations: Record<string, { ar: string; en: string }> = {
   "connect.salla.status.reconnectRequired": {
     ar: "يلزم إعادة ربط متجر سلة لتحديث الاتصال بأمان.",
     en: "Reconnect your Salla store to refresh the connection securely.",
+  },
+  "connect.salla.code.generate": {
+    ar: "إنشاء رمز الربط",
+    en: "Generate linking code",
+  },
+  "connect.salla.code.regenerate": {
+    ar: "إنشاء رمز جديد",
+    en: "Regenerate code",
+  },
+  "connect.salla.code.copy": {
+    ar: "نسخ الرمز",
+    en: "Copy code",
+  },
+  "connect.salla.code.copied": {
+    ar: "تم النسخ!",
+    en: "Copied!",
+  },
+  "connect.salla.code.expiresIn": {
+    ar: "صالح لمدة",
+    en: "Valid for",
+  },
+  "connect.salla.code.expired": {
+    ar: "انتهت صلاحية الرمز",
+    en: "Code expired",
+  },
+  "connect.salla.code.instruction1": {
+    ar: "انسخ رمز الربط أعلاه",
+    en: "Copy the linking code above",
+  },
+  "connect.salla.code.instruction2": {
+    ar: "اضغط على زر التثبيت للانتقال إلى سلة",
+    en: "Click the install button to go to Salla",
+  },
+  "connect.salla.code.instruction3": {
+    ar: "في إعدادات التطبيق في سلة، الصق الرمز في حقل 'رمز ربط iSaudi' واحفظ الإعدادات",
+    en: "In Salla app settings, paste the code into the 'iSaudi Link Code' field and save",
+  },
+  "connect.salla.button.install": {
+    ar: "الذهاب إلى سلة للتثبيت",
+    en: "Go to Salla to install",
   },
   "connect.salla.button.csv": {
     ar: "أو استخدم رفع ملف CSV",

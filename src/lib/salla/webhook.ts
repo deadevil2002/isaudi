@@ -3,9 +3,10 @@ import { encryptSallaToken } from './token-crypto';
 import { SALLA_USER_INFO_URL } from './constants';
 import {
   applySallaLifecycle,
-  findVerifiedUserForAuthorizer,
+  claimSallaMerchantByLinkCode,
   upsertSallaAuthorization,
 } from './repository';
+import { hashSallaLinkCode } from './link-code';
 import type { SallaAuthorizer } from './types';
 
 type JsonObject = Record<string, unknown>;
@@ -33,6 +34,10 @@ function merchantId(payload: JsonObject): string | null {
   const merchant = object(payload.merchant) || object(data?.merchant);
   return nonEmpty(payload.merchant) || nonEmpty(payload.merchant_id) ||
     nonEmpty(data?.merchant_id) || nonEmpty(merchant?.id);
+}
+
+function settingsMerchantId(payload: JsonObject): string | null {
+  return nonEmpty(payload.merchant);
 }
 
 function eventTime(payload: JsonObject): number | null {
@@ -110,10 +115,17 @@ export async function processSallaWebhook(
   value: unknown,
   options: {
     fetcher?: typeof fetch;
-    findUser?: typeof findVerifiedUserForAuthorizer;
     upsertAuthorization?: typeof upsertSallaAuthorization;
     applyLifecycle?: typeof applySallaLifecycle;
     encryptToken?: typeof encryptSallaToken;
+    claimMerchant?: (
+      merchantId: string,
+      codeHash: string,
+      eventAt: number,
+      now: number
+    ) => Promise<'claimed' | 'invalid' | 'conflict'>;
+    hashLinkCode?: typeof hashSallaLinkCode;
+    now?: () => number;
   } = {}
 ): Promise<'mutated' | 'ignored'> {
   const payload = object(value);
@@ -127,12 +139,28 @@ export async function processSallaWebhook(
     'app.updated',
     'app.uninstalled',
     'app.store.deauthorize',
+    'app.settings.updated',
   ]);
   if (!relevant.has(event)) return 'ignored';
-  const id = merchantId(payload);
+  const id = event === 'app.settings.updated'
+    ? settingsMerchantId(payload)
+    : merchantId(payload);
   if (!id) throw new SallaWebhookValidationError('Malformed Salla lifecycle webhook');
   const at = eventTime(payload);
   if (!at) throw new SallaWebhookValidationError('Invalid Salla event timestamp');
+
+  if (event === 'app.settings.updated') {
+    const data = object(payload.data);
+    const settings = object(data?.settings);
+    const rawCode = settings?.isaudi_link_code;
+    if (rawCode === undefined) return 'ignored';
+    const codeHash = (options.hashLinkCode || hashSallaLinkCode)(rawCode);
+    if (!codeHash) return 'ignored';
+    const result = await (
+      options.claimMerchant || claimSallaMerchantByLinkCode
+    )(id, codeHash, at, (options.now || Date.now)());
+    return result === 'claimed' ? 'mutated' : 'ignored';
+  }
 
   if (event !== 'app.store.authorize') {
     await (options.applyLifecycle || applySallaLifecycle)(
@@ -161,11 +189,9 @@ export async function processSallaWebhook(
     options.fetcher || fetch,
     id
   );
-  const userId = await (options.findUser || findVerifiedUserForAuthorizer)(authorizer.email);
   const encryptToken = options.encryptToken || encryptSallaToken;
   await (options.upsertAuthorization || upsertSallaAuthorization)({
     merchantId: id,
-    candidateUserId: userId,
     accessTokenEncrypted: encryptToken(accessToken),
     refreshTokenEncrypted: encryptToken(refreshToken),
     tokenExpiresAt,

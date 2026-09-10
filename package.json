@@ -19,8 +19,9 @@
     "d1:release:chat": "wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0010_ai_chat_rate_limits.sql",
     "d1:release:usage": "wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0011_ai_usage_ledger.sql",
     "d1:release:salla": "wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0012_salla_easy_mode.sql",
-    "d1:verify:release": "wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --command \"SELECT (SELECT COUNT(*) FROM admin_accounts) AS admin_accounts_count, (SELECT COUNT(*) FROM ai_chat_rate_limits) AS ai_chat_rate_limits_count, (SELECT COUNT(*) FROM ai_usage_ledger) AS ai_usage_ledger_count, (SELECT COUNT(merchantId)+COUNT(userId)+COUNT(status)+COUNT(accessTokenEncrypted)+COUNT(refreshTokenEncrypted)+COUNT(tokenExpiresAt)+COUNT(scopes)+COUNT(authorizerId)+COUNT(authorizerEmail)+COUNT(authorizerName)+COUNT(authorizerRole)+COUNT(installedAt)+COUNT(appUpdatedAt)+COUNT(authorizedAt)+COUNT(updatedAt)+COUNT(uninstalledAt)+COUNT(disconnectedAt)+COUNT(lastEventAt)+COUNT(lastEventType)+COUNT(lastEventPriority)+COUNT(tokenVersion)+COUNT(refreshState)+COUNT(refreshAttemptId)+COUNT(refreshAttemptStartedAt)+COUNT(refreshLockToken)+COUNT(refreshLockExpiresAt) FROM salla_connections) AS salla_schema_probe\"",
-    "d1:release:remote": "npm run d1:release:salla && npm run d1:verify:release",
+    "d1:release:salla-link": "wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0013_salla_link_codes.sql",
+    "d1:verify:release": "wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --command \"SELECT (SELECT COUNT(id)+COUNT(userId)+COUNT(codeHash)+COUNT(expiresAt)+COUNT(consumedAt)+COUNT(invalidatedAt)+COUNT(createdAt) FROM salla_link_codes) AS salla_link_codes_schema_probe, (SELECT COUNT(merchantId)+COUNT(userId)+COUNT(linkCodeId)+COUNT(claimedAt) FROM salla_link_claims) AS salla_link_claims_schema_probe\"",
+    "d1:release:remote": "npm run d1:release:salla-link && npm run d1:verify:release",
     "d1:migrate:list:remote": "wrangler d1 migrations list isaudi-db --remote",
     "release": "npm test && npx tsc --noEmit --pretty false && npm run deploy"
   },

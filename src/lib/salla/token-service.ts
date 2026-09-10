@@ -27,6 +27,7 @@ export class SallaTokenUnavailableError extends Error {
 
 function usable(connection: SallaConnection, now: number): boolean {
   return connection.status === 'connected' &&
+    Boolean(connection.userId) &&
     Boolean(connection.accessTokenEncrypted) &&
     Boolean(connection.tokenExpiresAt && connection.tokenExpiresAt > now + EXPIRY_SKEW_MS);
 }
@@ -49,6 +50,9 @@ export async function refreshSallaToken(
     fetchTimeoutMs?: number;
   } = {}
 ): Promise<string> {
+  if (connection.status !== 'connected' || !connection.userId) {
+    throw new SallaTokenUnavailableError();
+  }
   const lockToken = (dependencies.createLockToken || randomUUID)();
   const locked = await (dependencies.acquireLock || acquireSallaRefreshLock)(
     connection.merchantId,
@@ -195,7 +199,7 @@ export async function getSallaAccessTokenForMerchant(
 ): Promise<string> {
   const now = options.now ?? Date.now();
   const connection = await getSallaConnectionByMerchant(merchantId);
-  if (!connection || connection.status !== 'connected') {
+  if (!connection || connection.status !== 'connected' || !connection.userId) {
     throw new SallaTokenUnavailableError();
   }
   if (usable(connection, now)) {

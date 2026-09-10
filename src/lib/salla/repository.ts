@@ -1,34 +1,9 @@
 import { getDb } from '@/lib/db/client';
-import { normalizeEmail } from '@/lib/auth/email';
-import type { SallaAuthorizer, SallaConnection } from './types';
-
-type UnknownRow = Record<string, unknown>;
-
-function isRow(value: unknown): value is UnknownRow {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function rows(result: unknown): UnknownRow[] {
-  if (Array.isArray(result)) return result.filter(isRow);
-  if (isRow(result) && Array.isArray(result.results)) {
-    return result.results.filter(isRow);
-  }
-  return [];
-}
-
-export async function findVerifiedUserForAuthorizer(
-  email: string
-): Promise<string | null> {
-  const db = await getDb();
-  const result = await db
-    .prepare('SELECT id, email FROM users WHERE email_verified = 1')
-    .all();
-  const normalized = normalizeEmail(email);
-  const matches = rows(result).filter(
-    (user) => typeof user.email === 'string' && normalizeEmail(user.email) === normalized
-  );
-  return matches.length === 1 ? String(matches[0].id) : null;
-}
+import type {
+  SallaAuthorizer,
+  SallaConnection,
+  SallaConnectState,
+} from './types';
 
 export const SALLA_AUTHORIZATION_UPSERT_SQL = `
   INSERT INTO salla_connections (
@@ -38,27 +13,13 @@ export const SALLA_AUTHORIZATION_UPSERT_SQL = `
     lastEventPriority, tokenVersion
   ) VALUES (
     ?1,
-    CASE WHEN ?2 IS NOT NULL AND NOT EXISTS (
-      SELECT 1 FROM salla_connections
-      WHERE userId = ?2 AND merchantId <> ?1
-    ) THEN ?2 ELSE NULL END,
-    CASE WHEN ?2 IS NOT NULL AND NOT EXISTS (
-      SELECT 1 FROM salla_connections
-      WHERE userId = ?2 AND merchantId <> ?1
-    ) THEN 'connected' ELSE 'pending' END,
-    ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
+    NULL, 'pending',
+    ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
     'app.store.authorize', 10, 1
   )
   ON CONFLICT(merchantId) DO UPDATE SET
-    userId = COALESCE(
-      salla_connections.userId,
-      CASE WHEN excluded.userId IS NOT NULL AND NOT EXISTS (
-        SELECT 1 FROM salla_connections AS owned
-        WHERE owned.userId = excluded.userId
-          AND owned.merchantId <> excluded.merchantId
-      ) THEN excluded.userId ELSE NULL END
-    ),
-    status = CASE WHEN COALESCE(salla_connections.userId, excluded.userId) IS NULL
+    userId = salla_connections.userId,
+    status = CASE WHEN salla_connections.userId IS NULL
       THEN 'pending' ELSE 'connected' END,
     accessTokenEncrypted = excluded.accessTokenEncrypted,
     refreshTokenEncrypted = excluded.refreshTokenEncrypted,
@@ -88,7 +49,6 @@ export const SALLA_AUTHORIZATION_UPSERT_SQL = `
 
 export async function upsertSallaAuthorization(input: {
   merchantId: string;
-  candidateUserId: string | null;
   accessTokenEncrypted: string;
   refreshTokenEncrypted: string;
   tokenExpiresAt: number;
@@ -99,7 +59,6 @@ export async function upsertSallaAuthorization(input: {
   const db = await getDb();
   await db.prepare(SALLA_AUTHORIZATION_UPSERT_SQL).run(
     input.merchantId,
-    input.candidateUserId,
     input.accessTokenEncrypted,
     input.refreshTokenEncrypted,
     input.tokenExpiresAt,
@@ -191,6 +150,162 @@ export async function getSallaConnectionByMerchant(
   return db.prepare('SELECT * FROM salla_connections WHERE merchantId = ?').get(merchantId);
 }
 
+export async function createSallaLinkCode(input: {
+  id: string;
+  userId: string;
+  codeHash: string;
+  expiresAt: number;
+  createdAt: number;
+}): Promise<void> {
+  const db = await getDb();
+  await db.batch([
+    {
+      sql: `UPDATE salla_link_codes
+        SET invalidatedAt = ?
+        WHERE userId = ? AND consumedAt IS NULL AND invalidatedAt IS NULL`,
+      params: [input.createdAt, input.userId],
+    },
+    {
+      sql: `INSERT INTO salla_link_codes
+        (id, userId, codeHash, expiresAt, consumedAt, invalidatedAt, createdAt)
+        VALUES (?, ?, ?, ?, NULL, NULL, ?)`,
+      params: [
+        input.id,
+        input.userId,
+        input.codeHash,
+        input.expiresAt,
+        input.createdAt,
+      ],
+    },
+  ]);
+}
+
+export async function getActiveSallaLinkCodeExpiry(
+  userId: string,
+  now = Date.now()
+): Promise<number | null> {
+  const db = await getDb();
+  const row = await db.prepare(`
+    SELECT expiresAt FROM salla_link_codes
+    WHERE userId = ? AND consumedAt IS NULL AND invalidatedAt IS NULL
+      AND expiresAt > ?
+    ORDER BY createdAt DESC LIMIT 1
+  `).get(userId, now);
+  return row && typeof row.expiresAt === 'number' ? row.expiresAt : null;
+}
+
+export const SALLA_CLAIM_CONNECTION_SQL = `
+  UPDATE salla_connections
+  SET userId = ?1, status = 'connected', updatedAt = ?2
+  WHERE merchantId = ?3
+    AND userId IS NULL
+    AND status = 'pending'
+    AND accessTokenEncrypted IS NOT NULL
+    AND refreshTokenEncrypted IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM salla_link_claims
+      WHERE merchantId = ?3 AND userId = ?1 AND linkCodeId = ?4
+    );
+`;
+
+export const SALLA_RECORD_CLAIM_SQL = `
+  INSERT INTO salla_link_claims (merchantId, userId, linkCodeId, claimedAt)
+  SELECT ?3, ?1, ?4, ?2
+  FROM salla_connections AS connection
+  JOIN salla_link_codes AS code
+    ON code.id = ?4 AND code.userId = ?1 AND code.codeHash = ?5
+  JOIN users AS claimant
+    ON claimant.id = code.userId AND claimant.email_verified = 1
+  WHERE connection.merchantId = ?3
+    AND connection.userId IS NULL
+    AND connection.status = 'pending'
+    AND connection.accessTokenEncrypted IS NOT NULL
+    AND connection.refreshTokenEncrypted IS NOT NULL
+    AND code.consumedAt IS NULL
+    AND code.invalidatedAt IS NULL
+    AND code.expiresAt > ?2
+    AND code.createdAt <= ?6
+    AND ?6 >= COALESCE(connection.installedAt, 0)
+    AND ?6 >= COALESCE(connection.appUpdatedAt, 0)
+    AND ?6 >= COALESCE(connection.authorizedAt, 0)
+    AND ?6 >= connection.lastEventAt
+  ON CONFLICT DO NOTHING;
+`;
+
+export const SALLA_CONSUME_LINK_CODE_SQL = `
+  UPDATE salla_link_codes
+  SET consumedAt = ?2
+  WHERE id = ?4 AND userId = ?1 AND codeHash = ?5
+    AND consumedAt IS NULL AND invalidatedAt IS NULL AND expiresAt > ?2
+    AND EXISTS (
+      SELECT 1
+      FROM salla_link_claims AS claim
+      JOIN salla_connections AS connection
+        ON connection.merchantId = claim.merchantId
+      WHERE claim.merchantId = ?3
+        AND claim.userId = ?1
+        AND claim.linkCodeId = ?4
+        AND claim.claimedAt = ?2
+        AND connection.userId = ?1
+        AND connection.status = 'connected'
+    );
+`;
+
+export function buildSallaClaimBatch(input: {
+  userId: string;
+  now: number;
+  merchantId: string;
+  linkCodeId: string;
+  codeHash: string;
+  eventAt: number;
+}): Array<{ sql: string; params: Array<string | number> }> {
+  const params = [
+    input.userId,
+    input.now,
+    input.merchantId,
+    input.linkCodeId,
+    input.codeHash,
+    input.eventAt,
+  ];
+  return [
+    { sql: SALLA_RECORD_CLAIM_SQL, params },
+    { sql: SALLA_CLAIM_CONNECTION_SQL, params: params.slice(0, 4) },
+    { sql: SALLA_CONSUME_LINK_CODE_SQL, params: params.slice(0, 5) },
+  ];
+}
+
+export async function claimSallaMerchantByLinkCode(
+  merchantId: string,
+  codeHash: string,
+  eventAt: number,
+  now = Date.now()
+): Promise<'claimed' | 'invalid' | 'conflict'> {
+  const db = await getDb();
+  const linkCode = await db.prepare(`
+    SELECT id, userId FROM salla_link_codes
+    WHERE codeHash = ? AND consumedAt IS NULL AND invalidatedAt IS NULL
+      AND expiresAt > ?
+    LIMIT 1
+  `).get(codeHash, now);
+  if (!linkCode?.id || !linkCode?.userId) return 'invalid';
+
+  const operations = buildSallaClaimBatch({
+    userId: String(linkCode.userId),
+    now,
+    merchantId,
+    linkCodeId: String(linkCode.id),
+    codeHash,
+    eventAt,
+  });
+  await db.batch(operations);
+
+  const consumed = await db.prepare(`
+    SELECT id FROM salla_link_codes
+    WHERE id = ? AND userId = ? AND consumedAt = ?
+  `).get(linkCode.id, linkCode.userId, now);
+  return consumed ? 'claimed' : 'conflict';
+}
+
 export const SALLA_ACQUIRE_REFRESH_SQL = `
   UPDATE salla_connections
   SET refreshState = 'in_progress',
@@ -199,6 +314,7 @@ export const SALLA_ACQUIRE_REFRESH_SQL = `
     refreshLockToken = ?1,
     refreshLockExpiresAt = ?3
   WHERE merchantId = ?4 AND status = 'connected'
+    AND userId IS NOT NULL
     AND refreshTokenEncrypted IS NOT NULL
     AND refreshState = 'idle'
     AND (refreshLockToken IS NULL OR refreshLockExpiresAt <= ?2)
@@ -336,21 +452,16 @@ export function getOwnedSallaConnectState(
 }
 
 export async function getSallaConnectState(
-  userId: string,
-  userEmail: string
-): Promise<'before_install' | 'pending' | 'reconnect_required' | 'connected'> {
+  userId: string
+): Promise<SallaConnectState> {
   const owned = await getSallaConnectionForUser(userId);
   if (owned?.status === 'connected') {
     return getOwnedSallaConnectState(owned);
   }
-  const db = await getDb();
-  const result = await db.prepare(`
-    SELECT authorizerEmail FROM salla_connections
-    WHERE userId IS NULL AND status = 'pending'
-  `).all();
-  const email = normalizeEmail(userEmail);
-  return rows(result).some(
-    (row) => typeof row.authorizerEmail === 'string' &&
-      normalizeEmail(row.authorizerEmail) === email
-  ) ? 'pending' : 'before_install';
+  if (owned?.status === 'disconnected' || owned?.status === 'uninstalled') {
+    return 'disconnected';
+  }
+  return await getActiveSallaLinkCodeExpiry(userId)
+    ? 'waiting_for_link'
+    : 'before_install';
 }

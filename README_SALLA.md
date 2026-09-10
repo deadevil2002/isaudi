@@ -22,9 +22,13 @@ The connect action opens the fixed Salla installation page for Partner App ID
 3. Configure the webhook as `https://isaudi.ai/api/webhooks/salla`.
 4. Enable the required app lifecycle events, including authorization and uninstall.
 5. Configure the webhook secret and server OAuth client credentials in the
-   deployment environment. The authorizing Salla email must exactly match one
-   existing, verified iSaudi.ai account after email normalization; otherwise
-   the merchant remains unclaimed.
+   deployment environment. Authorizer email is metadata only, never proof of ownership.
+6. Add an optional, non-public single-line text setting with key
+   `isaudi_link_code`, Arabic label `رمز ربط iSaudi`, and English label
+   `iSaudi Link Code`. Enable `app.settings.updated`. Accept 32 hexadecimal
+   characters, optionally separated into eight four-character groups by hyphens
+   (39 displayed characters). Do not use a numeric field or expose it on the storefront.
+7. Confirm this field exists before attempting a real merchant claim.
 
 ### Environment Variables
 ```env
@@ -45,18 +49,23 @@ SALLA_WEBHOOK_SECRET=your_webhook_secret
 1. User opens the exact Salla app installation URL.
 2. Salla sends signed lifecycle webhooks.
 3. The server verifies the raw-body signature before parsing.
-4. Authorization identity is verified with Salla and matched to one verified
-   local account.
-5. Encrypted credentials are stored by authoritative Salla merchant ID.
+4. Encrypted credentials are stored by authoritative Salla merchant ID, unclaimed.
+5. A signed-in verified user generates a ten-minute single-use linking code,
+   copies it into the Salla app setting, and saves settings.
+6. The signed settings event atomically claims the merchant and consumes the
+   code. Only a domain-separated digest is stored. Regeneration invalidates
+   earlier active codes. Expiry uses server time, not event time.
+7. Existing ownership is immutable, including after uninstall. Products and
+   orders cannot use unclaimed credentials.
 
 The legacy custom OAuth callback remains in the codebase for compatibility but
 is not used by the normal connect action.
 
 Easy Mode does not provide browser correlation between the install click and
 the webhook. The status API therefore never guesses the initiating user: it
-shows an unclaimed/mismatch state only when the authenticated user's normalized
-email equals the unclaimed authorizer email. Everyone else sees the
-before-install state, with no merchant or other-account details.
+shows waiting based on that user's active linking code, and connection state
+only for their owned merchant. No email matching or installation-click ordering
+is used.
 
 `app.updated` is lifecycle-only. New access and refresh credentials are
 accepted only from the documented `app.store.authorize` event; fields on

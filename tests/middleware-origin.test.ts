@@ -19,8 +19,9 @@ const request = (
 
 test('exports the exact protected POST allowlist', () => {
   assert.deepEqual(CSRF_PROTECTED_PATHS, ORIGIN_PROTECTED_POST_PATHS);
-  assert.equal(CSRF_PROTECTED_PATHS.length, 10);
+  assert.equal(CSRF_PROTECTED_PATHS.length, 11);
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/analysis/chat'));
+  assert.ok(CSRF_PROTECTED_PATHS.includes('/api/connect/salla/link-code'));
 });
 
 test('production accepts the canonical Origin and rejects invalid or missing origins', () => {
