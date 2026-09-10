@@ -145,7 +145,7 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
               <Link href="/dashboard" className="flex items-center gap-2">
                 <div className="relative w-8 h-8">
                    <Image
-                    src="/brand/isaudi-mark-v3.png"
+                    src="/brand/isaudi-mark-v4"
                     alt="isaudi.ai Logo"
                     fill
                     className="object-contain"
@@ -198,7 +198,7 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
             <Link href="/dashboard" className="flex items-center gap-2" onClick={closeDrawer}>
               <div className="relative w-8 h-8">
                  <Image
-                   src="/brand/isaudi-mark-v3.png"
+                   src="/brand/isaudi-mark-v4"
                   alt="isaudi.ai Logo"
                   fill
                   className="object-contain"
@@ -261,7 +261,7 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
               <Link href="/dashboard" className="flex items-center gap-3 px-2">
                 <div className="relative w-10 h-10">
                    <Image
-                    src="/brand/isaudi-mark-v3.png"
+                    src="/brand/isaudi-mark-v4"
                     alt="isaudi.ai Logo"
                     fill
                     className="object-contain"

@@ -35,7 +35,7 @@ export function Hero() {
             <motion.div variants={slideUp} className="mb-8 flex justify-end">
               <div className="relative w-32 h-32 md:w-40 md:h-40">
                 <Image 
-                  src="/brand/isaudi-mark-v3.png"
+                  src="/brand/isaudi-mark-v4"
                   alt="isaudi.ai Logo" 
                   fill
                   className="object-contain"
@@ -140,7 +140,7 @@ export function Hero() {
                   </div>
                   <div className="relative w-20 h-6 opacity-80">
                     <Image 
-                        src="/brand/isaudi-mark-v3.png"
+                        src="/brand/isaudi-mark-v4"
                         alt="isaudi.ai" 
                         fill
                         className="object-contain"
