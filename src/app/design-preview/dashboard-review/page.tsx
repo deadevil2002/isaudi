@@ -7,6 +7,8 @@ type DataState = "populated" | "empty" | "error" | "loading";
 type AnalysisState = "idle" | "loading" | "error" | "done";
 type InsightsState = "populated" | "empty" | "error" | "loading";
 type PreviewSection = "dashboard" | "reports" | "costs" | "connect";
+type DatasetState = "datasetA" | "datasetB";
+type MotionState = "default" | "reduced";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -71,6 +73,8 @@ export default async function DashboardReviewPage({
           ["populated", "empty", "error", "loading"],
           "populated",
         )}
+        initialDataset={readValue<DatasetState>(params, "dataset", ["datasetA", "datasetB"], "datasetA")}
+        initialMotion={readValue<MotionState>(params, "motion", ["default", "reduced"], "default")}
         initialMessage={readText(params, "qaMessage")}
       />
       <script

@@ -191,3 +191,56 @@ export const fixtureCostsData = [
     }
   }
 ];
+
+export const fixtureReportDataB = {
+  ...fixtureReportData,
+  metrics: {
+    totalSales: 28500,
+    totalOrders: 180,
+    avgOrderValue: 158.33,
+    excludedOrdersCount: 5,
+    excludedSales: 850
+  },
+  profitability: {
+    ...fixtureReportData.profitability,
+    totalProfit: 12800,
+    marginPct: 44.91
+  }
+};
+
+export const fixtureReportB = { reportJson: JSON.stringify(fixtureReportDataB) };
+
+export const fixtureTrendDataB = [
+  { ...fixtureTrendData[0], grossSales: 28500, totalProfit: 12800, ordersCount: 180, marginPct: 44.91 },
+  { ...fixtureTrendData[1], grossSales: 24000, totalProfit: 10000, ordersCount: 160, marginPct: 41.67 },
+  { ...fixtureTrendData[2], grossSales: 18000, totalProfit: 7000, ordersCount: 130, marginPct: 38.89 },
+  { ...fixtureTrendData[3], grossSales: 15000, totalProfit: 6000, ordersCount: 120, marginPct: 40.00 }
+];
+
+export const fixtureCompareDataB: ReportComparison = {
+  ...fixtureCompareData,
+  current: {
+    id: "current-1",
+    timeRangeStart: 1700000000000,
+    timeRangeEnd: 1700600000000,
+    sales: 28500,
+    profit: 12800,
+    marginPct: 44.91,
+    orders: 180
+  },
+  previous: {
+    id: "prev-1",
+    timeRangeStart: 1699400000000,
+    timeRangeEnd: 1700000000000,
+    sales: 24000,
+    profit: 10000,
+    marginPct: 41.67,
+    orders: 160
+  },
+  deltas: {
+    salesDeltaPct: 18.75,
+    profitDeltaPct: 28.00,
+    marginDeltaPct: 3.24,
+    ordersDelta: 20
+  }
+};

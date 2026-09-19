@@ -7,14 +7,18 @@ import CostsPage from "@/app/(authenticated)/dashboard/costs/page";
 import { ReportsClient } from "@/app/(authenticated)/dashboard/reports/reports-client";
 import { StoreSetup } from "@/components/dashboard/store-setup";
 import { AuthenticatedShell } from "@/components/layout/authenticated-shell";
+import { MotionConfig } from "framer-motion";
 import { LanguageProvider, useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import {
   fixtureCompareData,
+  fixtureCompareDataB,
   fixtureCostsData,
   fixtureInsightsData,
   fixtureReport,
+  fixtureReportB,
   fixtureTrendData,
+  fixtureTrendDataB,
 } from "./fixtures";
 
 type PreviewLanguage = "ar" | "en";
@@ -24,6 +28,8 @@ type DataState = "populated" | "empty" | "error" | "loading";
 type AnalysisState = "idle" | "loading" | "error" | "done";
 type InsightsState = "populated" | "empty" | "error" | "loading";
 type PreviewSection = "dashboard" | "reports" | "costs" | "connect";
+type DatasetState = "datasetA" | "datasetB";
+type MotionState = "default" | "reduced";
 
 interface DashboardReviewClientProps {
   initialLanguage: PreviewLanguage;
@@ -33,6 +39,8 @@ interface DashboardReviewClientProps {
   initialData: DataState;
   initialAnalysis: AnalysisState;
   initialInsights: InsightsState;
+  initialDataset: DatasetState;
+  initialMotion: MotionState;
   initialMessage: string;
 }
 
@@ -43,6 +51,8 @@ function ReviewContent({
   initialData,
   initialAnalysis,
   initialInsights,
+  initialDataset,
+  initialMotion,
   initialMessage,
 }: Omit<DashboardReviewClientProps, "initialLanguage">) {
   const { lang, setLanguage } = useLanguage();
@@ -53,6 +63,8 @@ function ReviewContent({
   const [dataState, setDataState] = useState<DataState>(initialData);
   const [analysisState, setAnalysisState] = useState<AnalysisState>(initialAnalysis);
   const [insightsState, setInsightsState] = useState<InsightsState>(initialInsights);
+  const [dataset, setDataset] = useState<DatasetState>(initialDataset);
+  const [motionPref, setMotionPref] = useState<MotionState>(initialMotion);
 
   const stateFields = {
     lang,
@@ -62,6 +74,8 @@ function ReviewContent({
     data: dataState,
     analysis: analysisState,
     insights: insightsState,
+    dataset,
+    motion: motionPref,
   };
   const previewHref = (nextSection: PreviewSection) => {
     const params = new URLSearchParams({ ...stateFields, section: nextSection });
@@ -75,14 +89,20 @@ function ReviewContent({
   const selectClass =
     "w-full min-w-0 cursor-pointer rounded border border-white/20 bg-black p-1.5 outline-none focus:border-[#e6b95c] sm:w-auto";
   const populated = dataState === "populated";
-  const report = { id: "report-1", ...fixtureReport };
+
+  const currentTrendData = dataset === "datasetA" ? fixtureTrendData : fixtureTrendDataB;
+  const currentCompareData = dataset === "datasetA" ? fixtureCompareData : fixtureCompareDataB;
+  const currentReport = dataset === "datasetA" ? fixtureReport : fixtureReportB;
+
+  const report = { id: "report-1", ...currentReport };
   const previewTrend = populated
-    ? fixtureTrendData.map((item) => ({
+    ? currentTrendData.map((item) => ({
         ...item,
         timeRangeStart: new Date(item.timeRangeStart).toISOString(),
         timeRangeEnd: new Date(item.timeRangeEnd).toISOString(),
       }))
     : [];
+
   const initialMessages = initialMessage
     ? [
         { role: "assistant" as const, content: t("dashboard.chat.welcome") },
@@ -104,18 +124,32 @@ function ReviewContent({
     { href: previewHref("connect"), label: t("dashboard.menu.connectStore"), icon: ShoppingBag, active: section === "connect" },
   ];
 
+  // We use MotionConfig to apply reduced-motion in preview without monkeypatching window.matchMedia.
+
   return (
-    <div dir={lang === "ar" ? "rtl" : "ltr"}>
+    <MotionConfig reducedMotion={motionPref === "reduced" ? "always" : "user"}>
+      <div dir={lang === "ar" ? "rtl" : "ltr"}>
       <form
         action="/design-preview/dashboard-review"
         method="get"
         className="relative z-30 mt-16 flex min-h-[72px] flex-col items-center justify-between gap-4 border-b border-[#0fc9a7]/30 bg-[#06090c] px-4 py-3 text-white shadow-lg sm:mt-0 sm:flex-row"
         dir="ltr"
       >
-        <div className="w-full min-w-0 break-words text-center text-sm font-bold text-[#e6b95c] sm:w-auto sm:text-start">
-          Visual QA Preview — Test Data | معاينة بصرية للمستعرض — بيانات تجريبية
+        <div className="w-full min-w-0 break-words text-center text-sm font-bold text-[#e6b95c] sm:w-auto sm:text-start flex flex-col">
+          <span>Visual QA Preview — Test Data</span>
+          <span className="text-xs opacity-80 font-normal">معاينة بصرية للمستعرض — بيانات تجريبية</span>
         </div>
         <div className="grid w-full min-w-0 grid-cols-2 gap-2 text-xs sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+          <label className="sr-only" htmlFor="qa-dataset">Dataset toggle</label>
+          <select id="qa-dataset" className={selectClass} name="dataset" value={dataset} onChange={(event) => setDataset(event.target.value as DatasetState)}>
+            <option value="datasetA">Dataset A</option>
+            <option value="datasetB">Dataset B</option>
+          </select>
+          <label className="sr-only" htmlFor="qa-motion">Motion pref</label>
+          <select id="qa-motion" className={selectClass} name="motion" value={motionPref} onChange={(event) => setMotionPref(event.target.value as MotionState)}>
+            <option value="default">Default Motion</option>
+            <option value="reduced">Reduced Motion</option>
+          </select>
           <label className="sr-only" htmlFor="qa-language">Preview language</label>
           <select id="qa-language" className={selectClass} name="lang" value={lang} onChange={(event) => setLanguage(event.target.value as PreviewLanguage)}>
             <option value="en">English LTR</option>
@@ -182,19 +216,20 @@ function ReviewContent({
               createdAt: 1700000000000,
               freeReportsUsed: plan === "free" ? 2 : 0,
             }}
-            stats={populated ? { products: 450, orders: 120, sales: 15000 } : { products: 0, orders: 0, sales: 0 }}
+            stats={populated ? { products: dataset === 'datasetA' ? 450 : 500, orders: dataset === 'datasetA' ? 120 : 180, sales: dataset === 'datasetA' ? 1500000 : 2850000 } : { products: 0, orders: 0, sales: 0 }}
             storeConnection={storeState === "connected" ? { id: "qa-store" } : null}
-            latestReport={storeState === "connected" && analysisState === "done" ? report : null}
+            latestReport={storeState === "connected" && analysisState === "done" && populated ? report : null}
             previewProps={{
+              dataState,
               trend: previewTrend,
               loadingTrend: dataState === "loading",
               compare: populated
                 ? {
-                    status: fixtureCompareData.status === "no_change" ? "noChange" : fixtureCompareData.status,
+                    status: currentCompareData.status === "no_change" ? "noChange" : currentCompareData.status,
                     deltas: {
-                      salesDeltaPct: fixtureCompareData.deltas.salesDeltaPct,
-                      profitDeltaPct: fixtureCompareData.deltas.profitDeltaPct,
-                      marginDeltaPct: fixtureCompareData.deltas.marginDeltaPct,
+                      salesDeltaPct: currentCompareData.deltas.salesDeltaPct,
+                      profitDeltaPct: currentCompareData.deltas.profitDeltaPct,
+                      marginDeltaPct: currentCompareData.deltas.marginDeltaPct,
                     },
                   }
                 : null,
@@ -227,11 +262,11 @@ function ReviewContent({
           <ReportsClient
             isFree={plan === "free"}
             previewProps={{
-              rows: populated ? fixtureTrendData : [],
+              rows: populated ? currentTrendData : [],
               loadState: dataState,
-              compare: fixtureCompareData,
+              compare: currentCompareData,
               compareLoadState: "populated",
-              showComparisonForId: populated ? fixtureTrendData[0].id : undefined,
+              showComparisonForId: populated ? currentTrendData[0].id : undefined,
               actionHref: `${previewHref("reports")}#qa-shell-content`,
             }}
           />
@@ -249,6 +284,7 @@ function ReviewContent({
         )}
       </AuthenticatedShell>
     </div>
+    </MotionConfig>
   );
 }
 

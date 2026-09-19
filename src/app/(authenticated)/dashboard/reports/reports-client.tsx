@@ -6,6 +6,8 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { ReportComparisonDetails } from "@/components/dashboard/report-comparison";
 import type { ReportComparison } from "@/lib/reports/comparison-format";
+import { AnimatedNumber } from "@/components/dashboard/animated-number";
+import { Skeleton } from "@/components/dashboard/skeleton";
 
 export type Snap = {
   id: string;
@@ -84,14 +86,23 @@ export function ReportsClient({
   };
 
   useEffect(() => {
-    if (isPreview) return;
+    if (isPreview) {
+      const timeoutId = window.setTimeout(() => {
+        if (previewProps?.rows) setRows(previewProps.rows);
+        if (previewProps?.loadState) {
+          setLoading(previewProps.loadState === 'loading');
+          setLoadError(previewProps.loadState === 'error');
+        }
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
     const timeoutId = window.setTimeout(() => {
       void loadReports();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-    // Initial request only. Retry calls the same function explicitly.
+    // Initial production request only. Preview changes are synchronized above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPreview]);
+  }, [isPreview, previewProps]);
 
   useEffect(() => {
     return () => compareAbortControllerRef.current?.abort();
@@ -101,10 +112,20 @@ export function ReportsClient({
     if (loadingCompareId === id) return;
 
     if (isPreview) {
-      setActiveCompareId(id);
-      setLoadingCompareId(previewProps.compareLoadState === 'loading' ? id : null);
-      setCompare(previewProps.compare || null);
-      setCompareErrorId(previewProps.compareLoadState === 'error' ? id : null);
+      const isOpen = activeCompareId === id;
+      if (isOpen) {
+        setActiveCompareId(null);
+      } else {
+        setActiveCompareId(id);
+        setLoadingCompareId(previewProps?.compareLoadState === 'loading' ? id : null);
+        setCompare(previewProps?.compare || null);
+        setCompareErrorId(previewProps?.compareLoadState === 'error' ? id : null);
+      }
+      return;
+    }
+
+    if (activeCompareId === id) {
+      setActiveCompareId(null);
       return;
     }
 
@@ -142,14 +163,14 @@ export function ReportsClient({
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold text-[#f0f4f8]">{t("reports.title")}</h1>
         </div>
-        <div className="bg-[#0e1218] p-6 sm:p-8 rounded-2xl border border-[#ffffff1a] shadow-sm">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-[#0e1218] p-6 sm:p-8 rounded-3xl border border-[#ffffff1a] shadow-sm">
+          <div className="flex items-center justify-between mb-8">
             <div className="text-lg font-semibold text-[#f0f4f8]">{t("reports.weeklySummaries")}</div>
-            {isFree && <Link href={isPreview && previewProps.actionHref ? previewProps.actionHref : "/pricing"} className="text-sm font-medium text-[#e6b95c] hover:text-[#f9d889] transition-colors px-4 py-2 rounded-full border border-[#e6b95c]/30 hover:bg-[#e6b95c]/10">{t("reports.upgrade")}</Link>}
+            {isFree && <Link href={isPreview && previewProps?.actionHref ? previewProps.actionHref : "/pricing"} className="text-sm font-medium text-[#e6b95c] hover:text-[#f9d889] transition-colors px-4 py-2 rounded-full border border-[#e6b95c]/30 hover:bg-[#e6b95c]/10">{t("reports.upgrade")}</Link>}
           </div>
           {isFree ? (
             <div className="relative">
-              <div className="opacity-20 select-none pointer-events-none">
+              <div className="opacity-20 select-none pointer-events-none filter blur-[2px]">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="p-5 rounded-2xl border border-[#ffffff1a] bg-[#161c24]">
@@ -161,7 +182,7 @@ export function ReportsClient({
                 </div>
               </div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-sm font-medium bg-[#161c24]/90 backdrop-blur-md border border-[#e6b95c]/30 text-[#e6b95c] rounded-full px-6 py-3 shadow-[0_0_20px_rgba(230,185,92,0.15)]">
+                <div className="text-sm font-bold bg-[#161c24]/90 backdrop-blur-md border border-[#e6b95c]/30 text-[#e6b95c] rounded-full px-6 py-3 shadow-[0_0_20px_rgba(230,185,92,0.15)]">
                   {t("reports.lock.message")}
                 </div>
               </div>
@@ -169,7 +190,7 @@ export function ReportsClient({
           ) : loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label={t("reports.loading")}>
               {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="h-40 animate-pulse rounded-2xl bg-[#161c24] border border-[#ffffff1a]" />
+                <Skeleton key={index} className="h-40 rounded-2xl bg-[#161c24]" />
               ))}
             </div>
           ) : loadError ? (
@@ -178,7 +199,7 @@ export function ReportsClient({
               <button
                 type="button"
                 onClick={loadReports}
-                className="min-h-11 rounded-full border border-[#ef4444]/30 bg-[#ef4444]/10 px-6 py-2 text-sm font-medium text-[#ef4444] hover:bg-[#ef4444]/20 transition-colors"
+                className="min-h-11 rounded-full border border-[#ef4444]/30 bg-[#ef4444]/10 px-6 py-2 text-sm font-medium text-[#ef4444] hover:bg-[#ef4444]/20 transition-transform active:scale-95"
               >
                 {t("reports.retry")}
               </button>
@@ -188,16 +209,16 @@ export function ReportsClient({
           ) : (
             <>
               <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full text-start text-sm">
+                <table className="min-w-full text-start text-sm border-collapse">
                   <thead className="bg-[#161c24] text-[#94a3b8] border-b border-[#ffffff1a]">
                     <tr>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.week")}</th>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.sales")}</th>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.profit")}</th>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.margin")}</th>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.orders")}</th>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.report")}</th>
-                      <th className="px-4 py-4 font-semibold text-start">{t("reports.table.compare")}</th>
+                      <th className="px-5 py-4 font-semibold text-start rounded-tl-xl">{t("reports.table.week")}</th>
+                      <th className="px-5 py-4 font-semibold text-start">{t("reports.table.sales")}</th>
+                      <th className="px-5 py-4 font-semibold text-start">{t("reports.table.profit")}</th>
+                      <th className="px-5 py-4 font-semibold text-start">{t("reports.table.margin")}</th>
+                      <th className="px-5 py-4 font-semibold text-start">{t("reports.table.orders")}</th>
+                      <th className="px-5 py-4 font-semibold text-start">{t("reports.table.report")}</th>
+                      <th className="px-5 py-4 font-semibold text-start rounded-tr-xl">{t("reports.table.compare")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#ffffff1a]">
@@ -205,27 +226,27 @@ export function ReportsClient({
                       const isOpen = activeCompareId === r.id && (compare || compareErrorId === r.id);
                       return (
                         <React.Fragment key={r.id}>
-                          <tr className="hover:bg-[#161c24]/50 transition-colors group">
-                            <td className="px-4 py-4 text-xs text-[#94a3b8] whitespace-nowrap">
+                          <tr className={`hover:bg-[#161c24]/50 transition-colors group ${isOpen ? 'bg-[#161c24]/30' : ''}`}>
+                            <td className="px-5 py-5 text-xs text-[#94a3b8] whitespace-nowrap">
                               {new Date(r.timeRangeStart).toLocaleDateString(locale)} — {new Date(r.timeRangeEnd).toLocaleDateString(locale)}
                             </td>
-                            <td className="px-4 py-4 font-medium text-[#f0f4f8] whitespace-nowrap">
-                              {(r.grossSales || 0).toLocaleString(locale)} {currency}
+                            <td className="px-5 py-5 font-bold text-white whitespace-nowrap">
+                              <AnimatedNumber value={r.grossSales || 0} formatter={(v) => `${v.toLocaleString(locale)} ${currency}`} />
                             </td>
-                            <td className="px-4 py-4 text-[#0fc9a7] font-medium whitespace-nowrap">
-                              {(r.totalProfit || 0).toLocaleString(locale)} {currency}
+                            <td className="px-5 py-5 text-[#0fc9a7] font-bold whitespace-nowrap">
+                              <AnimatedNumber value={r.totalProfit || 0} formatter={(v) => `${v.toLocaleString(locale)} ${currency}`} />
                             </td>
-                            <td className="px-4 py-4 text-[#f0f4f8] whitespace-nowrap">
-                              {(r.marginPct || 0).toFixed(2)}%
+                            <td className="px-5 py-5 text-white font-medium whitespace-nowrap">
+                              <AnimatedNumber value={r.marginPct || 0} formatter={(v) => `${v.toFixed(2)}%`} />
                             </td>
-                            <td className="px-4 py-4 text-[#f0f4f8] whitespace-nowrap">
-                              {r.ordersCount || 0}
+                            <td className="px-5 py-5 text-white font-medium whitespace-nowrap">
+                              <AnimatedNumber value={r.ordersCount || 0} />
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
+                            <td className="px-5 py-5 whitespace-nowrap">
                               {r.reportId ? (
                                 <Link
-                                  href={isPreview && previewProps.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
-                                  className="inline-flex items-center justify-center text-xs font-medium text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-full px-4 py-1.5 hover:bg-[#0fc9a7]/20 transition-colors"
+                                  href={isPreview && previewProps?.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
+                                  className="inline-flex items-center justify-center text-xs font-bold text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-full px-4 py-1.5 hover:bg-[#0fc9a7]/20 transition-transform hover:scale-105 active:scale-95"
                                 >
                                   {t("reports.openReport")}
                                 </Link>
@@ -233,30 +254,34 @@ export function ReportsClient({
                                 <span className="text-xs text-[#64748b] bg-[#161c24] px-3 py-1.5 rounded-full border border-[#ffffff1a]">{t("reports.notAvailable")}</span>
                               )}
                             </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
+                            <td className="px-5 py-5 whitespace-nowrap">
                               <button
-                                className="min-h-9 rounded-full border border-[#ffffff1a] bg-[#161c24] px-4 py-1.5 text-xs font-medium text-[#f0f4f8] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                                className={`min-h-9 rounded-full border px-4 py-1.5 text-xs font-bold transition-all focus:opacity-100 ${
+                                  isOpen
+                                    ? 'bg-[#e6b95c]/10 text-[#e6b95c] border-[#e6b95c]/30 opacity-100'
+                                    : 'bg-[#161c24] text-white border-[#ffffff1a] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] opacity-100 lg:opacity-0 lg:group-hover:opacity-100'
+                                }`}
                                 onClick={() => handleCompare(r.id)}
                                 aria-expanded={Boolean(isOpen)}
                               >
                                 {loadingCompareId === r.id
                                   ? t("reports.compare.loading")
-                                  : t("reports.compare.button")}
+                                  : isOpen ? t("reports.compare.button") + " ↑" : t("reports.compare.button")}
                               </button>
                             </td>
                           </tr>
                           {isOpen && (
                             <tr>
                               <td colSpan={7} className="p-0 border-b border-[#ffffff1a]">
-                                <div className="bg-[#161c24] border-t border-[#ffffff1a] p-6 text-sm text-[#f0f4f8]">
+                                <div className="bg-[#0b0e12] border-t border-[#ffffff1a] p-6 sm:p-8 text-sm text-[#f0f4f8] shadow-inner">
                                   {compareErrorId === r.id ? (
-                                    <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 p-4 text-sm text-[#ef4444]">
+                                    <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 p-4 text-sm text-[#ef4444] font-medium">
                                       {t("reports.compare.error")}
                                     </div>
                                   ) : compare?.previous ? (
                                     <ReportComparisonDetails comparison={compare} />
                                   ) : (
-                                    <div className="text-center text-[#94a3b8] py-4">{t("reports.compare.noPrevious")}</div>
+                                    <div className="text-center text-[#94a3b8] py-8 border border-dashed border-[#ffffff1a] rounded-xl">{t("reports.compare.noPrevious")}</div>
                                   )}
                                 </div>
                               </td>
@@ -274,63 +299,75 @@ export function ReportsClient({
                 {rows.map((r) => {
                   const isOpen = activeCompareId === r.id && (compare || compareErrorId === r.id);
                   return (
-                    <div key={r.id} className="bg-[#0e1218] border border-[#ffffff1a] rounded-2xl p-5 shadow-sm">
+                    <div key={r.id} className={`bg-[#0e1218] border border-[#ffffff1a] rounded-3xl p-5 shadow-sm transition-all ${isOpen ? 'ring-1 ring-[#e6b95c]/30' : ''}`}>
                       <div className="text-xs text-[#94a3b8] mb-4">
                         {new Date(r.timeRangeStart).toLocaleDateString(locale)} — {new Date(r.timeRangeEnd).toLocaleDateString(locale)}
                       </div>
-                      <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm mb-6 bg-[#161c24] p-4 rounded-xl border border-[#ffffff1a]">
+                      <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm mb-6 bg-[#161c24] p-5 rounded-2xl border border-[#ffffff1a]">
                         <div>
                           <div className="text-[#94a3b8] text-xs mb-1">{t("reports.table.sales")}</div>
-                          <div className="font-medium text-[#f0f4f8]">{(r.grossSales || 0).toLocaleString(locale)} {currency}</div>
+                          <div className="font-bold text-white">
+                            <AnimatedNumber value={r.grossSales || 0} formatter={(v) => `${v.toLocaleString(locale)} ${currency}`} />
+                          </div>
                         </div>
                         <div>
                           <div className="text-[#94a3b8] text-xs mb-1">{t("reports.table.profit")}</div>
-                          <div className="font-medium text-[#0fc9a7]">{(r.totalProfit || 0).toLocaleString(locale)} {currency}</div>
+                          <div className="font-bold text-[#0fc9a7]">
+                            <AnimatedNumber value={r.totalProfit || 0} formatter={(v) => `${v.toLocaleString(locale)} ${currency}`} />
+                          </div>
                         </div>
                         <div>
                           <div className="text-[#94a3b8] text-xs mb-1">{t("reports.table.margin")}</div>
-                          <div className="font-medium text-[#f0f4f8]">{(r.marginPct || 0).toFixed(2)}%</div>
+                          <div className="font-medium text-white">
+                            <AnimatedNumber value={r.marginPct || 0} formatter={(v) => `${v.toFixed(2)}%`} />
+                          </div>
                         </div>
                         <div>
                           <div className="text-[#94a3b8] text-xs mb-1">{t("reports.table.orders")}</div>
-                          <div className="font-medium text-[#f0f4f8]">{r.ordersCount || 0}</div>
+                          <div className="font-medium text-white">
+                            <AnimatedNumber value={r.ordersCount || 0} />
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex gap-3">
                         {r.reportId ? (
                           <Link
-                            href={isPreview && previewProps.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
-                            className="flex-1 flex items-center justify-center text-xs font-medium text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-full px-4 py-2.5 hover:bg-[#0fc9a7]/20 transition-colors"
+                            href={isPreview && previewProps?.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
+                            className="flex-1 flex items-center justify-center text-xs font-bold text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-full px-4 py-3 hover:bg-[#0fc9a7]/20 transition-transform hover:scale-105 active:scale-95"
                           >
                             {t("reports.openReport")}
                           </Link>
                         ) : (
-                          <div className="flex-1 flex items-center justify-center text-xs text-[#64748b] border border-[#ffffff1a] rounded-full px-4 py-2.5 bg-[#161c24]">
+                          <div className="flex-1 flex items-center justify-center text-xs text-[#64748b] border border-[#ffffff1a] rounded-full px-4 py-3 bg-[#161c24]">
                             {t("reports.notAvailable")}
                           </div>
                         )}
                         <button
-                          className="min-h-11 flex-1 flex items-center justify-center rounded-full border border-[#ffffff1a] bg-[#161c24] px-4 py-2.5 text-xs font-medium text-[#f0f4f8] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] transition-all"
+                          className={`min-h-11 flex-1 flex items-center justify-center rounded-full border px-4 py-3 text-xs font-bold transition-all active:scale-95 ${
+                            isOpen
+                              ? 'bg-[#e6b95c]/10 text-[#e6b95c] border-[#e6b95c]/30'
+                              : 'bg-[#161c24] text-white border-[#ffffff1a] hover:border-[#e6b95c]/50 hover:text-[#e6b95c]'
+                          }`}
                           onClick={() => handleCompare(r.id)}
                           aria-expanded={Boolean(isOpen)}
                         >
                           {loadingCompareId === r.id
                             ? t("reports.compare.loading")
-                            : t("reports.compare.button")}
+                            : isOpen ? t("reports.compare.button") + " ↑" : t("reports.compare.button")}
                         </button>
                       </div>
 
                       {isOpen && (
-                        <div className="mt-5 pt-5 border-t border-[#ffffff1a] bg-[#161c24] -mx-5 -mb-5 p-5 rounded-b-2xl text-xs">
+                        <div className="mt-5 pt-5 border-t border-[#ffffff1a] bg-[#0b0e12] -mx-5 -mb-5 p-5 rounded-b-3xl shadow-inner">
                           {compareErrorId === r.id ? (
-                            <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 p-4 text-center text-sm text-[#ef4444]">
+                            <div className="rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 p-4 text-center text-sm font-medium text-[#ef4444]">
                               {t("reports.compare.error")}
                             </div>
                           ) : compare?.previous ? (
                             <ReportComparisonDetails comparison={compare} />
                           ) : (
-                            <div className="text-center text-[#94a3b8] py-2">{t("reports.compare.noPrevious")}</div>
+                            <div className="text-center text-[#94a3b8] py-6 border border-dashed border-[#ffffff1a] rounded-xl text-sm">{t("reports.compare.noPrevious")}</div>
                           )}
                         </div>
                       )}
