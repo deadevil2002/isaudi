@@ -521,6 +521,30 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "لا توجد ملخصات أسبوعية بعد.",
     en: "No weekly summaries yet.",
   },
+  "reports.workspace.emptyDescription": {
+    ar: "يتم إنشاء التقارير تلقائياً في نهاية كل أسبوع بناءً على أداء متجرك.",
+    en: "Reports are generated automatically at the end of each week based on your store performance.",
+  },
+  "reports.workspace.lockDescription": {
+    ar: "قم بالترقية إلى باقة النمو لفتح المقارنات التاريخية والرؤى الأسبوعية المدعومة بالذكاء الاصطناعي.",
+    en: "Upgrade to the Growth plan to unlock historical comparisons and AI-generated weekly insights.",
+  },
+  "reports.workspace.weeklyReview": {
+    ar: "المراجعة الأسبوعية",
+    en: "Weekly review",
+  },
+  "reports.workspace.kpis": {
+    ar: "مؤشرات الأداء",
+    en: "Performance KPIs",
+  },
+  "reports.workspace.selectTitle": {
+    ar: "لم يتم تحديد أسبوع",
+    en: "No week selected",
+  },
+  "reports.workspace.selectDescription": {
+    ar: "اختر أسبوعاً من القائمة لعرض مقارنة الأداء والرؤى الخاصة به.",
+    en: "Select a week from the list to view its performance comparison and insights.",
+  },
   "reports.table.week": {
     ar: "الأسبوع",
     en: "Week",

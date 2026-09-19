@@ -7,6 +7,7 @@ import {
 } from "@/lib/reports/comparison-format";
 import { cn } from "@/lib/utils";
 import { motion, useReducedMotion } from "framer-motion";
+import { AnimatedNumber } from "@/components/dashboard/animated-number";
 
 const stateStyles: Record<ComparisonState, string> = {
   improved: "border-[#0fc9a7]/30 bg-[#0fc9a7]/10 text-[#0fc9a7]",
@@ -120,7 +121,7 @@ export function ReportComparisonDetails({
                   />
                 </div>
                 <span className="w-24 shrink-0 text-end text-xs font-medium text-white/70">
-                  {raw.format(raw.previous)}
+                  <AnimatedNumber value={raw.previous} formatter={raw.format} duration={reducedMotion ? 0 : 0.7} />
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -136,7 +137,7 @@ export function ReportComparisonDetails({
                   />
                 </div>
                 <span className="w-24 shrink-0 text-end text-xs font-bold text-white">
-                  {raw.format(raw.current)}
+                  <AnimatedNumber value={raw.current} formatter={raw.format} duration={reducedMotion ? 0 : 0.85} />
                 </span>
               </div>
             </div>
@@ -154,7 +155,7 @@ export function ReportComparisonDetails({
           "rounded-xl border px-5 py-5 text-sm leading-relaxed bg-[#161c24] border-[#ffffff1a] shadow-sm relative overflow-hidden",
         )}
       >
-        <div className={cn("absolute left-0 top-0 w-1 h-full",
+        <div className={cn("absolute start-0 top-0 w-1 h-full",
           formatted.state === 'improved' ? 'bg-[#0fc9a7]' :
           formatted.state === 'declined' ? 'bg-[#ef4444]' : 'bg-[#e6b95c]'
         )} />
