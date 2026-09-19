@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { cookies } from "next/headers";
@@ -63,6 +64,11 @@ export default async function RootLayout({
 
   return (
     <html lang={langCookie} dir={dir}>
+      <Script
+        id="saudi-business-center-verification-seal"
+        src="https://eauthenticate.saudibusiness.gov.sa/EAuthSealApi/seal.js"
+        strategy="beforeInteractive"
+      />
       <body
         className={`${ibmPlexSansArabic.variable} antialiased font-sans bg-white`}
       >

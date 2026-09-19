@@ -1813,14 +1813,6 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "سياسة الاستخدام",
     en: "Usage policy",
   },
-  "footer.cr.imageAlt": {
-    ar: "السجل التجاري",
-    en: "Commercial register",
-  },
-  "footer.cr.label": {
-    ar: "السجل التجاري",
-    en: "Commercial register",
-  },
   "footer.rights": {
     ar: "جميع الحقوق محفوظة.",
     en: "All rights reserved.",

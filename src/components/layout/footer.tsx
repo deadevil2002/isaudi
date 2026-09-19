@@ -13,7 +13,7 @@ export function Footer() {
   return (
     <footer className="bg-[#06090c] border-t border-white/10 pt-16 pb-8 text-[#94a3b8]" id="contact">
       <Container>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-10">
           {/* Brand */}
           <div className="col-span-1 md:col-span-1">
             <Link href="/" className="flex items-center mb-6">
@@ -112,32 +112,17 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Ministry of Commerce Commercial Register - Full Width Centered */}
-        <div className="w-full flex justify-center items-center mt-10 mb-[30px]">
-           <div className="max-w-[280px] w-full bg-[#161c24] rounded-xl py-[25px] px-4 text-center border border-white/10 flex flex-col items-center">
-               <div className="relative w-[110px] h-[40px] mb-[15px] opacity-80 mix-blend-screen bg-white rounded-md">
-                   <Image 
-                     src="/images/commercial-register.avif" 
-                     alt={t("footer.cr.imageAlt")} 
-                     fill 
-                     className="object-contain"
-                   />
-               </div>
-               <div className="text-white">
-                  <span className="block text-sm font-medium mb-1">
-                    {t("footer.cr.label")}
-                  </span>
-                  <span className="block font-mono text-base font-bold tracking-wide text-[#e6b95c]">7050191290</span>
-               </div>
-            </div>
-        </div>
-
         <div className="pt-8 border-t border-white/10 text-center text-sm">
           <p>
             © {new Date().getFullYear()} isaudi.ai. {t("footer.rights")}
           </p>
         </div>
       </Container>
+      <div
+        className="sbc-verify-seal"
+        data-token="ZWJ0OUh5RlMyRGJCZHVWQUlJeFZmZz09"
+        data-position="bottom-left"
+      />
     </footer>
   );
 }
