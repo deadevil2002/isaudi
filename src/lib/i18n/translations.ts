@@ -1517,6 +1517,10 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "اسأل عن أداء متجرك، المنتجات، أو فرص التحسين...",
     en: "Ask about your store performance, products, or improvement opportunities...",
   },
+  "dashboard.chat.send": {
+    ar: "إرسال الرسالة",
+    en: "Send message",
+  },
   "dashboard.chat.error": {
     ar: "عذراً، حدث خطأ أثناء المعالجة. يرجى المحاولة مرة أخرى.",
     en: "Sorry, something went wrong. Please try again.",

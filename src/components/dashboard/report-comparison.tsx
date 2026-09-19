@@ -8,9 +8,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const stateStyles: Record<ComparisonState, string> = {
-  improved: "border-green-200 bg-green-50/70 text-green-800",
-  declined: "border-red-200 bg-red-50/70 text-red-800",
-  unchanged: "border-gray-200 bg-gray-50 text-gray-700",
+  improved: "border-[#10b981]/30 bg-[#10b981]/10 text-[#10b981]",
+  declined: "border-[#ef4444]/30 bg-[#ef4444]/10 text-[#ef4444]",
+  unchanged: "border-[#ffffff1a] bg-[#1d252f] text-[#94a3b8]",
 };
 
 function StateIcon({ state }: { state: ComparisonState }) {
@@ -30,10 +30,10 @@ export function ReportComparisonDetails({
   if (!formatted) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div
         className={cn(
-          "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold",
+          "flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold",
           stateStyles[formatted.state],
         )}
       >
@@ -41,21 +41,21 @@ export function ReportComparisonDetails({
         <span>{formatted.statusLabel}</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {formatted.metrics.map((metric) => (
           <section
             key={metric.key}
             className={cn(
-              "rounded-xl border p-3 text-start",
+              "rounded-xl border p-4 text-start transition-colors",
               stateStyles[metric.state],
             )}
           >
-            <div className="mb-1 flex items-center gap-2 text-sm font-bold">
+            <div className="mb-2 flex items-center gap-2 text-sm font-bold">
               <StateIcon state={metric.state} />
               <span>{metric.label}</span>
             </div>
-            <p className="text-sm leading-6">{metric.summary}</p>
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium">
+            <p className="text-sm leading-6 opacity-90">{metric.summary}</p>
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium opacity-80">
               <span>{metric.change}</span>
               {metric.rate && <span>{metric.rate}</span>}
             </div>
@@ -65,7 +65,7 @@ export function ReportComparisonDetails({
 
       <p
         className={cn(
-          "rounded-xl border px-3 py-3 text-sm leading-6",
+          "rounded-xl border px-4 py-4 text-sm leading-relaxed",
           stateStyles[formatted.state],
         )}
       >

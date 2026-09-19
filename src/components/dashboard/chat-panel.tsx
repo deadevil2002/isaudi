@@ -69,14 +69,14 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-        <div className="bg-isaudi-green/10 p-2 rounded-full">
-          <Sparkles className="w-5 h-5 text-isaudi-green" />
+    <div className="flex flex-col h-[600px] bg-[#0e1218] rounded-2xl border border-[#ffffff1a] shadow-none overflow-hidden">
+      <div className="p-4 border-b border-[#ffffff1a] bg-[#161c24] flex items-center gap-2">
+        <div className="bg-[#0fc9a7]/10 p-2 rounded-full">
+          <Sparkles className="w-5 h-5 text-[#0fc9a7]" />
         </div>
         <div>
-          <h3 className="font-bold text-gray-900">{t("dashboard.chat.title")}</h3>
-          <p className="text-xs text-gray-500">{t("dashboard.chat.subtitle")}</p>
+          <h3 className="font-bold text-white">{t("dashboard.chat.title")}</h3>
+          <p className="text-xs text-[#94a3b8]">{t("dashboard.chat.subtitle")}</p>
         </div>
       </div>
 
@@ -92,15 +92,15 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
             >
               <div className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                msg.role === 'user' ? "bg-gray-200" : "bg-isaudi-green text-white"
+                msg.role === 'user' ? "bg-[#161c24] text-white border border-[#ffffff1a]" : "bg-[#0fc9a7]/10 text-[#0fc9a7] border border-[#0fc9a7]/20"
               )}>
                 {msg.role === 'user' ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
               <div className={cn(
                 "p-3 rounded-2xl text-sm leading-relaxed",
-                msg.role === 'user' 
-                  ? "bg-gray-100 text-gray-800 rounded-tr-none" 
-                  : "bg-isaudi-green/5 text-gray-800 rounded-tl-none border border-isaudi-green/10"
+                msg.role === 'user'
+                  ? "bg-[#161c24] text-white border border-[#ffffff1a] rounded-tr-none"
+                  : "bg-[#0fc9a7]/5 text-white rounded-tl-none border border-[#0fc9a7]/20"
               )}>
                 {msg.content}
               </div>
@@ -108,20 +108,20 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
           ))}
           {loading && (
             <div className="flex gap-3 ml-auto">
-              <div className="w-8 h-8 rounded-full bg-isaudi-green text-white flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#0fc9a7]/10 text-[#0fc9a7] border border-[#0fc9a7]/20 flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4" />
               </div>
-              <div className="bg-gray-50 p-3 rounded-2xl rounded-tl-none border border-gray-100">
-                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+              <div className="bg-[#0fc9a7]/5 p-3 rounded-2xl rounded-tl-none border border-[#0fc9a7]/20">
+                <Loader2 className="w-4 h-4 animate-spin text-[#0fc9a7]" />
               </div>
             </div>
           )}
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+      <div className="p-4 border-t border-[#ffffff1a] bg-[#161c24]/50">
         {isBlocked ? (
-          <div className="text-center p-2 bg-yellow-50 text-yellow-700 rounded-lg text-sm border border-yellow-100">
+          <div className="text-center p-2 bg-[#e6b95c]/10 text-[#e6b95c] rounded-xl text-sm border border-[#e6b95c]/30">
             {t("dashboard.chat.blocked.prefix")}{" "}
             <a href="/billing" className="underline font-bold">
               {t("dashboard.chat.blocked.cta")}
@@ -137,10 +137,16 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("dashboard.chat.placeholder")}
-              className="bg-white"
+              className="bg-[#0e1218] border-[#ffffff1a] text-white placeholder:text-[#64748b] focus-visible:ring-[#0fc9a7]/30"
               disabled={loading}
             />
-            <Button type="submit" size="icon" disabled={loading || !input.trim()} className="shrink-0 bg-isaudi-green hover:bg-isaudi-green-dark">
+            <Button
+              type="submit"
+              size="icon"
+              aria-label={t("dashboard.chat.send")}
+              disabled={loading || !input.trim()}
+              className="shrink-0 bg-[#e6b95c] text-black hover:bg-[#c5993c]"
+            >
               <Send className="w-4 h-4" />
             </Button>
           </form>

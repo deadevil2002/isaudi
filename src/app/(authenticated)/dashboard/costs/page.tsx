@@ -132,7 +132,7 @@ export default function CostsPage() {
     const priceHalala = r.latestPriceHalala ?? 0;
     if (!priceHalala) {
       return (
-        <div className="text-xs text-gray-500">{t("costs.summary.noPrice")}</div>
+        <div className="text-xs text-[#94a3b8] py-4">{t("costs.summary.noPrice")}</div>
       );
     }
     const num = (value: unknown): number => {
@@ -156,230 +156,244 @@ export default function CostsPage() {
     const margin = priceSar > 0 ? Math.round((profitSar / priceSar) * 10000) / 100 : 0;
     const fmt = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 2 });
     return (
-      <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+      <div className="mt-4 bg-[#161c24] border border-[#ffffff1a] rounded-xl p-4 grid grid-cols-2 gap-4 text-sm relative overflow-hidden">
         <div>
-          <div className="text-gray-500">{t("costs.summary.salePrice")}</div>
-          <div className="font-bold">{fmt(priceSar)} {currency}</div>
+          <div className="text-[#94a3b8] text-xs mb-1">{t("costs.summary.salePrice")}</div>
+          <div className="font-bold text-[#f0f4f8]">{fmt(priceSar)} {currency}</div>
         </div>
         <div>
-          <div className="text-gray-500">{t("costs.summary.totalCost")}</div>
-          <div className="font-bold">{fmt(totalCostSar)} {currency}</div>
+          <div className="text-[#94a3b8] text-xs mb-1">{t("costs.summary.totalCost")}</div>
+          <div className="font-bold text-[#f0f4f8]">{fmt(totalCostSar)} {currency}</div>
         </div>
         <div>
-          <div className="text-gray-500">{t("costs.summary.netProfit")}</div>
-          <div className="font-bold text-isaudi-green">{fmt(profitSar)} {currency}</div>
+          <div className="text-[#94a3b8] text-xs mb-1">{t("costs.summary.netProfit")}</div>
+          <div className="font-bold text-[#0fc9a7]">{fmt(profitSar)} {currency}</div>
         </div>
         <div>
-          <div className="text-gray-500">{t("costs.summary.margin")}</div>
-          <div className="font-bold">{fmt(margin)}%</div>
+          <div className="text-[#94a3b8] text-xs mb-1">{t("costs.summary.margin")}</div>
+          <div className="font-bold text-[#f0f4f8]">{fmt(margin)}%</div>
         </div>
       </div>
     );
   };
 
-  const renderEditForm = (r: ProductRow) => (
-    <div className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 shadow-sm mt-2 mb-4">
-      <div className="flex items-start justify-between gap-4 flex-col lg:flex-row">
-        <div className="flex-1">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={dropship}
-                onChange={e => {
-                  const on = e.target.checked;
-                  setDropship(on);
-                  if (on) {
-                    setForm((prev) => ({
-                      ...prev,
-                      labor_cost_sar: 0,
-                      packaging_cost_sar: 0,
-                      payment_fee_percent: (prev.payment_fee_percent == null || prev.payment_fee_percent === 0) ? 2.5 : prev.payment_fee_percent
-                    }));
-                  }
-                }}
-              />
-              {t("costs.dropship.label")}
-            </label>
-            <span className="text-xs text-gray-500">{t("costs.dropship.hint")}</span>
-          </div>
-          {!dropship && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <div>
-                <label className="text-xs text-gray-600">{t("costs.field.purchase")}</label>
-                <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.purchase_cost_sar ?? 0} onChange={e => setForm({ ...form, purchase_cost_sar: parseFloat(e.target.value) })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600">{t("costs.field.labor")}</label>
-                <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.labor_cost_sar ?? 0} onChange={e => setForm({ ...form, labor_cost_sar: parseFloat(e.target.value) })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600">{t("costs.field.shipping")}</label>
-                <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.shipping_cost_sar ?? 0} onChange={e => setForm({ ...form, shipping_cost_sar: parseFloat(e.target.value) })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600">{t("costs.field.packaging")}</label>
-                <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.packaging_cost_sar ?? 0} onChange={e => setForm({ ...form, packaging_cost_sar: parseFloat(e.target.value) })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600">{t("costs.field.ads")}</label>
-                <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.ads_cost_per_unit_sar ?? 0} onChange={e => setForm({ ...form, ads_cost_per_unit_sar: parseFloat(e.target.value) })} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600">{t("costs.field.paymentFee")}</label>
-                <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.payment_fee_percent ?? 0} onChange={e => setForm({ ...form, payment_fee_percent: parseFloat(e.target.value) })} />
-              </div>
+  const renderEditForm = (r: ProductRow) => {
+    const inputClasses = "mt-1.5 w-full bg-[#161c24] border border-[#ffffff1a] text-[#f0f4f8] rounded-xl px-3 py-2 outline-none focus:border-[#e6b95c] transition-colors placeholder:text-[#64748b]";
+    return (
+      <div className="p-6 border border-[#e6b95c]/20 rounded-2xl bg-[#0e1218] shadow-[0_4px_20px_rgba(0,0,0,0.3)] mt-2 mb-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#e6b95c]/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex items-start justify-between gap-6 flex-col lg:flex-row relative z-10">
+          <div className="flex-1 w-full">
+            <div className="mb-5 flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-[#f0f4f8] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dropship}
+                  className="w-4 h-4 rounded border-[#ffffff1a] bg-[#161c24] text-[#e6b95c] focus:ring-[#e6b95c]/50 accent-[#e6b95c]"
+                  onChange={e => {
+                    const on = e.target.checked;
+                    setDropship(on);
+                    if (on) {
+                      setForm((prev) => ({
+                        ...prev,
+                        labor_cost_sar: 0,
+                        packaging_cost_sar: 0,
+                        payment_fee_percent: (prev.payment_fee_percent == null || prev.payment_fee_percent === 0) ? 2.5 : prev.payment_fee_percent
+                      }));
+                    }
+                  }}
+                />
+                {t("costs.dropship.label")}
+              </label>
+              <span className="text-xs text-[#94a3b8] bg-[#161c24] px-2 py-1 rounded-md border border-[#ffffff1a]">{t("costs.dropship.hint")}</span>
             </div>
-          )}
-          {dropship && (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+            {!dropship && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
-                  <label className="text-xs text-gray-600">{t("costs.field.purchase")}</label>
-                  <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.purchase_cost_sar ?? 0} onChange={e => setForm({ ...form, purchase_cost_sar: parseFloat(e.target.value) })} />
+                  <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.purchase")}</label>
+                  <input aria-label={t("costs.field.purchase")} type="number" step="0.01" className={inputClasses} value={form.purchase_cost_sar ?? 0} onChange={e => setForm({ ...form, purchase_cost_sar: parseFloat(e.target.value) })} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600">{t("costs.field.shippingUnit")}</label>
-                  <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.shipping_cost_sar ?? 0} onChange={e => setForm({ ...form, shipping_cost_sar: parseFloat(e.target.value) })} />
+                  <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.labor")}</label>
+                  <input aria-label={t("costs.field.labor")} type="number" step="0.01" className={inputClasses} value={form.labor_cost_sar ?? 0} onChange={e => setForm({ ...form, labor_cost_sar: parseFloat(e.target.value) })} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600">{t("costs.field.paymentFee")}</label>
-                  <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.payment_fee_percent ?? 2.5} onChange={e => setForm({ ...form, payment_fee_percent: parseFloat(e.target.value) })} />
+                  <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.shipping")}</label>
+                  <input aria-label={t("costs.field.shipping")} type="number" step="0.01" className={inputClasses} value={form.shipping_cost_sar ?? 0} onChange={e => setForm({ ...form, shipping_cost_sar: parseFloat(e.target.value) })} />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600">{t("costs.field.ads")}</label>
-                  <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.ads_cost_per_unit_sar ?? 0} onChange={e => setForm({ ...form, ads_cost_per_unit_sar: parseFloat(e.target.value) })} />
+                  <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.packaging")}</label>
+                  <input aria-label={t("costs.field.packaging")} type="number" step="0.01" className={inputClasses} value={form.packaging_cost_sar ?? 0} onChange={e => setForm({ ...form, packaging_cost_sar: parseFloat(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.ads")}</label>
+                  <input aria-label={t("costs.field.ads")} type="number" step="0.01" className={inputClasses} value={form.ads_cost_per_unit_sar ?? 0} onChange={e => setForm({ ...form, ads_cost_per_unit_sar: parseFloat(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.paymentFee")}</label>
+                  <input aria-label={t("costs.field.paymentFee")} type="number" step="0.01" className={inputClasses} value={form.payment_fee_percent ?? 0} onChange={e => setForm({ ...form, payment_fee_percent: parseFloat(e.target.value) })} />
                 </div>
               </div>
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced(v => !v)}
-                  className="text-xs text-isaudi-green"
-                >
-                  {showAdvanced ? t("costs.advanced.toggle.hide") : t("costs.advanced.toggle.show")}
-                </button>
-              </div>
-              {showAdvanced && (
-                <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+            )}
+
+            {dropship && (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="text-xs text-gray-600">{t("costs.field.labor")}</label>
-                    <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.labor_cost_sar ?? 0} onChange={e => setForm({ ...form, labor_cost_sar: parseFloat(e.target.value) })} />
+                    <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.purchase")}</label>
+                    <input aria-label={t("costs.field.purchase")} type="number" step="0.01" className={inputClasses} value={form.purchase_cost_sar ?? 0} onChange={e => setForm({ ...form, purchase_cost_sar: parseFloat(e.target.value) })} />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-600">{t("costs.field.packaging")}</label>
-                    <input type="number" step="0.01" className="mt-1 w-full border rounded-md px-2 py-1" value={form.packaging_cost_sar ?? 0} onChange={e => setForm({ ...form, packaging_cost_sar: parseFloat(e.target.value) })} />
+                    <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.shippingUnit")}</label>
+                    <input aria-label={t("costs.field.shippingUnit")} type="number" step="0.01" className={inputClasses} value={form.shipping_cost_sar ?? 0} onChange={e => setForm({ ...form, shipping_cost_sar: parseFloat(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.paymentFee")}</label>
+                    <input aria-label={t("costs.field.paymentFee")} type="number" step="0.01" className={inputClasses} value={form.payment_fee_percent ?? 2.5} onChange={e => setForm({ ...form, payment_fee_percent: parseFloat(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.ads")}</label>
+                    <input aria-label={t("costs.field.ads")} type="number" step="0.01" className={inputClasses} value={form.ads_cost_per_unit_sar ?? 0} onChange={e => setForm({ ...form, ads_cost_per_unit_sar: parseFloat(e.target.value) })} />
                   </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-        <div className="w-full lg:w-80 shrink-0">
-          <div className="border border-gray-200 rounded-lg p-3 bg-white h-full shadow-sm">
-            <div className="text-sm font-medium mb-2">{t("costs.summary.cardTitle")}</div>
-            {renderSummary(r)}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced(v => !v)}
+                    className="text-xs font-medium text-[#0fc9a7] hover:text-[#8ddbc9] transition-colors flex items-center gap-1"
+                  >
+                    {showAdvanced ? t("costs.advanced.toggle.hide") : t("costs.advanced.toggle.show")}
+                  </button>
+                </div>
+                {showAdvanced && (
+                  <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4 p-5 border border-[#ffffff1a] rounded-xl bg-[#161c24]/50">
+                    <div>
+                      <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.labor")}</label>
+                      <input aria-label={t("costs.field.labor")} type="number" step="0.01" className={inputClasses} value={form.labor_cost_sar ?? 0} onChange={e => setForm({ ...form, labor_cost_sar: parseFloat(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-[#94a3b8]">{t("costs.field.packaging")}</label>
+                      <input aria-label={t("costs.field.packaging")} type="number" step="0.01" className={inputClasses} value={form.packaging_cost_sar ?? 0} onChange={e => setForm({ ...form, packaging_cost_sar: parseFloat(e.target.value) })} />
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="w-full lg:w-80 shrink-0">
+            <div className="border border-[#ffffff1a] rounded-xl p-5 bg-[#06090c] h-full shadow-inner">
+              <div className="text-sm font-semibold text-[#f0f4f8] mb-1 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#0fc9a7]"></span>
+                {t("costs.summary.cardTitle")}
+              </div>
+              {renderSummary(r)}
+            </div>
           </div>
         </div>
-      </div>
-      {saveError && (
-        <div className="mt-4 text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
-          {saveError}
+        {saveError && (
+          <div className="mt-5 text-sm font-medium text-[#ef4444] bg-[#ef4444]/10 p-3 rounded-xl border border-[#ef4444]/20 relative z-10">
+            {saveError}
+          </div>
+        )}
+        <div className="mt-6 flex gap-4 relative z-10 border-t border-[#ffffff1a] pt-5">
+          <button onClick={onSave} disabled={saving} className="min-h-11 rounded-full bg-gradient-to-r from-[#c5993c] to-[#e6b95c] px-6 py-2 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60 shadow-[0_0_15px_rgba(230,185,92,0.2)]">
+            {saving ? t("costs.saving") : t("costs.actions.save")}
+          </button>
+          <button onClick={() => setEditing(null)} className="px-6 py-2 text-sm font-medium rounded-full border border-[#ffffff1a] bg-[#161c24] text-[#f0f4f8] hover:border-[#ef4444]/50 hover:text-[#ef4444] transition-colors">
+            {t("costs.actions.cancel")}
+          </button>
         </div>
-      )}
-      <div className="mt-4 flex gap-3">
-        <button onClick={onSave} disabled={saving} className="min-h-11 rounded-lg bg-isaudi-green px-4 py-2 text-sm text-white transition-colors hover:opacity-90 disabled:opacity-60">
-          {saving ? t("costs.saving") : t("costs.actions.save")}
-        </button>
-        <button onClick={() => setEditing(null)} className="px-4 py-2 text-sm rounded-lg border hover:bg-gray-50 transition-colors">
-          {t("costs.actions.cancel")}
-        </button>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-6 text-[#f0f4f8]">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">{t("costs.title")}</h1>
+        <h1 className="text-2xl font-bold text-[#f0f4f8]">{t("costs.title")}</h1>
       </div>
-      <p className="text-sm text-gray-600">{t("costs.description")}</p>
+      <p className="text-sm text-[#94a3b8]">{t("costs.description")}</p>
       
-      <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row items-center gap-4 bg-[#0e1218] p-5 rounded-2xl border border-[#ffffff1a] shadow-sm">
         <input
           type="text"
           placeholder={t("costs.search.placeholder")}
           value={query}
           onChange={e => setQuery(e.target.value)}
-          className="w-full md:flex-1 border rounded-md px-3 py-2"
+          className="w-full md:flex-1 border border-[#ffffff1a] bg-[#161c24] text-[#f0f4f8] rounded-full px-5 py-2.5 outline-none focus:border-[#e6b95c] transition-colors placeholder:text-[#64748b]"
         />
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-3 text-sm text-[#94a3b8] cursor-pointer hover:text-[#f0f4f8] transition-colors">
           <input
             type="checkbox"
             checked={soldOnly}
             onChange={e => setSoldOnly(e.target.checked)}
+            className="w-4 h-4 rounded border-[#ffffff1a] bg-[#161c24] text-[#e6b95c] focus:ring-[#e6b95c]/50 accent-[#e6b95c]"
           />
           {t("costs.filter.soldOnly")}
         </label>
-        <button onClick={load} className="min-h-11 w-full rounded-md bg-isaudi-green px-4 py-2 text-white hover:opacity-90 md:w-auto">
+        <button onClick={load} className="min-h-11 w-full rounded-full bg-gradient-to-r from-[#c5993c] to-[#e6b95c] px-6 py-2 text-black font-semibold hover:opacity-90 md:w-auto transition-opacity shadow-[0_0_15px_rgba(230,185,92,0.2)]">
           {t("costs.filter.button")}
         </button>
       </div>
       
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-[#0e1218] rounded-2xl border border-[#ffffff1a] shadow-sm overflow-hidden text-[#f0f4f8]">
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600">
+            <thead className="bg-[#161c24] text-[#94a3b8] border-b border-[#ffffff1a]">
               <tr>
-                <th className="px-4 py-3 text-start">{t("costs.table.product")}</th>
-                <th className="px-4 py-3 text-start">{t("costs.table.sku")}</th>
-                <th className="px-4 py-3 text-start">{t("costs.table.price")}</th>
-                <th className="px-4 py-3 text-start">{t("costs.table.totalCost")}</th>
-                <th className="px-4 py-3 text-start">{t("costs.table.netProfit")}</th>
-                <th className="px-4 py-3 text-start">{t("costs.table.margin")}</th>
-                <th className="px-4 py-3 text-start">{t("costs.table.edit")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.product")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.sku")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.price")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.totalCost")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.netProfit")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.margin")}</th>
+                <th className="px-5 py-4 text-start font-semibold">{t("costs.table.edit")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-[#ffffff1a]">
               {viewState === "loading" ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6">
-                    <div className="space-y-3" aria-label={t("costs.loading")}>
+                  <td colSpan={7} className="px-5 py-8">
+                    <div className="space-y-4" aria-label={t("costs.loading")}>
                       {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className="h-10 animate-pulse rounded-lg bg-gray-100" />
+                        <div key={index} className="h-12 animate-pulse rounded-xl bg-[#161c24] border border-[#ffffff1a]" />
                       ))}
                     </div>
                   </td>
                 </tr>
               ) : viewState === "error" ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center">
-                    <div className="text-red-600 mb-2">{fetchError}</div>
-                    <button onClick={load} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50">{t("costs.retry")}</button>
+                  <td colSpan={7} className="px-5 py-10 text-center">
+                    <div className="text-[#ef4444] mb-4 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl p-4 inline-block text-sm font-medium">{fetchError}</div>
+                    <div>
+                      <button onClick={load} className="px-6 py-2.5 text-sm font-medium rounded-full border border-[#ffffff1a] bg-[#161c24] text-[#f0f4f8] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] transition-colors">{t("costs.retry")}</button>
+                    </div>
                   </td>
                 </tr>
               ) : viewState === "empty" ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-500">{t("costs.empty")}</td></tr>
+                <tr><td colSpan={7} className="px-5 py-16 text-center text-[#64748b] bg-[#161c24]/30">{t("costs.empty")}</td></tr>
               ) : rows.map(r => {
                 const isEditing = editing === r.identityKey;
                 return (
                   <React.Fragment key={r.primaryProductId || r.identityKey}>
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-800">{r.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{r.sku || "—"}</td>
-                      <td className="px-4 py-3 text-gray-800">{halalaToSar(r.latestPriceHalala)} {currency}</td>
-                      <td className="px-4 py-3 text-gray-800">{halalaToSar(r.computed.totalCostHalala)} {currency}</td>
-                      <td className="px-4 py-3 text-gray-800">{halalaToSar(r.computed.profitHalala)} {currency}</td>
-                      <td className="px-4 py-3 text-gray-800">{r.computed.marginPercent == null ? "—" : `${r.computed.marginPercent}%`}</td>
-                      <td className="px-4 py-3">
-                        <button onClick={() => onEdit(r)} className="px-3 py-1.5 text-sm rounded-md bg-isaudi-green text-white hover:opacity-90">
+                    <tr className="hover:bg-[#161c24]/50 transition-colors group">
+                      <td className="px-5 py-4 font-medium text-[#f0f4f8]">{r.name}</td>
+                      <td className="px-5 py-4 text-[#94a3b8] font-mono text-xs">{r.sku || "—"}</td>
+                      <td className="px-5 py-4 text-[#f0f4f8]">{halalaToSar(r.latestPriceHalala)} {currency}</td>
+                      <td className="px-5 py-4 text-[#f0f4f8]">{halalaToSar(r.computed.totalCostHalala)} {currency}</td>
+                      <td className="px-5 py-4 text-[#0fc9a7] font-medium">{halalaToSar(r.computed.profitHalala)} {currency}</td>
+                      <td className="px-5 py-4 text-[#f0f4f8]">{r.computed.marginPercent == null ? "—" : `${r.computed.marginPercent}%`}</td>
+                      <td className="px-5 py-4">
+                        <button onClick={() => onEdit(r)} className="px-4 py-1.5 text-sm font-medium rounded-full bg-[#161c24] border border-[#ffffff1a] text-[#f0f4f8] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100">
                           {t("costs.table.edit")}
                         </button>
                       </td>
                     </tr>
                     {isEditing && (
-                      <tr className="bg-gray-50/50">
-                        <td colSpan={7} className="px-4 py-4">
+                      <tr className="bg-[#161c24]/30">
+                        <td colSpan={7} className="px-5 py-6 border-b border-[#ffffff1a]">
                           {renderEditForm(r)}
                         </td>
                       </tr>
@@ -392,56 +406,56 @@ export default function CostsPage() {
         </div>
 
         {/* Mobile View */}
-        <div className="flex flex-col md:hidden divide-y divide-gray-100">
+        <div className="flex flex-col md:hidden divide-y divide-[#ffffff1a]">
           {viewState === "loading" ? (
-            <div className="space-y-3 p-4" aria-label={t("costs.loading")}>
+            <div className="space-y-4 p-5" aria-label={t("costs.loading")}>
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-40 animate-pulse rounded-xl bg-gray-100" />
+                <div key={index} className="h-40 animate-pulse rounded-2xl bg-[#161c24] border border-[#ffffff1a]" />
               ))}
             </div>
           ) : viewState === "error" ? (
-            <div className="p-6 text-center">
-              <div className="text-red-600 mb-2">{fetchError}</div>
-              <button onClick={load} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-50">{t("costs.retry")}</button>
+            <div className="p-8 text-center">
+              <div className="text-[#ef4444] mb-4 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl p-4 text-sm font-medium">{fetchError}</div>
+              <button onClick={load} className="px-6 py-2.5 text-sm font-medium rounded-full border border-[#ffffff1a] bg-[#161c24] text-[#f0f4f8] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] transition-colors">{t("costs.retry")}</button>
             </div>
           ) : viewState === "empty" ? (
-            <div className="p-6 text-center text-gray-500">{t("costs.empty")}</div>
+            <div className="p-12 text-center text-[#64748b] bg-[#161c24]/30">{t("costs.empty")}</div>
           ) : rows.map(r => {
             const isEditing = editing === r.identityKey;
             return (
-              <div key={r.primaryProductId || r.identityKey} className="p-4 flex flex-col gap-3 hover:bg-gray-50/50">
+              <div key={r.primaryProductId || r.identityKey} className="p-5 flex flex-col gap-5 hover:bg-[#161c24]/50 transition-colors">
                 <div>
-                  <div className="font-medium text-gray-800 text-sm leading-tight mb-1">{r.name}</div>
-                  <div className="text-xs text-gray-500 font-mono">{r.sku || "—"}</div>
+                  <div className="font-semibold text-[#f0f4f8] text-base leading-tight mb-1">{r.name}</div>
+                  <div className="text-xs text-[#64748b] font-mono">{r.sku || "—"}</div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm bg-[#161c24] p-4 rounded-xl border border-[#ffffff1a]">
                   <div>
-                    <div className="text-xs text-gray-500 mb-0.5">{t("costs.table.price")}</div>
-                    <div>{halalaToSar(r.latestPriceHalala)} {currency}</div>
+                    <div className="text-xs text-[#94a3b8] mb-1">{t("costs.table.price")}</div>
+                    <div className="text-[#f0f4f8] font-medium">{halalaToSar(r.latestPriceHalala)} {currency}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500 mb-0.5">{t("costs.table.totalCost")}</div>
-                    <div>{halalaToSar(r.computed.totalCostHalala)} {currency}</div>
+                    <div className="text-xs text-[#94a3b8] mb-1">{t("costs.table.totalCost")}</div>
+                    <div className="text-[#f0f4f8] font-medium">{halalaToSar(r.computed.totalCostHalala)} {currency}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500 mb-0.5">{t("costs.table.netProfit")}</div>
-                    <div className="font-medium text-isaudi-green">{halalaToSar(r.computed.profitHalala)} {currency}</div>
+                    <div className="text-xs text-[#94a3b8] mb-1">{t("costs.table.netProfit")}</div>
+                    <div className="font-medium text-[#0fc9a7]">{halalaToSar(r.computed.profitHalala)} {currency}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500 mb-0.5">{t("costs.table.margin")}</div>
-                    <div>{r.computed.marginPercent == null ? "—" : `${r.computed.marginPercent}%`}</div>
+                    <div className="text-xs text-[#94a3b8] mb-1">{t("costs.table.margin")}</div>
+                    <div className="text-[#f0f4f8] font-medium">{r.computed.marginPercent == null ? "—" : `${r.computed.marginPercent}%`}</div>
                   </div>
                 </div>
 
                 {!isEditing && (
-                  <button onClick={() => onEdit(r)} className="self-start mt-1 px-4 py-1.5 text-sm rounded-lg bg-isaudi-green/10 text-isaudi-green border border-isaudi-green/20 hover:bg-isaudi-green/20 transition-colors">
+                  <button onClick={() => onEdit(r)} className="self-start px-6 py-2 text-sm font-medium rounded-full bg-[#161c24] border border-[#ffffff1a] text-[#f0f4f8] hover:border-[#e6b95c]/50 hover:text-[#e6b95c] transition-colors">
                     {t("costs.table.edit")}
                   </button>
                 )}
 
                 {isEditing && (
-                  <div className="mt-2 -mx-2">
+                  <div className="mt-2 w-full">
                     {renderEditForm(r)}
                   </div>
                 )}

@@ -107,18 +107,14 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
         onClick={mobile ? closeDrawer : undefined}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex min-h-11 w-full items-center rounded-md font-semibold transition-colors",
-          mobile ? "gap-3 px-3 py-2" : "gap-2 px-3 py-2",
+          "flex min-h-11 w-full items-center rounded-xl font-medium transition-colors",
+          mobile ? "gap-3 px-4 py-2.5" : "gap-3 px-3 py-2.5",
           active
-            ? mobile
-              ? "bg-isaudi-green/10 text-isaudi-green"
-              : "border border-gray-100/50 bg-white text-isaudi-green shadow-sm"
-            : mobile
-              ? "text-gray-700 hover:bg-gray-50"
-              : "border border-transparent text-gray-600 hover:bg-white hover:text-gray-900",
+            ? "bg-[#0fc9a7]/10 text-[#0fc9a7]"
+            : "text-[#94a3b8] hover:bg-[#1d252f] hover:text-[#f0f4f8]",
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" />
+        <Icon className="h-5 w-5 shrink-0" />
         <span>{label}</span>
       </Link>
     ));
@@ -126,15 +122,15 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
   return (
     <>
       {/* Mobile Header */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#06090c]/80 backdrop-blur-md border-b border-[#ffffff1a]">
         <Container>
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
                 ref={menuButtonRef}
-                className="text-gray-700"
+                className="text-[#94a3b8] hover:text-[#f0f4f8] hover:bg-[#1d252f] rounded-full"
                 onClick={() => setDrawerOpen(true)}
                 aria-label={t("header.nav.openMenu")}
                 aria-controls="authenticated-mobile-navigation"
@@ -142,30 +138,27 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="relative w-8 h-8">
-                   <Image
-                    src="/brand/isaudi-mark-v4"
-                    alt="isaudi.ai Logo"
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-isaudi-green-dark to-isaudi-green">
-                  isaudi.ai
-                </span>
+              <Link href="/dashboard" className="flex items-center">
+                 <Image
+                  src="/brand/design-preview-logo.png"
+                  alt="iSaudi.ai Logo"
+                  width={85}
+                  height={64}
+                  className="w-[85px] h-auto object-contain"
+                  priority
+                />
               </Link>
             </div>
 
             <div className="flex items-center gap-2">
                <Button
                 variant="ghost"
-                size="sm"
-                className="text-gray-600"
+                size="icon"
+                className="text-[#94a3b8] hover:text-[#f0f4f8] hover:bg-[#1d252f] rounded-full"
                 onClick={toggleLanguage}
                 aria-label={t("header.lang.aria")}
               >
-                <Globe className="w-4 h-4" />
+                <Globe className="w-5 h-5" />
               </Button>
             </div>
           </div>
@@ -189,30 +182,26 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
           if (event.target === event.currentTarget) closeDrawer();
         }}
         className={cn(
-          "fixed bottom-0 top-0 z-50 m-0 h-dvh w-[min(18rem,calc(100vw-1.5rem))] max-h-none max-w-full border-0 bg-white p-0 shadow-xl md:hidden [&::backdrop]:bg-black/40",
-          lang === "ar" ? "left-auto right-0" : "left-0 right-auto",
+          "fixed bottom-0 top-0 z-50 m-0 h-dvh w-[min(18rem,calc(100vw-1.5rem))] max-h-none max-w-full border-0 bg-[#0e1218] p-0 shadow-2xl md:hidden [&::backdrop]:bg-black/60",
+          lang === "ar" ? "left-auto right-0 border-l border-[#ffffff1a]" : "left-0 right-auto border-r border-[#ffffff1a]",
         )}
       >
-        <div className="flex h-full flex-col">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center gap-2" onClick={closeDrawer}>
-              <div className="relative w-8 h-8">
-                 <Image
-                   src="/brand/isaudi-mark-v4"
-                  alt="isaudi.ai Logo"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-isaudi-green-dark to-isaudi-green">
-                isaudi.ai
-              </span>
+        <div className="flex h-full flex-col text-[#f0f4f8] bg-[#0e1218]">
+          <div className="p-4 border-b border-[#ffffff1a] flex items-center justify-between">
+            <Link href="/dashboard" className="flex items-center" onClick={closeDrawer}>
+              <Image
+                src="/brand/design-preview-logo.png"
+                alt="iSaudi.ai Logo"
+                width={85}
+                height={64}
+                className="w-[85px] h-auto object-contain"
+              />
             </Link>
             <Button
               variant="ghost"
               size="icon"
               onClick={closeDrawer}
-              className="text-gray-500"
+              className="text-[#94a3b8] hover:text-[#f0f4f8] hover:bg-[#1d252f] rounded-full"
               data-drawer-close
               aria-label={t("header.nav.closeMenu")}
             >
@@ -221,30 +210,42 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-            <div className="mb-4 px-2">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2 font-semibold">
-                {t("header.nav.menu")}
-              </p>
-            </div>
-
             <nav aria-label={t("header.nav.menu")} className="space-y-1">
               {renderNavigation(true)}
             </nav>
           </div>
 
-          <div className="p-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-2">
-            <span className="text-xs font-medium text-gray-500 truncate px-2 mb-2">
-              {userEmail}
-            </span>
+          <div className="p-4 border-t border-[#ffffff1a] bg-[#161c24] flex flex-col gap-2">
+            <div className="flex items-center gap-3 mb-2 px-2">
+              <div className="w-9 h-9 rounded-full bg-[#e6b95c]/10 flex items-center justify-center text-[#e6b95c] font-bold text-sm shrink-0">
+                {userEmail.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-medium text-[#f0f4f8] truncate">
+                {userEmail}
+              </span>
+            </div>
+
             <Button
-              variant="outline"
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 bg-white"
+              variant="ghost"
+              className="w-full justify-start text-[#94a3b8] hover:text-[#f0f4f8] hover:bg-[#1d252f] rounded-xl gap-3 font-medium px-4"
+              onClick={() => {
+                closeDrawer();
+                toggleLanguage();
+              }}
+            >
+              <Globe className="w-5 h-5" />
+              {t("header.lang.toggle")}
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-[#ef4444] hover:text-[#ef4444] hover:bg-[#ef4444]/10 rounded-xl gap-3 font-medium px-4"
               onClick={() => {
                 closeDrawer();
                 handleLogout();
               }}
             >
-               <LogOut className="me-2 w-4 h-4" />
+               <LogOut className="w-5 h-5" />
               {t("header.logout")}
             </Button>
           </div>
@@ -252,63 +253,69 @@ export function AuthenticatedShell({ userEmail, children }: AuthenticatedShellPr
       </dialog>
 
       {/* Main Layout */}
-      <div className="min-h-[100dvh] bg-gray-50 pt-16 md:pt-24 pb-12 flex flex-col">
-        <Container className="flex-1 flex flex-col min-h-0">
+      <div className="min-h-[100dvh] bg-[#06090c] text-[#f0f4f8] pt-16 md:pt-24 pb-12 flex flex-col font-sans relative">
+        {/* Ambient Background */}
+        <div
+          className="fixed inset-0 pointer-events-none z-0"
+          style={{
+            background: 'radial-gradient(circle at 50% 0%, rgba(15, 201, 167, 0.08) 0%, transparent 50%), radial-gradient(circle at 100% 50%, rgba(230, 185, 92, 0.08) 0%, transparent 40%)'
+          }}
+        />
+
+        <Container className="flex-1 flex flex-col min-h-0 relative z-10">
           <div className="flex flex-col md:flex-row gap-6 md:gap-8 flex-1 min-h-0">
 
             {/* Desktop Sidebar */}
-            <aside className="hidden w-64 shrink-0 flex-col gap-6 self-start md:sticky md:top-6 md:flex">
-              <Link href="/dashboard" className="flex items-center gap-3 px-2">
-                <div className="relative w-10 h-10">
-                   <Image
-                    src="/brand/isaudi-mark-v4"
-                    alt="isaudi.ai Logo"
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-                <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-isaudi-green-dark to-isaudi-green">
-                  isaudi.ai
-                </span>
-              </Link>
+            <aside className="hidden w-64 shrink-0 self-start md:sticky md:top-6 md:flex">
+              <div className="w-full bg-[#0e1218] p-4 rounded-2xl border border-[#ffffff1a] shadow-lg flex flex-col gap-2 relative overflow-hidden">
+                {/* Subtle top edge highlight */}
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ffffff1a] to-transparent" />
 
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-isaudi-green/10 flex items-center justify-center text-isaudi-green font-bold text-lg shrink-0">
+                <div className="pb-6 pt-2 mb-2 border-b border-[#ffffff1a] flex justify-center">
+                  <Link href="/dashboard" className="flex items-center">
+                    <Image
+                      src="/brand/design-preview-logo.png"
+                      alt="iSaudi.ai Logo"
+                      width={120}
+                      height={90}
+                      className="w-[120px] h-auto object-contain"
+                      priority
+                    />
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-3 px-3 mb-4 mt-2">
+                  <div className="w-10 h-10 rounded-full bg-[#e6b95c]/10 flex items-center justify-center text-[#e6b95c] font-bold text-sm shrink-0 border border-[#e6b95c]/20">
                     {userEmail.charAt(0).toUpperCase()}
                   </div>
-                  <div className="overflow-hidden">
-                    <div className="text-sm font-bold truncate text-gray-900">{userEmail}</div>
+                  <div className="min-w-0 overflow-hidden">
+                    <div className="text-sm font-bold truncate text-[#f0f4f8]">{userEmail}</div>
                   </div>
                 </div>
 
-                <div className="h-px w-full bg-gray-100" />
-
-                <nav aria-label={t("header.nav.menu")} className="-mx-2 space-y-1 px-2">
+                <nav aria-label={t("header.nav.menu")} className="space-y-1">
                   {renderNavigation()}
                 </nav>
 
-                <div className="h-px w-full bg-gray-100" />
-
-                <div className="flex flex-col gap-1">
+                <div className="mt-4 pt-4 border-t border-[#ffffff1a] flex flex-col gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start gap-2 text-gray-600 hover:bg-gray-50"
+                    className="w-full justify-start gap-3 text-[#94a3b8] hover:bg-[#1d252f] hover:text-[#f0f4f8] rounded-xl font-medium px-3 py-2.5 min-h-11"
                     onClick={toggleLanguage}
                     aria-label={t("header.lang.aria")}
                   >
-                    <Globe className="w-4 h-4" />
+                    <Globe className="w-5 h-5" />
                     <span>{t("header.lang.toggle")}</span>
                   </Button>
 
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start gap-2 text-gray-500 hover:bg-red-50 hover:text-red-600"
+                    className="w-full justify-start gap-3 text-[#94a3b8] hover:bg-[#ef4444]/10 hover:text-[#ef4444] rounded-xl font-medium px-3 py-2.5 min-h-11"
                     onClick={handleLogout}
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-5 h-5" />
                     <span>{t("header.logout")}</span>
                   </Button>
                 </div>

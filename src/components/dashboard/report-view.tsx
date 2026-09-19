@@ -29,55 +29,55 @@ export function ReportView({ report }: ReportViewProps) {
       {/* KPIs */}
       {data.metrics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="shadow-sm">
+          <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none">
             <CardHeader>
-              <CardTitle className="text-sm text-gray-500">
+              <CardTitle className="text-sm text-[#94a3b8]">
                 {t("dashboard.reportView.metrics.totalSales")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-isaudi-green">{(data.metrics.totalSales || 0).toLocaleString()} SAR</div>
+              <div className="text-3xl font-bold text-[#0fc9a7]">{(data.metrics.totalSales || 0).toLocaleString()} SAR</div>
             </CardContent>
           </Card>
-          <Card className="shadow-sm">
+          <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none">
             <CardHeader>
-              <CardTitle className="text-sm text-gray-500">
+              <CardTitle className="text-sm text-[#94a3b8]">
                 {t("dashboard.reportView.metrics.totalOrders")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.metrics.totalOrders || 0}</div>
+              <div className="text-3xl font-bold text-white">{data.metrics.totalOrders || 0}</div>
             </CardContent>
           </Card>
-          <Card className="shadow-sm">
+          <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none">
             <CardHeader>
-              <CardTitle className="text-sm text-gray-500">
+              <CardTitle className="text-sm text-[#94a3b8]">
                 {t("dashboard.reportView.metrics.avgOrderValue")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{(data.metrics.avgOrderValue || 0).toFixed(2)} SAR</div>
+              <div className="text-3xl font-bold text-white">{(data.metrics.avgOrderValue || 0).toFixed(2)} SAR</div>
             </CardContent>
           </Card>
         </div>
       )}
       {data.metrics && (data.metrics.excludedOrdersCount > 0 || data.metrics.excludedSales > 0) && (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-[#94a3b8]">
           {t("dashboard.reportView.metrics.excluded")
             .replace("{orders}", String(data.metrics.excludedOrdersCount || 0))
             .replace("{amount}", (data.metrics.excludedSales || 0).toFixed(2))}
         </div>
       )}
       {/* Executive Summary */}
-      <Card className="border-l-4 border-l-isaudi-green shadow-sm hover:shadow-md transition-all">
+      <Card className="bg-[#161c24] border-[#ffffff1a] border-l-4 border-l-[#e6b95c] shadow-none hover:border-[#ffffff1a]/50 transition-all">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <Lightbulb className="w-6 h-6 text-isaudi-green" />
+          <CardTitle className="flex items-center gap-2 text-xl text-white">
+            <Lightbulb className="w-6 h-6 text-[#e6b95c]" />
             {t("dashboard.reportView.executiveSummary.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-700 leading-relaxed text-lg">
+          <p className="text-[#f0f4f8] leading-relaxed text-lg">
             {executiveSummary}
           </p>
         </CardContent>
@@ -85,9 +85,9 @@ export function ReportView({ report }: ReportViewProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Top Products */}
-        <Card className="shadow-sm hover:shadow-md transition-all group">
+        <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none hover:border-white/20 transition-all group">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-green-600">
+            <CardTitle className="flex items-center gap-2 text-[#0fc9a7]">
               <TrendingUp className="w-5 h-5" />
               {t("dashboard.reportView.topProducts.title")}
             </CardTitle>
@@ -111,11 +111,11 @@ export function ReportView({ report }: ReportViewProps) {
                         .replace("{revenue}", revenue)
                         .replace("{qty}", qty);
                 return (
-                <li key={i} className="flex items-start gap-2 bg-green-50/50 p-2 rounded-lg">
-                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-1 shrink-0" />
-                  <span className="text-gray-700 font-medium break-words overflow-hidden">
+                <li key={i} className="flex items-start gap-2 bg-[#0fc9a7]/10 p-2 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4 text-[#0fc9a7] mt-1 shrink-0" />
+                  <span className="text-white font-medium break-words overflow-hidden">
                     {name}
-                    <span className="text-gray-500 text-xs block sm:inline sm:ml-1">{meta}</span>
+                    <span className="text-[#94a3b8] text-xs block sm:inline sm:ml-1">{meta}</span>
                   </span>
                 </li>
               )})}
@@ -124,9 +124,9 @@ export function ReportView({ report }: ReportViewProps) {
         </Card>
 
         {/* Weak Products */}
-        <Card className="shadow-sm hover:shadow-md transition-all group">
+        <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none hover:border-white/20 transition-all group">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-500">
+            <CardTitle className="flex items-center gap-2 text-[#ef4444]">
               <TrendingDown className="w-5 h-5" />
               {t("dashboard.reportView.weakProducts.title")}
             </CardTitle>
@@ -150,11 +150,11 @@ export function ReportView({ report }: ReportViewProps) {
                         .replace("{revenue}", revenue)
                         .replace("{qty}", qty);
                 return (
-                <li key={i} className="flex items-start gap-2 bg-red-50/50 p-2 rounded-lg">
-                  <AlertCircle className="w-4 h-4 text-red-400 mt-1 shrink-0" />
-                  <span className="text-gray-700 font-medium break-words overflow-hidden">
+                <li key={i} className="flex items-start gap-2 bg-[#ef4444]/10 p-2 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-[#ef4444] mt-1 shrink-0" />
+                  <span className="text-white font-medium break-words overflow-hidden">
                     {name}
-                    <span className="text-gray-500 text-xs block sm:inline sm:ml-1">{meta}</span>
+                    <span className="text-[#94a3b8] text-xs block sm:inline sm:ml-1">{meta}</span>
                   </span>
                 </li>
               )})}
@@ -165,31 +165,31 @@ export function ReportView({ report }: ReportViewProps) {
 
       {profitability && (
         <div className="space-y-4">
-          <Card className="shadow-sm">
+          <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none">
             <CardHeader>
-              <CardTitle className="text-base text-gray-700">
+              <CardTitle className="text-base text-white">
                 {t("dashboard.reportView.profitability.title")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">
+                  <div className="text-sm text-[#94a3b8] mb-1">
                     {t("dashboard.reportView.profitability.totalProfit")}
                   </div>
-                  <div className="text-2xl font-bold text-isaudi-green">{(profitability.totalProfit || 0).toFixed(2)} SAR</div>
+                  <div className="text-3xl font-bold text-[#0fc9a7]">{(profitability.totalProfit || 0).toFixed(2)} SAR</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">
+                  <div className="text-sm text-[#94a3b8] mb-1">
                     {t("dashboard.reportView.profitability.margin")}
                   </div>
-                  <div className="text-2xl font-bold">{(profitability.marginPct || 0).toFixed(2)}%</div>
+                  <div className="text-3xl font-bold text-white">{(profitability.marginPct || 0).toFixed(2)}%</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 mb-1">
+                  <div className="text-sm text-[#94a3b8] mb-1">
                     {t("dashboard.reportView.profitability.incomplete")}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-[#94a3b8]">
                     {profitability.missingCostProductsCount > 0
                       ? t("dashboard.reportView.profitability.incompleteSummary")
                           .replace("{products}", String(profitability.missingCostProductsCount))
@@ -200,27 +200,27 @@ export function ReportView({ report }: ReportViewProps) {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div>
-                  <div className="text-sm font-semibold text-gray-700 mb-2">
+                  <div className="text-sm font-semibold text-white mb-2">
                     {t("dashboard.reportView.profitability.topProfit")}
                   </div>
                   <ul className="space-y-2">
                     {(profitability.topProfitProducts || []).map((p: { name: string; sku?: string; totalProfit?: number; marginPct?: number }, i: number) => (
-                      <li key={i} className="text-sm text-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                      <li key={i} className="text-sm text-white flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
                         <span className="truncate">{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
-                        <span className="text-isaudi-green whitespace-nowrap">{(p.totalProfit || 0).toFixed(2)} SAR • {p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
+                        <span className="text-[#e6b95c] whitespace-nowrap">{(p.totalProfit || 0).toFixed(2)} SAR • {p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-gray-700 mb-2">
+                  <div className="text-sm font-semibold text-white mb-2">
                     {t("dashboard.reportView.profitability.worstMargins")}
                   </div>
                   <ul className="space-y-2">
                     {(profitability.lowMarginProducts || []).map((p: { name: string; sku?: string; marginPct?: number }, i: number) => (
-                      <li key={i} className="text-sm text-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                      <li key={i} className="text-sm text-white flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
                         <span className="truncate">{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
-                        <span className="text-red-500 whitespace-nowrap">{p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
+                        <span className="text-[#ef4444] whitespace-nowrap">{p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
                       </li>
                     ))}
                   </ul>
@@ -233,20 +233,20 @@ export function ReportView({ report }: ReportViewProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Conversion Insights */}
-        <Card className="bg-gradient-to-br from-white to-blue-50/30 shadow-sm hover:shadow-md transition-all">
+        <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none hover:border-white/20 transition-all">
           <CardHeader>
-            <CardTitle className="text-base text-blue-700 flex items-center gap-2">
+            <CardTitle className="text-base text-[#0fc9a7] flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
               {t("dashboard.reportView.conversion.title")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {conversionList.length > 0 ? (
-              <ul className="list-disc pr-5 space-y-1 text-sm text-gray-700">
+              <ul className="list-disc pr-5 space-y-1 text-sm text-white">
                 {conversionList.map((item, i) => <li key={i}>{item}</li>)}
               </ul>
             ) : (
-              <p className="text-gray-600 text-sm">
+              <p className="text-[#94a3b8] text-sm">
                 {t("dashboard.reportView.conversion.noData")}
               </p>
             )}
@@ -254,20 +254,20 @@ export function ReportView({ report }: ReportViewProps) {
         </Card>
 
         {/* Pricing Suggestions */}
-        <Card className="bg-gradient-to-br from-white to-yellow-50/30 shadow-sm hover:shadow-md transition-all">
+        <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none hover:border-white/20 transition-all">
           <CardHeader>
-            <CardTitle className="text-base text-yellow-700 flex items-center gap-2">
+            <CardTitle className="text-base text-[#e6b95c] flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               {t("dashboard.reportView.pricing.title")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {pricingList.length > 0 ? (
-              <ul className="list-disc pr-5 space-y-1 text-sm text-gray-700">
+              <ul className="list-disc pr-5 space-y-1 text-sm text-white">
                 {pricingList.map((item, i) => <li key={i}>{item}</li>)}
               </ul>
             ) : (
-              <p className="text-gray-600 text-sm">
+              <p className="text-[#94a3b8] text-sm">
                 {t("dashboard.reportView.pricing.noData")}
               </p>
             )}
@@ -275,9 +275,9 @@ export function ReportView({ report }: ReportViewProps) {
         </Card>
 
         {/* Growth Opportunities */}
-        <Card className="bg-gradient-to-br from-white to-purple-50/30 shadow-sm hover:shadow-md transition-all">
+        <Card className="bg-[#161c24] border-[#ffffff1a] shadow-none hover:border-white/20 transition-all">
           <CardHeader>
-            <CardTitle className="text-base text-purple-700 flex items-center gap-2">
+            <CardTitle className="text-base text-[#94a3b8] flex items-center gap-2">
               <Lightbulb className="w-4 h-4" />
               {t("dashboard.reportView.growth.title")}
             </CardTitle>
@@ -286,14 +286,14 @@ export function ReportView({ report }: ReportViewProps) {
             {growthList.length > 0 ? (
               <ul className="space-y-2">
                 {growthList.slice(0, 3).map((opp: string, i: number) => (
-                  <li key={i} className="text-xs text-gray-600 flex items-start gap-1">
-                    <span className="text-purple-400">•</span>
+                  <li key={i} className="text-xs text-[#94a3b8] flex items-start gap-1">
+                    <span className="text-[#94a3b8]">•</span>
                     {opp}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-600 text-sm">
+              <p className="text-[#94a3b8] text-sm">
                 {t("dashboard.reportView.growth.noData")}
               </p>
             )}

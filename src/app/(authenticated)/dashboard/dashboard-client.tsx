@@ -137,25 +137,25 @@ export function DashboardClient({
   }, [isPremium, t]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">
-                {t("dashboard.welcomeLine").replace("{email}", user.email)}
-              </h1>
-            </div>
+    <div className="space-y-6 text-[#f0f4f8]">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-bold text-white [overflow-wrap:anywhere] sm:text-3xl">
+          {t("dashboard.welcomeLine").replace("{email}", user.email)}
+        </h1>
+      </div>
 
             {isDev && (
-              <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-xs text-gray-800 flex flex-col gap-2">
-                <div className="font-semibold">{t("dashboard.dev.modeTitle")}</div>
+              <div className="bg-[#161c24] border border-[#e6b95c]/30 rounded-2xl p-4 text-xs text-[#94a3b8] flex flex-col gap-2">
+                <div className="font-bold text-white">{t("dashboard.dev.modeTitle")}</div>
                 <div>{t("dashboard.dev.currentPlan")} <span className="font-bold">{planName}</span> ({user.plan})</div>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {['free', 'starter', 'growth', 'business'].map((p) => (
                     <button
                       key={p}
-                      className={`px-2 py-1 rounded border text-xs ${
+                      className={`px-2 py-1 rounded-lg border text-xs transition-colors ${
                         user.plan === p
-                          ? 'bg-isaudi-green text-white border-isaudi-green'
-                          : 'bg-white text-gray-700 border-gray-300'
+                          ? 'bg-[#e6b95c] text-black border-[#e6b95c]'
+                          : 'bg-[#0e1218] text-[#94a3b8] border-[#ffffff1a] hover:border-white/30'
                       }`}
                       onClick={async () => {
                         try {
@@ -179,18 +179,18 @@ export function DashboardClient({
             )}
 
             {/* Plan Card */}
-            <div className="bg-gradient-to-br from-isaudi-green to-isaudi-green-dark rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+            <div className="bg-[#161c24] border border-[#ffffff1a] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#e6b95c]/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
               <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                  <div className="text-isaudi-green-light mb-1 text-sm font-medium">{t("dashboard.plan.label")}</div>
-                  <div className="text-3xl font-bold mb-2 capitalize">{planName}</div>
-                  <p className="text-white/80 text-sm max-w-md">
+                  <div className="text-[#e6b95c] mb-2 text-sm font-bold tracking-wider">{t("dashboard.plan.label")}</div>
+                  <div className="text-4xl font-bold mb-3 capitalize">{planName}</div>
+                  <p className="text-[#94a3b8] text-sm max-w-md leading-relaxed">
                     {isPremium ? t("dashboard.plan.premiumDesc") : t("dashboard.plan.upgradeDesc")}
                   </p>
                 </div>
                 <Link href="/billing">
-                  <Button className="bg-white text-isaudi-green hover:bg-gray-50 border-0 shadow-xl whitespace-nowrap">
+                  <Button className="bg-[#e6b95c] text-black hover:bg-[#c5993c] border-0 shadow-xl whitespace-nowrap rounded-full px-6 py-2 font-bold text-white">
                     {isPremium ? t("dashboard.plan.manage") : t("dashboard.plan.upgrade")}
                   </Button>
                 </Link>
@@ -201,33 +201,33 @@ export function DashboardClient({
             {hasData && storeConnection && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                    <div className="text-sm text-gray-500 mb-1">
+                  <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm">
+                    <div className="text-sm text-[#94a3b8] mb-2">
                     {t("dashboard.stats.productsLabel")} {t("dashboard.stats.productsNote")}
                     </div>
-                    <div className="text-2xl font-bold">
+                    <div className="text-3xl font-bold text-white">
                       {stats.products}
                     </div>
                   </div>
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                    <div className="text-sm text-gray-500 mb-1">
+                  <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm">
+                    <div className="text-sm text-[#94a3b8] mb-2">
                     {t("dashboard.stats.ordersLabel")} {t("dashboard.stats.ordersNote")}
                     </div>
-                    <div className="text-2xl font-bold">
+                    <div className="text-3xl font-bold text-white">
                       {report?.reportJson ? (JSON.parse(report.reportJson)?.metrics?.totalOrders ?? stats.orders) : stats.orders}
                     </div>
                   </div>
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                    <div className="text-sm text-gray-500 mb-1">
+                  <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm">
+                    <div className="text-sm text-[#94a3b8] mb-2">
                     {t("dashboard.stats.salesLabel")} {t("dashboard.stats.salesNote")}
                     </div>
-                    <div className="text-2xl font-bold text-isaudi-green">
+                    <div className="text-3xl font-bold text-[#0fc9a7]">
                       {report?.reportJson ? (JSON.parse(report.reportJson)?.metrics?.totalSales ?? (stats.sales / 100)).toLocaleString() : (stats.sales / 100).toLocaleString()} SAR
                     </div>
                   </div>
                 </div>
                 {((stats.excludedOrdersCount ?? 0) > 0 || (stats.excludedSalesHalala ?? 0) > 0) && (
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-[#64748b]">
                     {t("dashboard.stats.excluded")
                       .replace("{orders}", String(stats.excludedOrdersCount || 0))
                       .replace("{amount}", ((stats.excludedSalesHalala ?? 0) / 100).toFixed(2))}
@@ -236,27 +236,27 @@ export function DashboardClient({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Dedup banner */}
                   {parsedReport?.snapshot?.deduped && (
-                    <div className="md:col-span-3 mt-1 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg p-2">
+                    <div className="md:col-span-3 mt-1 text-xs text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-xl p-3">
                       {t("dashboard.banner.dedup")}
                     </div>
                   )}
-                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div className="text-sm">
+                    <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm flex items-center justify-between">
+                    <div className="text-lg font-bold text-white mb-2 text-white">
                       {t("dashboard.costs.card.title")}
                     </div>
                     <Link href="/dashboard/costs">
-                      <Button className="whitespace-nowrap">
+                      <Button className="bg-[#0fc9a7]/10 text-[#0fc9a7] hover:bg-[#0fc9a7]/20 border border-[#0fc9a7]/20 whitespace-nowrap rounded-full">
                         {t("dashboard.costs.card.button")}
                       </Button>
                     </Link>
                   </div>
                     {missingCosts > 0 && (
-                    <div className="md:col-span-2 bg-yellow-50 border border-yellow-100 text-yellow-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
-                      <div className="text-sm">
+                    <div className="md:col-span-2 bg-[#e6b95c]/10 border border-[#e6b95c]/30 text-[#e6b95c] p-6 rounded-3xl shadow-sm flex items-center justify-between">
+                      <div className="text-lg font-bold text-white mb-2 text-white">
                         {t("dashboard.costs.missing").replace("{count}", String(missingCosts))}
                       </div>
                       <Link href="/dashboard/costs">
-                        <Button variant="outline" className="border-yellow-300 text-yellow-800">
+                        <Button variant="outline" className="border-[#e6b95c]/50 text-[#e6b95c] hover:bg-[#e6b95c]/20 hover:text-[#e6b95c] rounded-full">
                           {t("dashboard.costs.enterNow")}
                         </Button>
                       </Link>
@@ -265,13 +265,13 @@ export function DashboardClient({
                 </div>
                 {/* Weekly Trend (Paid) */}
                 <div className="mt-6">
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-base font-semibold">
+                      <div className="text-xl font-bold text-white">
                         {t("dashboard.trend.title")}
                       </div>
                       {!isPremium && (
-                        <Link href="/pricing" className="text-xs text-isaudi-green">
+                        <Link href="/pricing" className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors">
                           {t("common.upgrade")}
                         </Link>
                       )}
@@ -281,12 +281,12 @@ export function DashboardClient({
                         <div className="opacity-30 select-none pointer-events-none">
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                             {Array.from({ length: 4 }).map((_, idx) => (
-                              <div key={`lock-${idx}`} className="p-3 rounded-lg border bg-gray-50">
-                                <div className="text-xs text-gray-500">
+                              <div key={`lock-${idx}`} className="p-4 rounded-2xl border border-[#ffffff1a] bg-[#0e1218] hover:border-white/10 transition-colors">
+                                <div className="text-xs text-[#64748b]">
                                   {t("dashboard.trend.lock.week")}
                                 </div>
-                                <div className="text-sm font-medium">—</div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-lg font-bold text-white mb-2">—</div>
+                                <div className="text-xs text-[#64748b]">
                                   {t("dashboard.trend.lock.metrics")}
                                 </div>
                               </div>
@@ -294,7 +294,7 @@ export function DashboardClient({
                           </div>
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-xs bg-white/80 backdrop-blur border rounded-md px-3 py-1">
+                          <div className="text-lg font-bold text-white mb-2 bg-[#161c24]/90 backdrop-blur-md border border-[#ffffff1a] rounded-xl px-6 py-3 text-white">
                             {t("dashboard.trend.lock.message")}
                           </div>
                         </div>
@@ -302,7 +302,7 @@ export function DashboardClient({
                     ) : (
                       <div>
                         <button
-                          className="text-xs text-gray-600 mb-2 border rounded px-2 py-1"
+                          className="text-sm text-[#94a3b8] mb-4 border border-[#ffffff1a] hover:bg-white/5 rounded-full px-4 py-1.5 transition-colors"
                           onClick={async () => {
                             if (loadingTrend) return;
                             setLoadingTrend(true);
@@ -347,32 +347,32 @@ export function DashboardClient({
                             : t("dashboard.trend.refresh")}
                         </button>
                         {trend.length > 0 && (
-                          <div className="mb-3 text-xs bg-gray-50 border border-gray-100 rounded-lg p-3">
-                            <div className="font-medium text-gray-800 mb-1">
+                          <div className="mb-6 text-sm bg-[#0e1218] border border-[#ffffff1a] rounded-2xl p-5">
+                            <div className="font-bold text-white text-white mb-3">
                               {t("dashboard.trend.summary.title")}
                             </div>
                             <div className="flex flex-wrap gap-3">
                               <div>
                                 {t("common.sales")}{" "}
-                                <span className="font-semibold">
+                                <span className="font-bold text-white">
                                   {(trend[0].grossSales || 0).toLocaleString()} SAR
                                 </span>
                               </div>
                               <div>
                                 {t("common.profit")}{" "}
-                                <span className="font-semibold">
+                                <span className="font-bold text-white">
                                   {(trend[0].totalProfit || 0).toLocaleString()} SAR
                                 </span>
                               </div>
                               <div>
                                 {t("common.margin")}{" "}
-                                <span className="font-semibold">
+                                <span className="font-bold text-white">
                                   {(trend[0].marginPct || 0).toFixed(2)}%
                                 </span>
                               </div>
                               <div>
                                 {t("common.orders")}{" "}
-                                <span className="font-semibold">
+                                <span className="font-bold text-white">
                                   {trend[0].ordersCount || 0}
                                 </span>
                               </div>
@@ -380,13 +380,13 @@ export function DashboardClient({
                           </div>
                         )}
                         {compare && (
-                          <div className="mb-3 text-sm">
-                            <span className="text-gray-700">
+                          <div className="mb-6 text-sm bg-[#0e1218] border border-[#ffffff1a] rounded-2xl p-5">
+                            <span className="text-[#94a3b8]">
                               {t("dashboard.compare.label")}
                             </span>
                             <span className={
-                              compare.status === 'improved' ? 'text-green-600' :
-                              compare.status === 'declined' ? 'text-red-600' : 'text-gray-600'
+                              compare.status === 'improved' ? 'text-[#0fc9a7] font-bold' :
+                              compare.status === 'declined' ? 'text-[#ef4444] font-bold' : 'text-[#94a3b8]'
                             }>
                               {compare.status === 'improved'
                                 ? t("common.status.improved")
@@ -394,7 +394,7 @@ export function DashboardClient({
                                 ? t("common.status.declined")
                                 : t("common.status.noChange")}
                             </span>
-                            <div className="text-xs text-gray-600 mt-1">
+                            <div className="text-xs text-[#94a3b8] mt-1">
                               {t("dashboard.compare.delta.sales")}
                               {compare.deltas.salesDeltaPct == null
                                 ? '—'
@@ -414,15 +414,15 @@ export function DashboardClient({
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                           {trend.slice(0, 4).map((w: TrendSnapshot) => (
-                            <div key={w.id} className="p-3 rounded-lg border bg-gray-50">
-                              <div className="text-xs text-gray-500">
+                            <div key={w.id} className="p-4 rounded-2xl border border-[#ffffff1a] bg-[#0e1218] hover:border-white/10 transition-colors">
+                              <div className="text-xs text-[#64748b]">
                                 {new Date(w.timeRangeStart).toLocaleDateString()} —{" "}
                                 {new Date(w.timeRangeEnd).toLocaleDateString()}
                               </div>
-                              <div className="text-sm font-medium">
+                              <div className="text-lg font-bold text-white mb-2">
                                 {(w.grossSales || 0).toLocaleString()} SAR
                               </div>
-                              <div className="text-xs text-gray-600">
+                              <div className="text-xs text-[#94a3b8]">
                                 {t("dashboard.trend.card.profit")}
                                 {(w.totalProfit || 0).toLocaleString()} SAR •{" "}
                                 {t("dashboard.trend.card.margin")}
@@ -438,13 +438,13 @@ export function DashboardClient({
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-base font-semibold">
+                      <div className="text-xl font-bold text-white">
                         {t("dashboard.insights.title")}
                       </div>
                       {!isPremium && (
-                        <Link href="/pricing" className="text-xs text-isaudi-green">
+                        <Link href="/pricing" className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors">
                           {t("common.upgrade")}
                         </Link>
                       )}
@@ -454,7 +454,7 @@ export function DashboardClient({
                         <div className="opacity-30 select-none pointer-events-none">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                             <div>
-                              <div className="font-semibold mb-1">
+                              <div className="font-bold text-white mb-1">
                                 {t("dashboard.insights.keyHighlights")}
                               </div>
                               <ul className="list-disc pr-4 space-y-1">
@@ -470,7 +470,7 @@ export function DashboardClient({
                               </ul>
                             </div>
                             <div>
-                              <div className="font-semibold mb-1">
+                              <div className="font-bold text-white mb-1">
                                 {t("dashboard.insights.suggestedActions")}
                               </div>
                               <ul className="list-disc pr-4 space-y-1">
@@ -488,22 +488,22 @@ export function DashboardClient({
                           </div>
                         </div>
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-xs bg-white/80 backdrop-blur border rounded-md px-3 py-1">
+                          <div className="text-lg font-bold text-white mb-2 bg-[#161c24]/90 backdrop-blur-md border border-[#ffffff1a] rounded-xl px-6 py-3 text-white">
                             {t("dashboard.insights.lock.message")}
                           </div>
                         </div>
                       </div>
                     ) : loadingInsights ? (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[#64748b]">
                         {t("dashboard.insights.loading")}
                       </div>
                     ) : insightsError ? (
-                      <div className="text-xs text-gray-500">{insightsError}</div>
+                      <div className="text-xs text-[#64748b]">{insightsError}</div>
                     ) : insightsBlock ? (
-                      <div className="space-y-4 text-xs text-gray-800">
+                      <div className="space-y-4 text-sm text-[#94a3b8]">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <div className="font-semibold mb-1">
+                            <div className="font-bold text-white mb-1">
                             {t("dashboard.insights.keyHighlights")}
                             </div>
                             {Array.isArray(insightsBlock.insights) && insightsBlock.insights.length > 0 ? (
@@ -513,13 +513,13 @@ export function DashboardClient({
                                 ))}
                               </ul>
                             ) : (
-                              <div className="text-gray-500">
+                              <div className="text-[#64748b]">
                                 {t("dashboard.insights.noHighlights")}
                               </div>
                             )}
                           </div>
                           <div>
-                            <div className="font-semibold mb-1">
+                            <div className="font-bold text-white mb-1">
                               {t("dashboard.insights.suggestedActions")}
                             </div>
                             {Array.isArray(insightsBlock.actionItems) && insightsBlock.actionItems.length > 0 ? (
@@ -529,7 +529,7 @@ export function DashboardClient({
                                 ))}
                               </ul>
                             ) : (
-                              <div className="text-gray-500">
+                              <div className="text-[#64748b]">
                                 {t("dashboard.insights.noActions")}
                               </div>
                             )}
@@ -537,7 +537,7 @@ export function DashboardClient({
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <div className="font-semibold mb-1">
+                            <div className="font-bold text-white mb-1">
                               {t("dashboard.insights.topProfitProducts")}
                             </div>
                             {Array.isArray(insightsBlock.topProfitProducts) && insightsBlock.topProfitProducts.length > 0 ? (
@@ -551,7 +551,7 @@ export function DashboardClient({
                                     .replace("{margin}", String(marginText));
                                   return (
                                     <li key={idx}>
-                                      <span className="font-semibold">{p.name}</span>
+                                      <span className="font-bold text-white">{p.name}</span>
                                       {p.sku ? ` (SKU: ${p.sku})` : ""}{" "}
                                       {line}
                                     </li>
@@ -559,13 +559,13 @@ export function DashboardClient({
                                 })}
                               </ul>
                             ) : (
-                              <div className="text-gray-500">
+                              <div className="text-[#64748b]">
                                 {t("dashboard.insights.notEnoughProfitData")}
                               </div>
                             )}
                           </div>
                           <div>
-                            <div className="font-semibold mb-1">
+                            <div className="font-bold text-white mb-1">
                               {t("dashboard.insights.lowMarginProducts")}
                             </div>
                             {Array.isArray(insightsBlock.lowMarginProducts) && insightsBlock.lowMarginProducts.length > 0 ? (
@@ -579,7 +579,7 @@ export function DashboardClient({
                                     .replace("{margin}", String(marginText));
                                   return (
                                     <li key={idx}>
-                                      <span className="font-semibold">{p.name}</span>
+                                      <span className="font-bold text-white">{p.name}</span>
                                       {p.sku ? ` (SKU: ${p.sku})` : ""}{" "}
                                       {line}
                                     </li>
@@ -587,7 +587,7 @@ export function DashboardClient({
                                 })}
                               </ul>
                             ) : (
-                              <div className="text-gray-500">
+                              <div className="text-[#64748b]">
                                 {t("dashboard.insights.noLowMargin")}
                               </div>
                             )}
@@ -595,7 +595,7 @@ export function DashboardClient({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[#64748b]">
                         {t("dashboard.insights.noData")}
                       </div>
                     )}
@@ -624,14 +624,14 @@ export function DashboardClient({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {!isPremium && (
                     <div className="lg:col-span-3">
-                      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
-                        <div className="text-sm">
+                      <div className="flex flex-col items-start gap-4 rounded-3xl border border-[#ffffff1a] bg-[#161c24] p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 break-words text-lg font-bold text-white">
                           {t("dashboard.freeBanner.text").replace(
                             "{count}",
                             String(Math.max(0, 2 - (user.freeReportsUsed || 0)))
                           )}
                         </div>
-                        <div>
+                        <div className="shrink-0">
                           <Button 
                             disabled={(user.freeReportsUsed || 0) >= 2}
                             onClick={() => router.push('/connect/csv')}
