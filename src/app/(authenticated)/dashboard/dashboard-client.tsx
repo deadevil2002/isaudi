@@ -38,31 +38,76 @@ interface TrendSnapshot {
   ordersCount: number;
 }
 
+export interface DashboardPreviewProps {
+  trend?: TrendSnapshot[];
+  loadingTrend?: boolean;
+  compare?: CompareData | null;
+  insightsBlock?: InsightsBlock | null;
+  loadingInsights?: boolean;
+  insightsError?: string | null;
+  freeReportsUsed?: number;
+  generateReport?: () => Promise<{ id: string; reportJson: string; [key: string]: unknown }>;
+  analysisState?: "idle" | "loading" | "error";
+  analysisError?: string;
+  onUpgrade?: () => void;
+  chatSendMessage?: (message: string, reportId: string) => Promise<string>;
+  chatInitialMessages?: { role: 'user' | 'assistant'; content: string }[];
+  chatFallbackForm?: {
+    action: string;
+    fields: Record<string, string>;
+    inputName: string;
+  };
+  onConnectSalla?: () => void;
+  onUploadCsv?: () => void;
+  onNavigateCosts?: (e: React.MouseEvent) => void;
+  onNavigateBilling?: (e: React.MouseEvent) => void;
+  isDev?: boolean;
+}
+
 export function DashboardClient({
   user,
   stats,
   storeConnection,
-  latestReport
+  latestReport,
+  previewProps
 }: {
   user: User,
   stats?: { products: number; orders: number; sales: number; excludedOrdersCount?: number; excludedSalesHalala?: number } | null,
   storeConnection?: Record<string, unknown> | null,
-  latestReport?: { id: string; reportJson: string; [key: string]: unknown } | null
+  latestReport?: { id: string; reportJson: string; [key: string]: unknown } | null,
+  previewProps?: DashboardPreviewProps
 }) {
   const { lang } = useLanguage();
   const router = useRouter();
   const [report, setReport] = useState(latestReport);
-  const [trend, setTrend] = useState<TrendSnapshot[]>([]);
-  const [compare, setCompare] = useState<CompareData | null>(null);
-  const [loadingTrend, setLoadingTrend] = useState(false);
-  const isDev = process.env.NODE_ENV === 'development';
-  const [insightsBlock, setInsightsBlock] = useState<InsightsBlock | null>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [trend, setTrend] = useState<TrendSnapshot[]>(previewProps?.trend || []);
+  const [compare, setCompare] = useState<CompareData | null>(previewProps?.compare || null);
+  const [loadingTrend, setLoadingTrend] = useState(previewProps?.loadingTrend || false);
+  const isDev = previewProps && previewProps.isDev !== undefined ? previewProps.isDev : (!previewProps && process.env.NODE_ENV === 'development');
+  const [insightsBlock, setInsightsBlock] = useState<InsightsBlock | null>(previewProps?.insightsBlock || null);
+  const [loadingInsights, setLoadingInsights] = useState(previewProps?.loadingInsights || false);
+  const [insightsError, setInsightsError] = useState<string | null>(previewProps?.insightsError || null);
   const parsedReport = report?.reportJson ? JSON.parse(report.reportJson) : null;
   const missingCosts = parsedReport?.profitability?.missingCostProductsCount || 0;
   
   const isPremium = user.plan !== 'free';
+
+  const userWithFreeReports = user as typeof user & { freeReportsUsed?: number };
+  const actualFreeReportsUsed = previewProps?.freeReportsUsed ?? userWithFreeReports.freeReportsUsed ?? 0;
+
+  useEffect(() => {
+    if (previewProps) {
+      const tId = setTimeout(() => {
+        if (previewProps.trend !== undefined) setTrend(previewProps.trend);
+        if (previewProps.compare !== undefined) setCompare(previewProps.compare);
+        if (previewProps.loadingTrend !== undefined) setLoadingTrend(previewProps.loadingTrend);
+        if (previewProps.insightsBlock !== undefined) setInsightsBlock(previewProps.insightsBlock);
+        if (previewProps.loadingInsights !== undefined) setLoadingInsights(previewProps.loadingInsights);
+        if (previewProps.insightsError !== undefined) setInsightsError(previewProps.insightsError);
+      }, 0);
+      return () => clearTimeout(tId);
+    }
+  }, [previewProps]);
 
   const t = createTranslator(lang);
 
@@ -84,6 +129,7 @@ export function DashboardClient({
   const showReport = !!report;
 
   useEffect(() => {
+    if (previewProps) return; // SKIP FETCHES IN PREVIEW
     if (!isPremium) {
       // Avoid calling setState synchronously during render by moving this
       // to a microtask if needed, or better, we just derive it if possible.
@@ -134,7 +180,7 @@ export function DashboardClient({
     return () => {
       cancelled = true;
     };
-  }, [isPremium, t]);
+  }, [isPremium, t, previewProps]);
 
   return (
     <div className="space-y-6 text-[#f0f4f8]">
@@ -189,7 +235,7 @@ export function DashboardClient({
                     {isPremium ? t("dashboard.plan.premiumDesc") : t("dashboard.plan.upgradeDesc")}
                   </p>
                 </div>
-                <Link href="/billing">
+                <Link href={previewProps ? "#" : "/billing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined}>
                   <Button className="bg-[#e6b95c] text-black hover:bg-[#c5993c] border-0 shadow-xl whitespace-nowrap rounded-full px-6 py-2 font-bold text-white">
                     {isPremium ? t("dashboard.plan.manage") : t("dashboard.plan.upgrade")}
                   </Button>
@@ -244,7 +290,7 @@ export function DashboardClient({
                     <div className="text-lg font-bold text-white mb-2 text-white">
                       {t("dashboard.costs.card.title")}
                     </div>
-                    <Link href="/dashboard/costs">
+                    <Link href={previewProps ? "#" : "/dashboard/costs"} onClick={previewProps?.onNavigateCosts ? (e) => { e.preventDefault(); previewProps.onNavigateCosts!(e); } : previewProps ? (e) => e.preventDefault() : undefined}>
                       <Button className="bg-[#0fc9a7]/10 text-[#0fc9a7] hover:bg-[#0fc9a7]/20 border border-[#0fc9a7]/20 whitespace-nowrap rounded-full">
                         {t("dashboard.costs.card.button")}
                       </Button>
@@ -255,7 +301,7 @@ export function DashboardClient({
                       <div className="text-lg font-bold text-white mb-2 text-white">
                         {t("dashboard.costs.missing").replace("{count}", String(missingCosts))}
                       </div>
-                      <Link href="/dashboard/costs">
+                      <Link href={previewProps ? "#" : "/dashboard/costs"} onClick={previewProps?.onNavigateCosts ? (e) => { e.preventDefault(); previewProps.onNavigateCosts!(e); } : previewProps ? (e) => e.preventDefault() : undefined}>
                         <Button variant="outline" className="border-[#e6b95c]/50 text-[#e6b95c] hover:bg-[#e6b95c]/20 hover:text-[#e6b95c] rounded-full">
                           {t("dashboard.costs.enterNow")}
                         </Button>
@@ -271,7 +317,7 @@ export function DashboardClient({
                         {t("dashboard.trend.title")}
                       </div>
                       {!isPremium && (
-                        <Link href="/pricing" className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors">
+                        <Link href={previewProps ? "#" : "/pricing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined} className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors">
                           {t("common.upgrade")}
                         </Link>
                       )}
@@ -304,6 +350,7 @@ export function DashboardClient({
                         <button
                           className="text-sm text-[#94a3b8] mb-4 border border-[#ffffff1a] hover:bg-white/5 rounded-full px-4 py-1.5 transition-colors"
                           onClick={async () => {
+                            if (previewProps) return;
                             if (loadingTrend) return;
                             setLoadingTrend(true);
                             try {
@@ -444,7 +491,7 @@ export function DashboardClient({
                         {t("dashboard.insights.title")}
                       </div>
                       {!isPremium && (
-                        <Link href="/pricing" className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors">
+                        <Link href={previewProps ? "#" : "/pricing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined} className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors">
                           {t("common.upgrade")}
                         </Link>
                       )}
@@ -607,16 +654,29 @@ export function DashboardClient({
 
             {/* Main Flow */}
             <div className="mt-8">
-              {showSetup && <StoreSetup />}
+              {showSetup && (
+                <StoreSetup
+                  onConnectSalla={previewProps?.onConnectSalla}
+                  onUploadCsv={previewProps?.onUploadCsv}
+                />
+              )}
               
               {showGenerate && (
                 <GenerateAnalysis 
                   onGenerated={(newReport) => {
-                     setReport(newReport);
-                     router.refresh();
+                     if (previewProps) {
+                       setReport(newReport);
+                     } else {
+                       setReport(newReport);
+                       router.refresh();
+                     }
                   }}
-                  freeReportsUsed={user.freeReportsUsed || 0}
+                  freeReportsUsed={actualFreeReportsUsed}
                   isPremium={isPremium}
+                  generateReport={previewProps?.generateReport}
+                  onUpgrade={previewProps?.onUpgrade}
+                  previewState={previewProps?.analysisState}
+                  previewError={previewProps?.analysisError}
                 />
               )}
 
@@ -628,13 +688,13 @@ export function DashboardClient({
                         <div className="min-w-0 break-words text-lg font-bold text-white">
                           {t("dashboard.freeBanner.text").replace(
                             "{count}",
-                            String(Math.max(0, 2 - (user.freeReportsUsed || 0)))
+                            String(Math.max(0, 2 - actualFreeReportsUsed))
                           )}
                         </div>
                         <div className="shrink-0">
                           <Button 
-                            disabled={(user.freeReportsUsed || 0) >= 2}
-                            onClick={() => router.push('/connect/csv')}
+                            disabled={actualFreeReportsUsed >= 2}
+                            onClick={() => previewProps ? undefined : router.push('/connect/csv')}
                             className="whitespace-nowrap"
                           >
                             {t("dashboard.freeBanner.button")}
@@ -649,8 +709,12 @@ export function DashboardClient({
                   <div className="lg:col-span-1">
                     <ChatPanel 
                       reportId={report.id}
-                      freeReportsUsed={user.freeReportsUsed || 0}
+                      freeReportsUsed={actualFreeReportsUsed}
                       isPremium={isPremium}
+                      sendMessage={previewProps?.chatSendMessage}
+                      initialMessages={previewProps?.chatInitialMessages}
+                      fallbackForm={previewProps?.chatFallbackForm}
+                      blockedActionHref={previewProps?.onNavigateBilling ? "#" : undefined}
                     />
                   </div>
                 </div>

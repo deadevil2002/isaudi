@@ -7,23 +7,31 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 
-interface ChatPanelProps {
-  reportId: string;
-  freeReportsUsed: number;
-  isPremium: boolean;
-}
-
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelProps) {
+interface ChatPanelProps {
+  reportId: string;
+  freeReportsUsed: number;
+  isPremium: boolean;
+  sendMessage?: (message: string, reportId: string) => Promise<string>;
+  initialMessages?: Message[];
+  blockedActionHref?: string;
+  fallbackForm?: {
+    action: string;
+    fields: Record<string, string>;
+    inputName: string;
+  };
+}
+
+export function ChatPanel({ reportId, freeReportsUsed, isPremium, sendMessage, initialMessages, blockedActionHref, fallbackForm }: ChatPanelProps) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: t("dashboard.chat.welcome") }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(
+    initialMessages || [{ role: 'assistant', content: t("dashboard.chat.welcome") }]
+  );
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -45,18 +53,23 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
     setLoading(true);
 
     try {
-      const res = await fetch('/api/analysis/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, reportId }),
-      });
+      if (sendMessage) {
+        const reply = await sendMessage(userMsg, reportId);
+        setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+      } else {
+        const res = await fetch('/api/analysis/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMsg, reportId }),
+        });
 
-      if (!res.ok) {
-        throw new Error('Failed to send message');
+        if (!res.ok) {
+          throw new Error('Failed to send message');
+        }
+
+        const data = await res.json();
+        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
       }
-
-      const data = await res.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
     } catch (error) {
       console.error(error);
       setMessages(prev => [
@@ -123,7 +136,13 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
         {isBlocked ? (
           <div className="text-center p-2 bg-[#e6b95c]/10 text-[#e6b95c] rounded-xl text-sm border border-[#e6b95c]/30">
             {t("dashboard.chat.blocked.prefix")}{" "}
-            <a href="/billing" className="underline font-bold">
+            <a
+              href={blockedActionHref ?? "/billing"}
+              className="underline font-bold"
+              onClick={e => {
+                if (blockedActionHref === "#") e.preventDefault();
+              }}
+            >
               {t("dashboard.chat.blocked.cta")}
             </a>{" "}
             {t("dashboard.chat.blocked.suffix")}
@@ -131,9 +150,15 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
         ) : (
           <form 
             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+            action={fallbackForm?.action}
+            method={fallbackForm ? "get" : undefined}
             className="flex gap-2"
           >
+            {fallbackForm && Object.entries(fallbackForm.fields).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
+            ))}
             <Input 
+              name={fallbackForm?.inputName}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("dashboard.chat.placeholder")}
@@ -144,7 +169,7 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium }: ChatPanelPro
               type="submit"
               size="icon"
               aria-label={t("dashboard.chat.send")}
-              disabled={loading || !input.trim()}
+              disabled={loading || (!fallbackForm && !input.trim())}
               className="shrink-0 bg-[#e6b95c] text-black hover:bg-[#c5993c]"
             >
               <Send className="w-4 h-4" />

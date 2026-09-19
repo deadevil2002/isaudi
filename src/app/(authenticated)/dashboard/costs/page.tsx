@@ -4,7 +4,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { getLoadViewState } from "@/lib/ui/load-state";
 
-type ProductRow = {
+export type ProductRow = {
   primaryProductId: string | null;
   identityKey: string;
   sku: string | null;
@@ -40,12 +40,20 @@ function halalaToSar(h: number | null | undefined) {
   return (h / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-export default function CostsPage() {
+export default function CostsPage(props?: {
+  previewProps?: {
+    rows?: ProductRow[];
+    loadState?: 'populated' | 'loading' | 'empty' | 'error';
+  };
+}) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
 
-  const [rows, setRows] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isPreview = !!props?.previewProps;
+  const previewProps = props?.previewProps;
+
+  const [rows, setRows] = useState<ProductRow[]>(isPreview ? (previewProps?.rows || []) : []);
+  const [loading, setLoading] = useState(isPreview ? previewProps?.loadState === 'loading' : true);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<CostForm>({});
   const [saving, setSaving] = useState(false);
@@ -54,7 +62,9 @@ export default function CostsPage() {
   const [dropship, setDropship] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(
+    isPreview && previewProps?.loadState === 'error' ? t("costs.error.fetch") || "Error loading costs" : null
+  );
   const [saveError, setSaveError] = useState<string | null>(null);
   const viewState = getLoadViewState({
     loading,
@@ -64,6 +74,7 @@ export default function CostsPage() {
   const currency = t("common.currency.short");
 
   const load = async () => {
+    if (isPreview) return;
     setLoading(true);
     setFetchError(null);
     try {
@@ -83,13 +94,14 @@ export default function CostsPage() {
   };
 
   useEffect(() => {
+    if (isPreview) return;
     const timeoutId = window.setTimeout(() => {
       void load();
     }, 0);
     return () => window.clearTimeout(timeoutId);
     // Initial request only. Filters are submitted explicitly through the filter button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPreview]);
 
   const onEdit = (r: ProductRow) => {
     setEditing(r.identityKey);
@@ -108,6 +120,16 @@ export default function CostsPage() {
 
   const onSave = async () => {
     if (!editing) return;
+
+    if (isPreview) {
+      setSaving(true);
+      setTimeout(() => {
+        setEditing(null);
+        setSaving(false);
+      }, 500);
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     try {

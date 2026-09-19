@@ -7,7 +7,7 @@ import { createTranslator } from "@/lib/i18n/translations";
 import { ReportComparisonDetails } from "@/components/dashboard/report-comparison";
 import type { ReportComparison } from "@/lib/reports/comparison-format";
 
-type Snap = {
+export type Snap = {
   id: string;
   createdAt: number;
   timeRangeStart: number;
@@ -19,23 +19,47 @@ type Snap = {
   reportId?: string;
 };
 
-export function ReportsClient({ isFree }: { isFree: boolean }) {
+export function ReportsClient({
+  isFree,
+  previewProps
+}: {
+  isFree: boolean;
+  previewProps?: {
+    rows?: Snap[];
+    loadState?: 'populated' | 'loading' | 'empty' | 'error';
+    compare?: ReportComparison | null;
+    compareLoadState?: 'populated' | 'loading' | 'error';
+    showComparisonForId?: string;
+    actionHref?: string;
+  };
+}) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
 
-  const [rows, setRows] = useState<Snap[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeCompareId, setActiveCompareId] = useState<string | null>(null);
-  const [compare, setCompare] = useState<ReportComparison | null>(null);
-  const [loadingCompareId, setLoadingCompareId] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState(false);
-  const [compareErrorId, setCompareErrorId] = useState<string | null>(null);
+  const isPreview = !!previewProps;
+
+  const [rows, setRows] = useState<Snap[]>(isPreview ? (previewProps.rows || []) : []);
+  const [loading, setLoading] = useState(isPreview ? previewProps.loadState === 'loading' : true);
+  const [activeCompareId, setActiveCompareId] = useState<string | null>(isPreview ? (previewProps.showComparisonForId || null) : null);
+  const [compare, setCompare] = useState<ReportComparison | null>(isPreview ? (previewProps.compare || null) : null);
+  const [loadingCompareId, setLoadingCompareId] = useState<string | null>(
+    isPreview && previewProps.compareLoadState === 'loading' && previewProps.showComparisonForId
+      ? previewProps.showComparisonForId
+      : null
+  );
+  const [loadError, setLoadError] = useState(isPreview ? previewProps.loadState === 'error' : false);
+  const [compareErrorId, setCompareErrorId] = useState<string | null>(
+    isPreview && previewProps.compareLoadState === 'error' && previewProps.showComparisonForId
+      ? previewProps.showComparisonForId
+      : null
+  );
   const compareGenerationRef = useRef(0);
   const compareAbortControllerRef = useRef<AbortController | null>(null);
   const locale = lang === "ar" ? "ar-SA-u-nu-latn" : "en-US";
   const currency = t("common.currency.short");
 
   const loadReports = async () => {
+    if (isPreview) return;
     setLoading(true);
     setLoadError(false);
     try {
@@ -60,12 +84,14 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
   };
 
   useEffect(() => {
+    if (isPreview) return;
     const timeoutId = window.setTimeout(() => {
       void loadReports();
     }, 0);
     return () => window.clearTimeout(timeoutId);
     // Initial request only. Retry calls the same function explicitly.
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreview]);
 
   useEffect(() => {
     return () => compareAbortControllerRef.current?.abort();
@@ -73,6 +99,15 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
 
   const handleCompare = async (id: string) => {
     if (loadingCompareId === id) return;
+
+    if (isPreview) {
+      setActiveCompareId(id);
+      setLoadingCompareId(previewProps.compareLoadState === 'loading' ? id : null);
+      setCompare(previewProps.compare || null);
+      setCompareErrorId(previewProps.compareLoadState === 'error' ? id : null);
+      return;
+    }
+
     compareAbortControllerRef.current?.abort();
     const controller = new AbortController();
     compareAbortControllerRef.current = controller;
@@ -110,7 +145,7 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
         <div className="bg-[#0e1218] p-6 sm:p-8 rounded-2xl border border-[#ffffff1a] shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div className="text-lg font-semibold text-[#f0f4f8]">{t("reports.weeklySummaries")}</div>
-            {isFree && <Link href="/pricing" className="text-sm font-medium text-[#e6b95c] hover:text-[#f9d889] transition-colors px-4 py-2 rounded-full border border-[#e6b95c]/30 hover:bg-[#e6b95c]/10">{t("reports.upgrade")}</Link>}
+            {isFree && <Link href={isPreview && previewProps.actionHref ? previewProps.actionHref : "/pricing"} className="text-sm font-medium text-[#e6b95c] hover:text-[#f9d889] transition-colors px-4 py-2 rounded-full border border-[#e6b95c]/30 hover:bg-[#e6b95c]/10">{t("reports.upgrade")}</Link>}
           </div>
           {isFree ? (
             <div className="relative">
@@ -189,7 +224,7 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
                             <td className="px-4 py-4 whitespace-nowrap">
                               {r.reportId ? (
                                 <Link
-                                  href={`/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
+                                  href={isPreview && previewProps.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
                                   className="inline-flex items-center justify-center text-xs font-medium text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-full px-4 py-1.5 hover:bg-[#0fc9a7]/20 transition-colors"
                                 >
                                   {t("reports.openReport")}
@@ -265,7 +300,7 @@ export function ReportsClient({ isFree }: { isFree: boolean }) {
                       <div className="flex gap-3">
                         {r.reportId ? (
                           <Link
-                            href={`/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
+                            href={isPreview && previewProps.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(r.reportId)}`}
                             className="flex-1 flex items-center justify-center text-xs font-medium text-[#0fc9a7] bg-[#0fc9a7]/10 border border-[#0fc9a7]/20 rounded-full px-4 py-2.5 hover:bg-[#0fc9a7]/20 transition-colors"
                           >
                             {t("reports.openReport")}

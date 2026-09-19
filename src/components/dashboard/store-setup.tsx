@@ -5,7 +5,12 @@ import { FileUp, ShoppingBag } from 'lucide-react';
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 
-export function StoreSetup() {
+interface StoreSetupProps {
+  onConnectSalla?: () => void;
+  onUploadCsv?: () => void;
+}
+
+export function StoreSetup({ onConnectSalla, onUploadCsv }: StoreSetupProps = {}) {
   const router = useRouter();
   const { lang } = useLanguage();
   const t = createTranslator(lang);
@@ -22,7 +27,7 @@ export function StoreSetup() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Button
             className="h-32 flex flex-col gap-3 bg-[#0e1218] border border-[#ffffff1a] hover:border-[#0fc9a7]/50 hover:bg-[#0fc9a7]/5 transition-all rounded-2xl text-white"
-            onClick={() => router.push('/connect/salla')}
+            onClick={() => onConnectSalla ? onConnectSalla() : router.push('/connect/salla')}
           >
             <ShoppingBag className="w-8 h-8 text-[#0fc9a7]" />
             <span className="font-bold text-lg">{t("dashboard.storeSetup.sallaTitle")}</span>
@@ -31,7 +36,7 @@ export function StoreSetup() {
 
           <Button
             className="h-32 flex flex-col gap-3 bg-[#0e1218] border border-[#ffffff1a] hover:border-[#0fc9a7]/50 hover:bg-[#0fc9a7]/5 transition-all rounded-2xl text-white"
-            onClick={() => router.push('/connect/csv')}
+            onClick={() => onUploadCsv ? onUploadCsv() : router.push('/connect/csv')}
           >
             <FileUp className="w-8 h-8 text-[#0fc9a7]" />
             <span className="font-bold text-lg">{t("dashboard.storeSetup.csvTitle")}</span>

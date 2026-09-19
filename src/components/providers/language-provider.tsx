@@ -18,9 +18,10 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 interface LanguageProviderProps {
   children: React.ReactNode;
   initialLang: Language;
+  localOnly?: boolean;
 }
 
-export function LanguageProvider({ children, initialLang }: LanguageProviderProps) {
+export function LanguageProvider({ children, initialLang, localOnly = false }: LanguageProviderProps) {
   const router = useRouter();
 
   const [lang, setLang] = useState<Language>(initialLang);
@@ -30,13 +31,17 @@ export function LanguageProvider({ children, initialLang }: LanguageProviderProp
   useEffect(() => {
     document.documentElement.dir = dir;
     document.documentElement.lang = lang;
-    document.cookie = `lang=${lang}; path=/; max-age=31536000; samesite=lax`;
-  }, [dir, lang]);
+    if (!localOnly) {
+      document.cookie = `lang=${lang}; path=/; max-age=31536000; samesite=lax`;
+    }
+  }, [dir, lang, localOnly]);
 
   const applyLanguage = (next: Language) => {
     setLang(next);
     setDir(next === "en" ? "ltr" : "rtl");
-    router.refresh();
+    if (!localOnly) {
+      router.refresh();
+    }
   };
 
   const toggleLanguage = () => {

@@ -16,11 +16,17 @@ interface GenerateAnalysisProps {
   onGenerated: (report: GeneratedReport) => void;
   freeReportsUsed: number;
   isPremium: boolean;
+  generateReport?: () => Promise<GeneratedReport>;
+  onUpgrade?: () => void;
+  previewState?: "idle" | "loading" | "error";
+  previewError?: string;
 }
 
-export function GenerateAnalysis({ onGenerated, freeReportsUsed, isPremium }: GenerateAnalysisProps) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function GenerateAnalysis({ onGenerated, freeReportsUsed, isPremium, generateReport, onUpgrade, previewState = "idle", previewError }: GenerateAnalysisProps) {
+  const [loading, setLoading] = useState(previewState === "loading");
+  const [error, setError] = useState<string | null>(
+    previewState === "error" ? (previewError || "Simulated error generating report.") : null,
+  );
   const router = useRouter();
   const { lang } = useLanguage();
   const t = createTranslator(lang);
@@ -30,7 +36,8 @@ export function GenerateAnalysis({ onGenerated, freeReportsUsed, isPremium }: Ge
   const handleGenerate = async () => {
     if (!canGenerate) {
       // Trigger upgrade modal logic (or just redirect)
-      router.push('/billing');
+      if (onUpgrade) onUpgrade();
+      else router.push('/billing');
       return;
     }
 
@@ -38,17 +45,22 @@ export function GenerateAnalysis({ onGenerated, freeReportsUsed, isPremium }: Ge
     setError(null);
 
     try {
-      const res = await fetch('/api/analysis/generate', {
-        method: 'POST',
-      });
+      if (generateReport) {
+        const report = await generateReport();
+        onGenerated(report);
+      } else {
+        const res = await fetch('/api/analysis/generate', {
+          method: 'POST',
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to generate analysis');
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to generate analysis');
+        }
+
+        const report = await res.json();
+        onGenerated(report);
       }
-
-      const report = await res.json();
-      onGenerated(report);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -106,7 +118,7 @@ export function GenerateAnalysis({ onGenerated, freeReportsUsed, isPremium }: Ge
         
         {!canGenerate && (
           <div className="mt-4">
-            <Button variant="link" onClick={() => router.push('/billing')} className="text-[#e6b95c]">
+            <Button variant="link" onClick={() => onUpgrade ? onUpgrade() : router.push('/billing')} className="text-[#e6b95c]">
               {t("dashboard.generate.upgrade")}
             </Button>
           </div>
