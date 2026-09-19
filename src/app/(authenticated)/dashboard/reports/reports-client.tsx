@@ -9,7 +9,8 @@ import { ReportComparisonDetails } from "@/components/dashboard/report-compariso
 import type { ReportComparison } from "@/lib/reports/comparison-format";
 import { AnimatedNumber } from "@/components/dashboard/animated-number";
 import { Skeleton } from "@/components/dashboard/skeleton";
-import { PieChart, Lock } from "lucide-react";
+import { PieChart, Lock, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type Snap = {
   id: string;
@@ -34,6 +35,8 @@ export function ReportsClient({
     compare?: ReportComparison | null;
     compareLoadState?: 'populated' | 'loading' | 'error';
     showComparisonForId?: string;
+    compareExpanded?: boolean;
+    selectionHrefBase?: string;
     actionHref?: string;
   };
 }) {
@@ -44,7 +47,10 @@ export function ReportsClient({
 
   const [rows, setRows] = useState<Snap[]>(isPreview ? (previewProps.rows || []) : []);
   const [loading, setLoading] = useState(isPreview ? previewProps.loadState === 'loading' : true);
-  const [activeCompareId, setActiveCompareId] = useState<string | null>(isPreview ? (previewProps.showComparisonForId || null) : null);
+
+  const [selectedId, setSelectedId] = useState<string | null>(isPreview ? (previewProps.showComparisonForId || null) : null);
+  const [isCompareExpanded, setIsCompareExpanded] = useState(isPreview ? previewProps.compareExpanded === true : false);
+
   const [compare, setCompare] = useState<ReportComparison | null>(isPreview ? (previewProps.compare || null) : null);
   const [loadingCompareId, setLoadingCompareId] = useState<string | null>(
     isPreview && previewProps.compareLoadState === 'loading' && previewProps.showComparisonForId
@@ -57,10 +63,10 @@ export function ReportsClient({
       ? previewProps.showComparisonForId
       : null
   );
+
   const compareGenerationRef = useRef(0);
   const compareAbortControllerRef = useRef<AbortController | null>(null);
-  const hasAutoSelected = useRef(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
   const locale = lang === "ar" ? "ar-SA-u-nu-latn" : "en-US";
@@ -117,23 +123,20 @@ export function ReportsClient({
     if (loadingCompareId === id) return;
 
     if (isPreview) {
-      if (activeCompareId === id) return;
-      setActiveCompareId(id);
       setLoadingCompareId(previewProps?.compareLoadState === 'loading' ? id : null);
       setCompare(previewProps?.compare || null);
       setCompareErrorId(previewProps?.compareLoadState === 'error' ? id : null);
       return;
     }
 
-    if (activeCompareId === id) return;
-
     compareAbortControllerRef.current?.abort();
     const controller = new AbortController();
     compareAbortControllerRef.current = controller;
     const requestGeneration = ++compareGenerationRef.current;
+
     setLoadingCompareId(id);
-    setActiveCompareId(id);
     setCompareErrorId(null);
+    setCompare(null);
 
     try {
       const res = await fetch(
@@ -154,14 +157,7 @@ export function ReportsClient({
         setLoadingCompareId(null);
       }
     }
-  }, [activeCompareId, isPreview, loadingCompareId, previewProps]);
-
-  useEffect(() => {
-    if (!isPreview && rows.length > 0 && !hasAutoSelected.current && !loading && !loadError) {
-      hasAutoSelected.current = true;
-      void handleCompare(rows[0].id);
-    }
-  }, [handleCompare, rows, isPreview, loading, loadError]);
+  }, [isPreview, loadingCompareId, previewProps]);
 
   const formatDateRange = (start: number, end: number) => {
     const s = new Date(start).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
@@ -169,7 +165,29 @@ export function ReportsClient({
     return `${s} — ${e}`;
   };
 
-  const selectedSnap = rows.find((r) => r.id === activeCompareId);
+  const handleScrollNext = () => {
+    if (railRef.current) {
+      const amount = railRef.current.clientWidth * 0.75;
+      railRef.current.scrollBy({ left: lang === 'ar' ? -amount : amount, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollPrev = () => {
+    if (railRef.current) {
+      const amount = railRef.current.clientWidth * 0.75;
+      railRef.current.scrollBy({ left: lang === 'ar' ? amount : -amount, behavior: 'smooth' });
+    }
+  };
+
+  const effectiveSelectedId = selectedId ?? rows[0]?.id ?? null;
+  const selectedSnap = rows.find((r) => r.id === effectiveSelectedId);
+  const selectedIndex = rows.findIndex((r) => r.id === effectiveSelectedId);
+  const hasPreviousComparable = selectedIndex >= 0 && selectedIndex < rows.length - 1;
+  const previewReportHref = (reportId: string, comparison: "open" | "closed") => {
+    const base = previewProps?.selectionHrefBase || "/design-preview/dashboard-review?section=reports";
+    const separator = base.includes("?") ? "&" : "?";
+    return `${base}${separator}selectedReport=${encodeURIComponent(reportId)}&comparison=${comparison}#qa-shell-content`;
+  };
 
   return (
     <div className="w-full px-4 md:px-6 lg:px-8 text-[#f0f4f8] h-full flex flex-col py-6">
@@ -178,23 +196,67 @@ export function ReportsClient({
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{t("reports.title")}</h1>
           <p className="text-sm text-[#94a3b8] mt-1">{t("reports.weeklySummaries")}</p>
         </div>
-        {isFree && (
-          <Link href={isPreview && previewProps?.actionHref ? previewProps.actionHref : "/pricing"} className="inline-flex px-5 py-2.5 rounded-full border border-[#e6b95c]/30 text-[#e6b95c] hover:bg-[#e6b95c]/10 transition-colors font-medium text-sm w-fit active:scale-95">
-            {t("reports.upgrade")}
-          </Link>
-        )}
+        <div className="flex items-center gap-4">
+          {isFree && (
+            <Link href={isPreview && previewProps?.actionHref ? previewProps.actionHref : "/pricing"} className="inline-flex px-5 py-2.5 rounded-full border border-[#e6b95c]/30 text-[#e6b95c] hover:bg-[#e6b95c]/10 transition-colors font-medium text-sm w-fit active:scale-95">
+              {t("reports.upgrade")}
+            </Link>
+          )}
+
+          {!isFree && !loading && !loadError && rows.length > 0 && (
+            <div className="hidden sm:flex items-center gap-2">
+              {isPreview ? (
+                <>
+                  <a
+                    href="#report-card-0"
+                    className="w-10 h-10 rounded-full bg-[#161c24] border border-[#ffffff1a] flex items-center justify-center text-white hover:bg-[#ffffff1a] transition-colors active:scale-95"
+                    aria-label={t("reports.history.previous")}
+                  >
+                    <ChevronLeft className={cn("w-5 h-5", lang === 'ar' && "rotate-180")} />
+                  </a>
+                  <a
+                    href={`#report-card-${rows.length - 1}`}
+                    className="w-10 h-10 rounded-full bg-[#161c24] border border-[#ffffff1a] flex items-center justify-center text-white hover:bg-[#ffffff1a] transition-colors active:scale-95"
+                    aria-label={t("reports.history.next")}
+                  >
+                    <ChevronRight className={cn("w-5 h-5", lang === 'ar' && "rotate-180")} />
+                  </a>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleScrollPrev}
+                    className="w-10 h-10 rounded-full bg-[#161c24] border border-[#ffffff1a] flex items-center justify-center text-white hover:bg-[#ffffff1a] transition-colors active:scale-95"
+                    aria-label={t("reports.history.previous")}
+                  >
+                    <ChevronLeft className={cn("w-5 h-5", lang === 'ar' && "rotate-180")} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleScrollNext}
+                    className="w-10 h-10 rounded-full bg-[#161c24] border border-[#ffffff1a] flex items-center justify-center text-white hover:bg-[#ffffff1a] transition-colors active:scale-95"
+                    aria-label={t("reports.history.next")}
+                  >
+                    <ChevronRight className={cn("w-5 h-5", lang === 'ar' && "rotate-180")} />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {isFree ? (
         <div className="relative rounded-3xl overflow-hidden border border-[#ffffff1a] bg-[#0e1218]">
           <div className="opacity-20 select-none pointer-events-none filter blur-[4px] p-6 lg:p-8">
-            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-              <div className="w-full lg:w-[380px] flex flex-col gap-4">
+            <div className="flex flex-col gap-6 lg:gap-8">
+              <div className="w-full flex gap-4 overflow-hidden">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-[140px] bg-[#161c24] rounded-2xl border border-[#ffffff1a]" />
+                  <div key={i} className="h-[140px] min-w-[280px] bg-[#161c24] rounded-2xl border border-[#ffffff1a]" />
                 ))}
               </div>
-              <div className="hidden lg:block lg:flex-1 h-[600px] bg-[#161c24] rounded-3xl border border-[#ffffff1a]" />
+              <div className="hidden lg:block w-full h-[400px] bg-[#161c24] rounded-3xl border border-[#ffffff1a]" />
             </div>
           </div>
           <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/40">
@@ -214,13 +276,13 @@ export function ReportsClient({
           </div>
         </div>
       ) : loading ? (
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
-          <div className="w-full lg:w-[380px] shrink-0 flex gap-4 overflow-x-auto lg:overflow-x-hidden lg:flex-col lg:gap-4 hide-scrollbar">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="min-w-[280px] lg:min-w-0 h-[140px] rounded-2xl bg-[#161c24] shrink-0" />
+        <div className="flex flex-col gap-6 lg:gap-8 w-full">
+          <div className="w-full flex gap-4 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="min-w-[280px] h-[140px] rounded-2xl bg-[#161c24] shrink-0" />
             ))}
           </div>
-          <div className="w-full lg:flex-1">
+          <div className="w-full">
             <Skeleton className="w-full h-[500px] rounded-3xl bg-[#161c24]" />
           </div>
         </div>
@@ -242,34 +304,28 @@ export function ReportsClient({
           <p className="text-sm text-[#94a3b8] max-w-sm text-center">{t("reports.workspace.emptyDescription")}</p>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start relative">
-          {/* Master List */}
-          <div className="w-full lg:w-[380px] shrink-0 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 lg:pb-0 lg:flex-col lg:gap-4 lg:h-[calc(100vh-180px)] lg:overflow-x-hidden lg:overflow-y-auto lg:snap-none hide-scrollbar lg:pe-2">
-            {rows.map((r) => {
-              const isSelected = activeCompareId === r.id;
-
-              return (
-                <div key={r.id} className="snap-start snap-always min-w-[280px] lg:min-w-0">
-                  <button
-                    onClick={() => {
-                      handleCompare(r.id);
-                      if (window.innerWidth < 1024 && scrollRef.current) {
-                        scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                      }
-                    }}
-                    className={`w-full text-start p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden flex flex-col gap-4 ${
-                      isSelected
-                        ? 'bg-[#161c24] border-[#0fc9a7]/40 shadow-[0_4px_20px_rgba(15,201,167,0.1)] ring-1 ring-[#0fc9a7]/20'
-                        : 'bg-[#0e1218] border-[#ffffff1a] hover:border-[#ffffff33] hover:bg-[#161c24]/50'
-                    }`}
-                    aria-expanded={isSelected}
-                    aria-pressed={isSelected}
-                  >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full">
+          {/* Horizontal Rail */}
+          <div className="w-full relative">
+            <div
+              ref={railRef}
+              className="flex gap-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2"
+              style={{ scrollBehavior: 'smooth' }}
+            >
+              {rows.map((r, index) => {
+                const isSelected = effectiveSelectedId === r.id;
+                const cardClassName = `w-full text-start p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden flex flex-col gap-4 ${
+                  isSelected
+                    ? 'bg-[#161c24] border-[#0fc9a7]/40 shadow-[0_4px_20px_rgba(15,201,167,0.1)] ring-1 ring-[#0fc9a7]/20'
+                    : 'bg-[#0e1218] border-[#ffffff1a] hover:border-[#ffffff33] hover:bg-[#161c24]/50'
+                }`;
+                const cardContent = (
+                  <>
                     {isSelected && (
                       <motion.div
                         layoutId="selected-report-indicator"
                         transition={reducedMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute start-0 top-0 w-full h-1 lg:w-1 lg:h-full bg-[#0fc9a7] shadow-[0_0_10px_rgba(15,201,167,0.5)]"
+                        className="absolute start-0 top-0 w-full h-1 bg-[#0fc9a7] shadow-[0_0_10px_rgba(15,201,167,0.5)]"
                       />
                     )}
 
@@ -305,101 +361,197 @@ export function ReportsClient({
                         </div>
                       </div>
                     </div>
-                  </button>
-                </div>
-              );
-            })}
+                  </>
+                );
+
+                return (
+                  <div id={`report-card-${index}`} key={r.id} className="scroll-m-4 snap-start snap-always w-[280px] sm:w-[320px] lg:w-[340px] shrink-0">
+                    {isPreview ? (
+                      <Link
+                        href={previewReportHref(r.id, "closed")}
+                        className={cardClassName}
+                        aria-current={isSelected ? "true" : undefined}
+                      >
+                        {cardContent}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          if (r.id !== effectiveSelectedId) {
+                            compareAbortControllerRef.current?.abort();
+                            compareAbortControllerRef.current = null;
+                            compareGenerationRef.current += 1;
+                            setSelectedId(r.id);
+                            setIsCompareExpanded(false);
+                            setLoadingCompareId(null);
+                            setCompareErrorId(null);
+                            setCompare(null);
+                            event.currentTarget.parentElement?.scrollIntoView({
+                              behavior: reducedMotion ? "auto" : "smooth",
+                              block: "nearest",
+                              inline: "nearest",
+                            });
+                          }
+                        }}
+                        className={cardClassName}
+                        aria-pressed={isSelected}
+                      >
+                        {cardContent}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Detail View */}
-          <div ref={scrollRef} className="w-full lg:flex-1 min-w-0 lg:sticky lg:top-6 flex flex-col gap-6">
+          {/* Full Width Detail View */}
+          <div className="w-full flex flex-col gap-6">
             {selectedSnap ? (
               <AnimatePresence initial={false} mode="popLayout">
                 <motion.div
                   key={selectedSnap.id}
-                  initial={reducedMotion ? false : { opacity: 0.82, x: lang === "ar" ? -12 : 12, scale: 0.995 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={reducedMotion ? { opacity: 1 } : { opacity: 0.72, x: lang === "ar" ? 8 : -8, scale: 0.995 }}
+                  initial={reducedMotion ? false : { opacity: 0.82, y: 12, scale: 0.995 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={reducedMotion ? { opacity: 1 } : { opacity: 0.72, y: -8, scale: 0.995 }}
                   transition={reducedMotion ? { duration: 0 } : { duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
                   className="bg-[#0e1218] border border-[#ffffff1a] rounded-3xl p-6 lg:p-8 shadow-depth flex flex-col relative overflow-hidden group"
                 >
                   <div className="absolute top-0 end-0 w-64 h-64 bg-[#0fc9a7]/5 rounded-full blur-[80px] pointer-events-none transition-opacity duration-1000" />
 
                   <div className="relative z-10 flex flex-col gap-8">
-                  {/* Detail Header */}
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-5">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-xs font-bold tracking-widest uppercase text-[#0fc9a7]">{t("reports.workspace.weeklyReview")}</span>
-                      </div>
-                      <h2 className="text-2xl lg:text-3xl font-bold text-white">
-                        {formatDateRange(selectedSnap.timeRangeStart, selectedSnap.timeRangeEnd)}
-                      </h2>
-                      <div className="text-sm text-[#94a3b8] mt-1">{new Date(selectedSnap.timeRangeStart).getFullYear()}</div>
-                    </div>
-
-                    {selectedSnap.reportId ? (
-                      <Link
-                        href={isPreview && previewProps?.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(selectedSnap.reportId)}`}
-                        className="inline-flex items-center justify-center px-6 py-3 bg-[#0fc9a7]/10 text-[#0fc9a7] border border-[#0fc9a7]/20 text-sm font-bold rounded-full hover:bg-[#0fc9a7]/20 transition-all shadow-sm active:scale-95 shrink-0"
-                      >
-                        <PieChart className="w-4 h-4 me-2" />
-                        {t("reports.openReport")}
-                      </Link>
-                    ) : (
-                      <div className="inline-flex items-center justify-center px-6 py-3 bg-[#161c24] text-[#64748b] border border-[#ffffff1a] text-sm font-bold rounded-full cursor-not-allowed shrink-0">
-                        {t("reports.notAvailable")}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Comparison Module */}
-                  <div
-                    className="bg-[#161c24] rounded-2xl border border-[#ffffff1a] p-1 shadow-inner overflow-hidden"
-                    aria-busy={loadingCompareId === activeCompareId}
-                  >
-                    <div className={`transition-all duration-700 ease-in-out ${loadingCompareId === activeCompareId ? 'opacity-40 scale-[0.99] filter blur-[1px]' : 'opacity-100 scale-100 filter-none'}`}>
-                      {compareErrorId === activeCompareId ? (
-                        <div className="p-8 text-center text-[#ef4444] bg-[#ef4444]/10 rounded-xl border border-[#ef4444]/20 font-medium m-1">
-                          {t("reports.compare.error")}
+                    {/* Detail Header */}
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-5">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-xs font-bold tracking-widest uppercase text-[#0fc9a7]">{t("reports.workspace.weeklyReview")}</span>
                         </div>
-                      ) : compare?.previous ? (
-                        <div className="bg-[#0b0e12] rounded-xl border border-[#ffffff1a] p-5 lg:p-6 shadow-sm">
-                          <ReportComparisonDetails comparison={compare} />
-                        </div>
+                        <h2 className="text-2xl lg:text-3xl font-bold text-white">
+                          {formatDateRange(selectedSnap.timeRangeStart, selectedSnap.timeRangeEnd)}
+                        </h2>
+                        <div className="text-sm text-[#94a3b8] mt-1">{new Date(selectedSnap.timeRangeStart).getFullYear()}</div>
+                      </div>
+
+                      {selectedSnap.reportId ? (
+                        <Link
+                          href={isPreview && previewProps?.actionHref ? previewProps.actionHref : `/dashboard?reportId=${encodeURIComponent(selectedSnap.reportId)}`}
+                          className="inline-flex items-center justify-center px-6 py-3 bg-[#0fc9a7]/10 text-[#0fc9a7] border border-[#0fc9a7]/20 text-sm font-bold rounded-full hover:bg-[#0fc9a7]/20 transition-all shadow-sm active:scale-95 shrink-0"
+                        >
+                          <PieChart className="w-4 h-4 me-2" />
+                          {t("reports.openReport")}
+                        </Link>
                       ) : (
-                        <div className="bg-[#0b0e12] rounded-xl border border-[#ffffff1a] p-5 lg:p-6 shadow-sm m-1">
-                          <div className="mb-6 flex items-center justify-between">
-                            <div className="text-sm font-bold text-white">{t("reports.workspace.kpis")}</div>
-                            <div className="text-xs text-[#94a3b8] px-3 py-1.5 bg-[#161c24] rounded-md border border-[#ffffff1a]">{t("reports.compare.noPrevious")}</div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="bg-[#161c24] p-5 rounded-xl border border-[#ffffff1a]">
-                              <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.sales")}</div>
-                              <div className="text-xl font-bold text-white"><AnimatedNumber value={selectedSnap.grossSales} formatter={(v) => `${v.toLocaleString(locale)} ${currency}`} /></div>
-                            </div>
-                            <div className="bg-[#161c24] p-5 rounded-xl border border-[#ffffff1a]">
-                              <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.profit")}</div>
-                              <div className="text-xl font-bold text-[#0fc9a7]"><AnimatedNumber value={selectedSnap.totalProfit} formatter={(v) => `${v.toLocaleString(locale)} ${currency}`} /></div>
-                            </div>
-                            <div className="bg-[#161c24] p-5 rounded-xl border border-[#ffffff1a]">
-                              <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.margin")}</div>
-                              <div className="text-xl font-bold text-white"><AnimatedNumber value={selectedSnap.marginPct} formatter={(v) => `${v.toFixed(2)}%`} /></div>
-                            </div>
-                            <div className="bg-[#161c24] p-5 rounded-xl border border-[#ffffff1a]">
-                              <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.orders")}</div>
-                              <div className="text-xl font-bold text-white"><AnimatedNumber value={selectedSnap.ordersCount} /></div>
-                            </div>
-                          </div>
+                        <div className="inline-flex items-center justify-center px-6 py-3 bg-[#161c24] text-[#64748b] border border-[#ffffff1a] text-sm font-bold rounded-full cursor-not-allowed shrink-0">
+                          {t("reports.notAvailable")}
                         </div>
                       )}
                     </div>
-                  </div>
+
+                    {/* KPIs Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-[#161c24] p-5 rounded-2xl border border-[#ffffff1a]">
+                        <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.sales")}</div>
+                        <div className="text-2xl font-bold text-white flex items-baseline">
+                          <AnimatedNumber value={selectedSnap.grossSales} formatter={(v) => `${v.toLocaleString(locale)}`} />
+                          <span className="text-sm text-[#64748b] ms-1.5">{currency}</span>
+                        </div>
+                      </div>
+                      <div className="bg-[#161c24] p-5 rounded-2xl border border-[#ffffff1a]">
+                        <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.profit")}</div>
+                        <div className="text-2xl font-bold text-[#0fc9a7] flex items-baseline">
+                          <AnimatedNumber value={selectedSnap.totalProfit} formatter={(v) => `${v.toLocaleString(locale)}`} />
+                          <span className="text-sm text-[#0fc9a7]/70 ms-1.5">{currency}</span>
+                        </div>
+                      </div>
+                      <div className="bg-[#161c24] p-5 rounded-2xl border border-[#ffffff1a]">
+                        <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.margin")}</div>
+                        <div className="text-2xl font-bold text-white"><AnimatedNumber value={selectedSnap.marginPct} formatter={(v) => `${v.toFixed(2)}%`} /></div>
+                      </div>
+                      <div className="bg-[#161c24] p-5 rounded-2xl border border-[#ffffff1a]">
+                        <div className="text-[11px] font-medium text-[#94a3b8] mb-2 uppercase tracking-wider">{t("reports.table.orders")}</div>
+                        <div className="text-2xl font-bold text-white"><AnimatedNumber value={selectedSnap.ordersCount} /></div>
+                      </div>
+                    </div>
+
+                    {/* Compare Action */}
+                    <div className="mt-2 border-t border-[#ffffff1a] pt-8">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <h3 className="text-lg font-bold text-white">{t("reports.table.compare")}</h3>
+                        {hasPreviousComparable ? (
+                          isPreview ? (
+                            <Link
+                              href={previewReportHref(selectedSnap.id, isCompareExpanded ? "closed" : "open")}
+                              className="inline-flex items-center justify-center px-5 py-2.5 bg-[#161c24] border border-[#ffffff1a] hover:bg-[#ffffff1a] transition-colors rounded-full text-sm font-medium text-white shadow-sm active:scale-95"
+                              aria-expanded={isCompareExpanded}
+                              aria-controls="report-comparison-workspace"
+                            >
+                              {t("reports.compare.button")}
+                              <ChevronDown className={cn("w-4 h-4 ms-2 transition-transform", isCompareExpanded && "rotate-180")} />
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const willExpand = !isCompareExpanded;
+                                setIsCompareExpanded(willExpand);
+                                if (willExpand) {
+                                  void handleCompare(selectedSnap.id);
+                                }
+                              }}
+                              className="inline-flex items-center justify-center px-5 py-2.5 bg-[#161c24] border border-[#ffffff1a] hover:bg-[#ffffff1a] transition-colors rounded-full text-sm font-medium text-white shadow-sm active:scale-95"
+                              aria-expanded={isCompareExpanded}
+                              aria-controls="report-comparison-workspace"
+                            >
+                              {t("reports.compare.button")}
+                              <ChevronDown className={cn("w-4 h-4 ms-2 transition-transform", isCompareExpanded && "rotate-180")} />
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-sm text-[#94a3b8]">{t("reports.compare.noPrevious")}</span>
+                        )}
+                      </div>
+
+                      <AnimatePresence>
+                        {hasPreviousComparable && isCompareExpanded && (
+                          <motion.div
+                            id="report-comparison-workspace"
+                            initial={reducedMotion ? false : { height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                            transition={reducedMotion ? { duration: 0 } : { duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+                            className="overflow-hidden"
+                          >
+                            <div className="bg-[#161c24] rounded-2xl border border-[#ffffff1a] p-1 shadow-inner overflow-hidden mb-2">
+                               <div className={`transition-all duration-700 ease-in-out ${loadingCompareId === effectiveSelectedId && !compare ? 'opacity-40 scale-[0.99] filter blur-[1px]' : 'opacity-100 scale-100 filter-none'}`}>
+                                 {compareErrorId === effectiveSelectedId ? (
+                                  <div className="p-8 text-center text-[#ef4444] bg-[#ef4444]/10 rounded-xl border border-[#ef4444]/20 font-medium m-1">
+                                    {t("reports.compare.error")}
+                                  </div>
+                                ) : compare?.previous ? (
+                                  <div className="bg-[#0b0e12] rounded-xl border border-[#ffffff1a] p-5 lg:p-6 shadow-sm">
+                                    <ReportComparisonDetails comparison={compare} />
+                                  </div>
+                                 ) : loadingCompareId === effectiveSelectedId ? (
+                                  <div className="p-8 text-center text-[#94a3b8] bg-[#0b0e12] rounded-xl border border-[#ffffff1a] m-1 animate-pulse">
+                                    {t("reports.compare.loading") || t("reports.loading")}
+                                  </div>
+                                ) : (
+                                  <div className="p-8 text-center text-[#94a3b8] bg-[#0b0e12] rounded-xl border border-[#ffffff1a] m-1">
+                                    {t("reports.compare.noPrevious")}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </motion.div>
               </AnimatePresence>
             ) : (
-              <div className="bg-[#0e1218] border border-[#ffffff1a] rounded-3xl p-8 flex items-center justify-center h-full min-h-[400px]">
+              <div className="bg-[#0e1218] border border-[#ffffff1a] rounded-3xl p-8 flex items-center justify-center min-h-[400px]">
                 <div className="text-center text-[#64748b] max-w-sm">
                   <PieChart className="w-16 h-16 mx-auto mb-6 opacity-30" />
                   <p className="text-xl font-medium text-[#94a3b8] mb-3">{t("reports.workspace.selectTitle")}</p>

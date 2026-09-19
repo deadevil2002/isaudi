@@ -9,6 +9,7 @@ type InsightsState = "populated" | "empty" | "error" | "loading";
 type PreviewSection = "dashboard" | "reports" | "costs" | "connect";
 type DatasetState = "datasetA" | "datasetB";
 type MotionState = "default" | "reduced";
+type ComparisonState = "open" | "closed";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -27,6 +28,12 @@ function readText(params: SearchParams, key: string) {
   const raw = params[key];
   const value = Array.isArray(raw) ? raw[0] : raw;
   return value?.trim().slice(0, 120) ?? "";
+}
+
+function readDataset(params: SearchParams): DatasetState {
+  const value = readText(params, "dataset");
+  if (value === "b" || value === "datasetB") return "datasetB";
+  return "datasetA";
 }
 
 export default async function DashboardReviewPage({
@@ -73,9 +80,11 @@ export default async function DashboardReviewPage({
           ["populated", "empty", "error", "loading"],
           "populated",
         )}
-        initialDataset={readValue<DatasetState>(params, "dataset", ["datasetA", "datasetB"], "datasetA")}
+        initialDataset={readDataset(params)}
         initialMotion={readValue<MotionState>(params, "motion", ["default", "reduced"], "default")}
         initialMessage={readText(params, "qaMessage")}
+        initialSelectedReport={readText(params, "selectedReport")}
+        initialComparison={readValue<ComparisonState>(params, "comparison", ["open", "closed"], "closed")}
       />
       <script
         dangerouslySetInnerHTML={{

@@ -497,6 +497,14 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "الملخصات الأسبوعية",
     en: "Weekly summaries",
   },
+  "reports.history.previous": {
+    ar: "التقارير الأحدث",
+    en: "Newer reports",
+  },
+  "reports.history.next": {
+    ar: "التقارير الأقدم",
+    en: "Older reports",
+  },
   "reports.upgrade": {
     ar: "الترقية",
     en: "Upgrade",

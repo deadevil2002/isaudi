@@ -30,6 +30,7 @@ type InsightsState = "populated" | "empty" | "error" | "loading";
 type PreviewSection = "dashboard" | "reports" | "costs" | "connect";
 type DatasetState = "datasetA" | "datasetB";
 type MotionState = "default" | "reduced";
+type ComparisonState = "open" | "closed";
 
 interface DashboardReviewClientProps {
   initialLanguage: PreviewLanguage;
@@ -42,6 +43,8 @@ interface DashboardReviewClientProps {
   initialDataset: DatasetState;
   initialMotion: MotionState;
   initialMessage: string;
+  initialSelectedReport: string;
+  initialComparison: ComparisonState;
 }
 
 function ReviewContent({
@@ -54,6 +57,8 @@ function ReviewContent({
   initialDataset,
   initialMotion,
   initialMessage,
+  initialSelectedReport,
+  initialComparison,
 }: Omit<DashboardReviewClientProps, "initialLanguage">) {
   const { lang, setLanguage } = useLanguage();
   const t = createTranslator(lang);
@@ -93,6 +98,9 @@ function ReviewContent({
   const currentTrendData = dataset === "datasetA" ? fixtureTrendData : fixtureTrendDataB;
   const currentCompareData = dataset === "datasetA" ? fixtureCompareData : fixtureCompareDataB;
   const currentReport = dataset === "datasetA" ? fixtureReport : fixtureReportB;
+  const selectedReportId = currentTrendData.some((item) => item.id === initialSelectedReport)
+    ? initialSelectedReport
+    : currentTrendData[0]?.id;
 
   const report = { id: "report-1", ...currentReport };
   const previewTrend = populated
@@ -128,7 +136,10 @@ function ReviewContent({
 
   return (
     <MotionConfig reducedMotion={motionPref === "reduced" ? "always" : "user"}>
-      <div dir={lang === "ar" ? "rtl" : "ltr"}>
+      <div
+        dir={lang === "ar" ? "rtl" : "ltr"}
+        data-reduced-motion={motionPref === "reduced" ? "true" : undefined}
+      >
       <form
         action="/design-preview/dashboard-review"
         method="get"
@@ -260,13 +271,16 @@ function ReviewContent({
         )}
         {section === "reports" && (
           <ReportsClient
+            key={`${selectedReportId}-${initialComparison}`}
             isFree={plan === "free"}
             previewProps={{
               rows: populated ? currentTrendData : [],
               loadState: dataState,
               compare: currentCompareData,
               compareLoadState: "populated",
-              showComparisonForId: populated ? currentTrendData[0].id : undefined,
+              showComparisonForId: populated ? selectedReportId : undefined,
+              compareExpanded: initialComparison === "open",
+              selectionHrefBase: previewHref("reports"),
               actionHref: `${previewHref("reports")}#qa-shell-content`,
             }}
           />
