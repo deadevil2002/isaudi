@@ -36,7 +36,7 @@ export default async function Home() {
   const subscription = user ? await getUserEntitlements(user.id) : null;
 
   return (
-    <main className="min-h-screen bg-white selection:bg-isaudi-green/20 selection:text-isaudi-green-dark">
+    <main className="min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
       <Header />
       <Hero />
       <HowItWorks />

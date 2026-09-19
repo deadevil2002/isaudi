@@ -4,7 +4,30 @@
   --color-isaudi-green: #006C35;
   --color-isaudi-green-dark: #004D26;
   --color-isaudi-green-light: #E6F0EA;
-  
+
+  --color-preview-bg-base: #06090c;
+  --color-preview-bg-surface: #0e1218;
+  --color-preview-bg-elevated: #161c24;
+  --color-preview-bg-highlight: #1d252f;
+
+  --color-preview-border-dim: rgba(255, 255, 255, 0.05);
+  --color-preview-border-light: rgba(255, 255, 255, 0.1);
+  --color-preview-border-focus: rgba(230, 185, 92, 0.3);
+
+  --color-preview-text-main: #f0f4f8;
+  --color-preview-text-muted: #94a3b8;
+  --color-preview-text-dim: #64748b;
+
+  --color-preview-gold-primary: #e6b95c;
+  --color-preview-gold-secondary: #c5993c;
+  --color-preview-gold-light: #f9d889;
+
+  --color-preview-teal-primary: #0fc9a7;
+  --color-preview-teal-secondary: #0a997e;
+
+  --color-preview-danger: #ef4444;
+  --color-preview-success: #10b981;
+
   --font-sans: var(--font-ibm-plex-sans-arabic), system-ui, sans-serif;
 }
 

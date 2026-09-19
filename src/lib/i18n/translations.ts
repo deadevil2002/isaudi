@@ -1385,6 +1385,10 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "تسجيل الدخول",
     en: "Log In",
   },
+  "login.secureEyebrow": {
+    ar: "تسجيل دخول آمن",
+    en: "Secure sign in",
+  },
   "login.subtitle": {
     ar: "أدخل بريدك الإلكتروني للمتابعة",
     en: "Enter your email to continue",
@@ -1436,6 +1440,10 @@ const translations: Record<string, { ar: string; en: string }> = {
   "login.error.generic": {
     ar: "حدث خطأ غير متوقع. حاول مرة أخرى.",
     en: "Something went wrong. Please try again.",
+  },
+  "verify.eyebrow": {
+    ar: "التحقق من البريد",
+    en: "Email verification",
   },
   "dashboard.storeSetup.title": {
     ar: "إعداد المتجر",
@@ -1704,6 +1712,10 @@ const translations: Record<string, { ar: string; en: string }> = {
   "header.login": {
     ar: "تسجيل الدخول",
     en: "Log In",
+  },
+  "header.viewPlans": {
+    ar: "استعرض الخطط",
+    en: "View plans",
   },
   "footer.tagline": {
     ar: "منصة الذكاء الاصطناعي الأولى لتحليل وتطوير المتاجر الإلكترونية في السعودية.",
