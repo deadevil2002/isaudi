@@ -47,7 +47,7 @@ export async function createSession(db: D1, adminId: string) {
   const now = Date.now();
   const expiresAt = now + ADMIN_SESSION_MS;
   await db.batch([
-    db.prepare('DELETE FROM admin_sessions WHERE admin_id = ? OR expires_at <= ?').bind(adminId, now),
+    db.prepare('DELETE FROM admin_sessions WHERE admin_id = ?').bind(adminId),
     db.prepare(
       `INSERT INTO admin_sessions (token_hash, admin_id, expires_at, created_at, last_seen_at)
        VALUES (?, ?, ?, ?, ?)`
@@ -62,13 +62,15 @@ export async function authenticateAdmin(token?: string | null): Promise<Admin | 
   const now = Date.now();
   const tokenHash = await sha256(token);
   const row = await db.prepare(
-    `SELECT a.id, a.email, a.role FROM admin_sessions s
+    `SELECT a.id, a.email, a.role, s.last_seen_at FROM admin_sessions s
      JOIN admin_accounts a ON a.id = s.admin_id
      WHERE s.token_hash = ? AND s.expires_at > ?`
   ).bind(tokenHash, now).first<Admin>();
   if (!row) return null;
-  await db.prepare('UPDATE admin_sessions SET last_seen_at = ? WHERE token_hash = ?')
-    .bind(now, tokenHash).run();
+  if (Number((row as Admin & { last_seen_at?: number }).last_seen_at ?? 0) < now - 5 * 60_000) {
+    await db.prepare('UPDATE admin_sessions SET last_seen_at = ? WHERE token_hash = ?')
+      .bind(now, tokenHash).run();
+  }
   return row;
 }
 
@@ -76,7 +78,6 @@ export async function consumeLimit(db: D1, key: string, limit: number, windowMs:
   const now = Date.now();
   const start = Math.floor(now / windowMs) * windowMs;
   const keyHash = await hmacPseudonym(`limit:${key}`);
-  await db.prepare('DELETE FROM admin_rate_limits WHERE expires_at <= ?').bind(now).run();
   const row = await db.prepare(
     `INSERT INTO admin_rate_limits (key_hash, window_start, expires_at, count)
      VALUES (?, ?, ?, 1)

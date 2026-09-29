@@ -54,9 +54,6 @@ export async function consumeAiChatQuota(input: {
   const expiresAt = windowStart + AI_CHAT_WINDOW_MS * 2;
   const limit = aiChatLimitForPlan(input.plan);
 
-  await input.db
-    .prepare('DELETE FROM ai_chat_rate_limits WHERE expires_at <= ?')
-    .run(now);
   const row = (await input.db
     .prepare(
       `INSERT INTO ai_chat_rate_limits

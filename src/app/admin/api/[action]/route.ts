@@ -139,32 +139,63 @@ async function portalData(admin: { id: string; email: string; role: string }) {
       connections: [], reports: [], audit: [],
     };
   }
-  const [overview, users, subscriptions, payments, connections, reports, auditRows] = await Promise.all([
-    db.prepare(`SELECT
+  const overview = await db.prepare(`SELECT
       (SELECT COUNT(*) FROM users) users,
       (SELECT COUNT(*) FROM subscriptions WHERE status = 'active') active_subscriptions,
       (SELECT COALESCE(SUM(amountHalala),0) FROM payments WHERE status IN ('paid','captured','completed')) revenue_halala,
-      (SELECT COUNT(*) FROM reports) reports`).first(),
-    db.prepare(`SELECT id, email, plan, planExpiresAt, createdAt, free_reports_used, email_verified
-      FROM users ORDER BY createdAt DESC LIMIT 200`).all(),
-    db.prepare(`SELECT s.id, s.userId, u.email, s.planId, s.interval, s.status, s.startedAt, s.expiresAt, s.createdAt
-      FROM subscriptions s LEFT JOIN users u ON u.id=s.userId ORDER BY s.createdAt DESC LIMIT 200`).all(),
-    db.prepare(`SELECT p.id, p.userId, u.email, p.provider, p.amountHalala, p.currency, p.planId,
-      p.interval, p.status, p.createdAt, p.updatedAt, p.processedAt
-      FROM payments p LEFT JOIN users u ON u.id=p.userId ORDER BY p.createdAt DESC LIMIT 200`).all(),
-    db.prepare(`SELECT c.id, c.userId, u.email, c.platform, c.status, c.storeName, c.storeUrl,
-      c.tokenExpiresAt, c.createdAt FROM store_connections c LEFT JOIN users u ON u.id=c.userId
-      ORDER BY c.createdAt DESC LIMIT 200`).all(),
-    db.prepare(`SELECT r.id, r.userId, u.email, r.storeId, r.createdAt
-      FROM reports r LEFT JOIN users u ON u.id=r.userId ORDER BY r.createdAt DESC LIMIT 200`).all(),
-    db.prepare(`SELECT id, admin_id, action, target_type, target_id, metadata_json, created_at
-      FROM admin_audit_log ORDER BY created_at DESC LIMIT 200`).all(),
-  ]);
+      (SELECT COUNT(*) FROM reports) reports`).first();
   return {
-    admin, overview, users: users.results, subscriptions: subscriptions.results,
-    payments: payments.results, connections: connections.results, reports: reports.results,
-    audit: auditRows.results,
+    admin, overview, users: [], subscriptions: [], payments: [], connections: [], reports: [], audit: [],
   };
+}
+
+const ADMIN_SECTIONS = {
+  users: {
+    select: 'SELECT id, email, plan, planExpiresAt, createdAt, free_reports_used, email_verified FROM users',
+    search: 'email = ?', order: 'createdAt',
+  },
+  subscriptions: {
+    select: `SELECT s.id, s.userId, u.email, s.planId, s.interval, s.status, s.startedAt, s.expiresAt, s.createdAt
+      FROM subscriptions s LEFT JOIN users u ON u.id=s.userId`,
+    search: 'u.email = ?', order: 's.createdAt',
+  },
+  payments: {
+    select: `SELECT p.id, p.userId, u.email, p.provider, p.amountHalala, p.currency, p.planId,
+      p.interval, p.status, p.createdAt, p.updatedAt, p.processedAt
+      FROM payments p LEFT JOIN users u ON u.id=p.userId`,
+    search: 'u.email = ?', order: 'p.createdAt',
+  },
+  connections: {
+    select: `SELECT c.id, c.userId, u.email, c.platform, c.status, c.storeName, c.storeUrl,
+      c.tokenExpiresAt, c.createdAt FROM store_connections c LEFT JOIN users u ON u.id=c.userId`,
+    search: 'u.email = ?', order: 'c.createdAt',
+  },
+  reports: {
+    select: `SELECT r.id, r.userId, u.email, r.storeId, r.createdAt
+      FROM reports r LEFT JOIN users u ON u.id=r.userId`,
+    search: 'u.email = ?', order: 'r.createdAt',
+  },
+  audit: {
+    select: 'SELECT id, admin_id, action, target_type, target_id, metadata_json, created_at FROM admin_audit_log',
+    search: 'action = ?', order: 'created_at',
+  },
+} as const;
+
+async function adminSection(admin: { role: string }, request: NextRequest) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  const section = request.nextUrl.searchParams.get('section') || '';
+  const config = ADMIN_SECTIONS[section as keyof typeof ADMIN_SECTIONS];
+  if (!config) return json({ error: 'قسم غير صالح' }, 400);
+  const page = Math.min(200, Math.max(1, Number.parseInt(request.nextUrl.searchParams.get('page') || '1', 10) || 1));
+  const pageSize = Math.min(50, Math.max(10, Number.parseInt(request.nextUrl.searchParams.get('pageSize') || '25', 10) || 25));
+  const search = (request.nextUrl.searchParams.get('search') || '').trim().slice(0, 100);
+  const offset = (page - 1) * pageSize;
+  const sql = `${config.select}${search ? ` WHERE ${config.search}` : ''} ORDER BY ${config.order} DESC LIMIT ? OFFSET ?`;
+  const statement = adminDb().prepare(sql);
+  const result = search
+    ? await statement.bind(search, pageSize + 1, offset).all()
+    : await statement.bind(pageSize + 1, offset).all();
+  return json({ rows: result.results.slice(0, pageSize), page, pageSize, hasMore: result.results.length > pageSize });
 }
 
 async function readVideoRecord() {
@@ -479,6 +510,7 @@ export async function GET(request: NextRequest, context: Context) {
     }
     if (!admin) return json({ error: 'غير مصرح' }, 401);
     if (action === 'data') return json(await portalData(admin));
+    if (action === 'section') return adminSection(admin, request);
     if (action === 'video') return videoStatus(admin, request);
     return json({ error: 'غير موجود' }, 404);
   } catch {

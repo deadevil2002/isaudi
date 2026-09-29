@@ -5,15 +5,30 @@ import { createPlaybackUrl } from './stream';
 
 export type PublicVideo = { status: 'ready'; playbackUrl: string } | { status: 'unavailable' | 'error' };
 
-export async function getPublicHowItWorksVideo(): Promise<PublicVideo> {
+let cached: { value: PublicVideo; expiresAt: number } | null = null;
+let pending: Promise<PublicVideo> | null = null;
+
+async function loadPublicVideo(): Promise<PublicVideo> {
   try {
     const db = getD1Database() as D1 | null;
     if (!db) return { status: 'unavailable' };
     const row = await db.prepare('SELECT active_uid FROM how_it_works_video WHERE id = 1').first<{ active_uid: string | null }>();
-    if (!row?.active_uid) return { status: 'unavailable' };
-    return { status: 'ready', playbackUrl: await createPlaybackUrl(row.active_uid) };
+    return row?.active_uid
+      ? { status: 'ready', playbackUrl: await createPlaybackUrl(row.active_uid) }
+      : { status: 'unavailable' };
   } catch (error) {
-    console.error('How It Works video unavailable', error instanceof Error ? error.name : 'UnknownError');
+    console.error(JSON.stringify({ event: 'public_video_error', error: error instanceof Error ? error.name : 'UnknownError' }));
     return { status: 'error' };
   }
+}
+
+export async function getPublicHowItWorksVideo(): Promise<PublicVideo> {
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) return cached.value;
+  if (pending) return pending;
+  pending = loadPublicVideo().then(value => {
+    cached = { value, expiresAt: Date.now() + (value.status === 'ready' ? 15_000 : 5_000) };
+    return value;
+  }).finally(() => { pending = null; });
+  return pending;
 }

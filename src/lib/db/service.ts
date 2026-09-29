@@ -85,7 +85,6 @@ export const dbService = {
     const db = await getDb();
     const windowStart = Math.floor(now / OTP_WINDOW_MS) * OTP_WINDOW_MS;
     const keyHash = limiterDigest(key);
-    db.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').run(now);
     const row = db.prepare(`INSERT INTO otp_rate_limits (key_hash, window_start, expires_at, count)
       VALUES (?, ?, ?, 1) ON CONFLICT(key_hash, window_start) DO UPDATE SET count = count + 1
       WHERE count < ? RETURNING count`).get(keyHash, windowStart, windowStart + OTP_WINDOW_MS, limit) as any;
@@ -96,7 +95,6 @@ export const dbService = {
     const db = await getDb();
     const windowStart = Math.floor(now / OTP_WINDOW_MS) * OTP_WINDOW_MS;
     const keyHash = limiterDigest(key);
-    db.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').run(now);
     const row = db.prepare('SELECT count FROM otp_rate_limits WHERE key_hash = ? AND window_start = ?').get(keyHash, windowStart) as any;
     return Number(row?.count || 0) < limit ? { allowed: true, retryAfter: 0 } : { allowed: false, retryAfter: Math.max(1, Math.ceil((windowStart + OTP_WINDOW_MS - now) / 1000)) };
   },
@@ -126,9 +124,6 @@ export const dbService = {
   getSession: async (sessionId: string): Promise<Session | undefined> => {
     const db = await getDb();
     const now = Date.now();
-    // Clean expired sessions first (lazy cleanup)
-    db.prepare('DELETE FROM sessions WHERE expiresAt < ?').run(now);
-    
     return db.prepare('SELECT * FROM sessions WHERE sessionId = ? AND expiresAt > ?').get(sessionId, now) as Session | undefined;
   },
   
@@ -144,26 +139,6 @@ export const dbService = {
   ): Promise<void> => {
     const db = await getDb();
     const now = Date.now();
-    await db
-      .prepare(`
-        CREATE TABLE IF NOT EXISTS salla_oauth_states (
-          nonceHash TEXT PRIMARY KEY,
-          sessionId TEXT NOT NULL,
-          expiresAt INTEGER NOT NULL,
-          createdAt INTEGER NOT NULL,
-          FOREIGN KEY(sessionId) REFERENCES sessions(sessionId)
-        )
-      `)
-      .run();
-    await db
-      .prepare(`
-        CREATE INDEX IF NOT EXISTS idx_salla_oauth_states_expiresAt
-        ON salla_oauth_states(expiresAt)
-      `)
-      .run();
-    await db
-      .prepare('DELETE FROM salla_oauth_states WHERE expiresAt <= ?')
-      .run(now);
     await db
       .prepare(`
         INSERT INTO salla_oauth_states (nonceHash, sessionId, expiresAt, createdAt)
@@ -470,28 +445,26 @@ export const dbService = {
 
   getStoreStats: async (userId: string): Promise<any> => {
     const db = await getDb();
-    const productsCount = db.prepare('SELECT COUNT(*) as count FROM products WHERE userId = ?').get(userId) as any;
     const notCounted = ['ملغي', 'محذوف', 'ملغى'];
-    const filtered = db.prepare(`
-      SELECT COUNT(*) as cnt, COALESCE(SUM(totalHalala),0) as sum
-      FROM orders
-      WHERE userId = ? AND COALESCE(status,'') NOT IN (${notCounted.map(() => '?').join(',')})
-    `).get(userId, ...notCounted) as any;
-    const excluded = db.prepare(`
-      SELECT COUNT(*) as cnt, COALESCE(SUM(totalHalala),0) as sum
-      FROM orders
-      WHERE userId = ? AND COALESCE(status,'') IN (${notCounted.map(() => '?').join(',')})
-    `).get(userId, ...notCounted) as any;
-    const totalOrders = filtered.cnt || 0;
-    const totalSalesHalala = filtered.sum || 0;
+    const row = db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM products WHERE userId = ?) AS products,
+        COALESCE(SUM(CASE WHEN COALESCE(status,'') NOT IN (${notCounted.map(() => '?').join(',')}) THEN 1 ELSE 0 END), 0) AS orders_count,
+        COALESCE(SUM(CASE WHEN COALESCE(status,'') NOT IN (${notCounted.map(() => '?').join(',')}) THEN totalHalala ELSE 0 END), 0) AS sales,
+        COALESCE(SUM(CASE WHEN COALESCE(status,'') IN (${notCounted.map(() => '?').join(',')}) THEN 1 ELSE 0 END), 0) AS excluded_count,
+        COALESCE(SUM(CASE WHEN COALESCE(status,'') IN (${notCounted.map(() => '?').join(',')}) THEN totalHalala ELSE 0 END), 0) AS excluded_sales
+      FROM orders WHERE userId = ?
+    `).get(userId, ...notCounted, ...notCounted, ...notCounted, ...notCounted, userId) as any;
+    const totalOrders = row.orders_count || 0;
+    const totalSalesHalala = row.sales || 0;
     const avgOrderValue = totalOrders > 0 ? Math.round((totalSalesHalala / totalOrders)) : 0;
     return {
-      products: productsCount.count || 0,
+      products: row.products || 0,
       orders: totalOrders,
       sales: totalSalesHalala,
       avgOrderValueHalala: avgOrderValue,
-      excludedOrdersCount: excluded.cnt || 0,
-      excludedSalesHalala: excluded.sum || 0
+      excludedOrdersCount: row.excluded_count || 0,
+      excludedSalesHalala: row.excluded_sales || 0
     };
   },
 

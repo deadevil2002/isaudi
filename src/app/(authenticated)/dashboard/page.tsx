@@ -1,25 +1,13 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
+import { getCurrentUser } from '@/lib/auth/utils';
 import { DashboardClient } from './dashboard-client';
 
 export const dynamic = 'force-dynamic';
 
 async function loadDashboardData(reportId?: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionId = cookieStore.get('session_id')?.value;
-
-    if (!sessionId) {
-      redirect('/login');
-    }
-
-    const session = await dbService.getSession(sessionId);
-    if (!session) {
-      redirect('/login');
-    }
-
-    const user = await dbService.getUserById(session.userId);
+    const user = await getCurrentUser();
     if (!user) {
       redirect('/login');
     }

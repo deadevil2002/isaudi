@@ -1,8 +1,9 @@
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { dbService } from '@/lib/db/service';
 import { getD1Database } from '@/lib/db/d1';
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async function getCurrentUser() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('session_id')?.value;
 
@@ -27,7 +28,7 @@ export async function getCurrentUser() {
   if (!session) return null;
 
   return await dbService.getUserById(session.userId);
-}
+});
 
 export async function requirePlan(allowedPlans: string[] = ['basic', 'pro', 'business']) {
   const user = await getCurrentUser();

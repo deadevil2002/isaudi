@@ -101,7 +101,6 @@ export async function POST(request: NextRequest) {
         const windowStart = Math.floor(now / (15 * 60 * 1000)) * (15 * 60 * 1000);
         const { limiterDigest } = await import('@/lib/auth/otp');
         const hash = limiterDigest(key, isProd, env?.OTP_HMAC_SECRET);
-        await d1.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').bind(now).run();
         const row: any = await d1.prepare(`INSERT INTO otp_rate_limits (key_hash, window_start, expires_at, count) VALUES (?, ?, ?, 1)
           ON CONFLICT(key_hash, window_start) DO UPDATE SET count = count + 1 WHERE count < ? RETURNING count`)
           .bind(hash, windowStart, windowStart + 15 * 60 * 1000, limit).first();

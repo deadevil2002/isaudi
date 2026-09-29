@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
       const windowStart = Math.floor(now / (15 * 60 * 1000)) * (15 * 60 * 1000);
       const rate = async (key: string, limit: number, increment = false) => {
         const hash = limiterDigest(key, isProd, env?.OTP_HMAC_SECRET);
-        await d1.prepare('DELETE FROM otp_rate_limits WHERE expires_at <= ?').bind(now).run();
         if (!increment) {
           const existing: any = await d1.prepare('SELECT count FROM otp_rate_limits WHERE key_hash = ? AND window_start = ?').bind(hash, windowStart).first();
           return Number(existing?.count || 0) >= limit ? Math.max(1, Math.ceil((windowStart + 15 * 60 * 1000 - now) / 1000)) : 0;
