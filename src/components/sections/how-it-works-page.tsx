@@ -1,120 +1,41 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import {
-  ArrowLeft,
-  Bot,
-  CalendarCheck,
-  ChartNoAxesCombined,
-  FileSpreadsheet,
-  GitCompareArrows,
-  PlugZap,
-  ReceiptText,
-  Sparkles,
-} from "lucide-react";
-import { Container } from "@/components/ui/container";
-import { Button } from "@/components/ui/button";
-import { useLanguage } from "@/components/providers/language-provider";
-import { createTranslator } from "@/lib/i18n/translations";
-import { cn } from "@/lib/utils";
+import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowLeft, Film, PlayCircle } from 'lucide-react';
+import { useState } from 'react';
+import { useLanguage } from '@/components/providers/language-provider';
+import type { PublicVideo } from '@/lib/video/public';
 
-export function HowItWorksPageContent() {
+export function HowItWorksPageContent({ video, previewLoading = false }: { video: PublicVideo; previewLoading?: boolean }) {
   const { lang } = useLanguage();
-  const t = createTranslator(lang);
-
-  const steps = [
-    { icon: PlugZap, title: t("howPage.step1.title"), description: t("howPage.step1.description") },
-    { icon: FileSpreadsheet, title: t("howPage.step2.title"), description: t("howPage.step2.description") },
-    { icon: ChartNoAxesCombined, title: t("howPage.step3.title"), description: t("howPage.step3.description") },
-    { icon: Sparkles, title: t("howPage.step4.title"), description: t("howPage.step4.description") },
-    { icon: CalendarCheck, title: t("howPage.step5.title"), description: t("howPage.step5.description") },
-  ];
-
-  const details = [
-    { icon: ReceiptText, title: t("howPage.costs.title"), description: t("howPage.costs.description") },
-    { icon: GitCompareArrows, title: t("howPage.reports.title"), description: t("howPage.reports.description") },
-    { icon: Bot, title: t("howPage.ai.title"), description: t("howPage.ai.description") },
-  ];
-
-  return (
-    <>
-      <section className="overflow-hidden bg-gradient-to-b from-isaudi-green/5 to-white pb-16 pt-16 md:pb-24 md:pt-24">
-        <Container>
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="mb-4 text-sm font-bold text-isaudi-green">{t("howPage.eyebrow")}</p>
-            <h1 className="text-3xl font-bold leading-tight text-gray-950 md:text-5xl">
-              {t("howPage.title")}
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-gray-600 md:text-lg">
-              {t("howPage.subtitle")}
-            </p>
-          </div>
-        </Container>
+  const [loaded, setLoaded] = useState(video.status === 'ready' && video.playbackUrl === 'about:blank' && !previewLoading);
+  const ar = lang === 'ar';
+  return <main dir={ar ? 'rtl' : 'ltr'} className="relative min-h-screen overflow-hidden bg-[#06090c] px-4 py-8 text-white sm:px-6 sm:py-10">
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_50%_0%,rgba(25,119,108,.2),transparent_55%)]" />
+    <div className="relative mx-auto max-w-6xl">
+      <header className="flex items-center justify-between">
+        <Link href="/"><Image src="/brand/design-preview-logo.png" alt="iSaudi.ai" width={138} height={42} priority className="h-10 w-auto object-contain" /></Link>
+        <Link href="/" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-4 text-sm text-slate-300 transition hover:bg-white/5">
+          <ArrowLeft className={`h-4 w-4 ${!ar ? 'rotate-180' : ''}`} />{ar ? 'العودة للرئيسية' : 'Back home'}
+        </Link>
+      </header>
+      <section className="mx-auto max-w-3xl pb-8 pt-14 text-center sm:pt-20">
+        <p className="text-xs font-semibold uppercase tracking-[.24em] text-[#d7b568]">{ar ? 'iSaudi.ai في دقائق' : 'iSaudi.ai in minutes'}</p>
+        <h1 className="mt-4 text-3xl font-semibold leading-tight sm:text-5xl">{ar ? 'شاهد كيف يحوّل iSaudi بياناتك إلى قرارات أوضح' : 'See how iSaudi turns your data into clearer decisions'}</h1>
+        <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">{ar ? 'جولة مختصرة توضّح تجربة الربط والتحليل والوصول إلى رؤى عملية.' : 'A focused walkthrough of connecting, analyzing, and reaching practical insights.'}</p>
       </section>
-
-      <section className="bg-white py-16 md:py-24">
-        <Container>
-          <ol className="mx-auto grid max-w-6xl gap-5 md:grid-cols-5">
-            {steps.map(({ icon: Icon, title, description }, index) => (
-              <li
-                key={title}
-                className="relative rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
-              >
-                <div className="mb-5 flex items-center justify-between">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-isaudi-green/10 text-isaudi-green">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="text-sm font-bold text-gray-300">
-                    {new Intl.NumberFormat(lang === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
-                      minimumIntegerDigits: 2,
-                    }).format(index + 1)}
-                  </span>
-                </div>
-                <h2 className="text-base font-bold leading-7 text-gray-950">{title}</h2>
-                <p className="mt-2 text-sm leading-6 text-gray-600">{description}</p>
-              </li>
-            ))}
-          </ol>
-        </Container>
+      <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0b1219] shadow-2xl shadow-black/50">
+        {video.status === 'ready' ? <div className="relative aspect-video bg-black">
+          {(!loaded || previewLoading) && <div className="absolute inset-0 z-10 grid place-items-center bg-[#091118] transition-opacity duration-300 motion-reduce:transition-none"><div className="text-center"><PlayCircle className="mx-auto h-10 w-10 animate-pulse text-[#d7b568] motion-reduce:animate-none" /><p className="mt-3 text-sm text-slate-400">{ar ? 'جارٍ تجهيز المشغّل…' : 'Preparing the player…'}</p></div></div>}
+          <iframe title={ar ? 'فيديو كيف يعمل iSaudi' : 'How iSaudi works'} src={video.playbackUrl} onLoad={() => setLoaded(true)} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen className="h-full w-full border-0" />
+        </div> : <div className="flex min-h-72 flex-col items-center justify-center overflow-hidden px-6 text-center sm:aspect-video">
+          <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/5 text-[#d7b568]"><Film className="h-7 w-7" /></span>
+          <h2 className="mt-5 w-full min-w-0 break-words text-lg font-semibold sm:text-xl">{ar ? 'الفيديو غير متاح حالياً' : 'Video currently unavailable'}</h2>
+          <p className="mt-2 w-full min-w-0 max-w-md text-sm leading-6 text-slate-400">{ar ? 'نعمل على تجهيز الجولة التعريفية. يمكنك البدء الآن واستكشاف المنصة.' : 'We are preparing the walkthrough. You can still get started and explore the platform.'}</p>
+        </div>}
       </section>
-
-      <section className="bg-gray-50 py-16 md:py-24">
-        <Container>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold text-gray-950 md:text-4xl">
-              {t("howPage.details.title")}
-            </h2>
-            <p className="mt-4 leading-7 text-gray-600">{t("howPage.details.subtitle")}</p>
-          </div>
-
-          <div className="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-3">
-            {details.map(({ icon: Icon, title, description }) => (
-              <article key={title} className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-isaudi-green/10 text-isaudi-green">
-                  <Icon className="h-6 w-6" />
-                </span>
-                <h3 className="mt-5 text-lg font-bold text-gray-950">{title}</h3>
-                <p className="mt-3 text-sm leading-7 text-gray-600">{description}</p>
-              </article>
-            ))}
-          </div>
-        </Container>
-      </section>
-
-      <section className="bg-white py-16 md:py-24">
-        <Container>
-          <div className="mx-auto max-w-4xl rounded-3xl bg-gray-950 px-6 py-10 text-center text-white shadow-xl md:px-12 md:py-14">
-            <h2 className="text-2xl font-bold md:text-3xl">{t("howPage.cta.title")}</h2>
-            <p className="mx-auto mt-4 max-w-2xl leading-7 text-gray-300">{t("howPage.cta.description")}</p>
-            <Button asChild className="mt-7 min-h-12 bg-isaudi-green px-6 text-white hover:bg-isaudi-green-dark">
-              <Link href="/login">
-                {t("howPage.cta.action")}
-                <ArrowLeft className={cn("h-4 w-4", lang === "en" && "rotate-180")} />
-              </Link>
-            </Button>
-          </div>
-        </Container>
-      </section>
-    </>
-  );
+      <div className="mt-8 flex justify-center"><Link href="/login" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#d7b568] px-7 font-semibold text-[#071018] transition hover:bg-[#ecd08a] motion-reduce:transition-none">{ar ? 'ابدأ الآن' : 'Get started'}</Link></div>
+    </div>
+  </main>;
 }

@@ -70,3 +70,23 @@ test('deployed source contains no debug or plan-escalation route handlers', asyn
     await assert.rejects(() => readFile(new URL(path, import.meta.url), 'utf8'));
   }
 });
+
+test('managed video uses direct signed Stream playback and super-admin authorization', async () => {
+  const stream = await readFile(new URL('../src/lib/video/stream.ts', import.meta.url), 'utf8');
+  const admin = await readFile(new URL('../src/app/admin/api/[action]/route.ts', import.meta.url), 'utf8');
+  const migration = await readFile(new URL('../migrations/0014_how_it_works_video.sql', import.meta.url), 'utf8');
+  assert.match(stream, /direct_upload/);
+  assert.match(stream, /requireSignedURLs:\s*true/);
+  assert.match(stream, /allowedOrigins/);
+  assert.match(stream, /\/token/);
+  assert.match(admin, /admin\.role !== 'super_admin'/);
+  assert.match(admin, /how_it_works_video_upload_requested/);
+  assert.match(admin, /how_it_works_video_removed/);
+  assert.doesNotMatch(migration, /BLOB/i);
+});
+
+test('Stream CSP allowlist is narrow and preserves Saudi Business Center', async () => {
+  const config = await readFile(new URL('../next.config.ts', import.meta.url), 'utf8');
+  assert.match(config, /connect-src[^\n]+\*\.videodelivery\.net[^\n]+\*\.cloudflarestream\.com/);
+  assert.match(config, /frame-src[^\n]+eauthenticate\.saudibusiness\.gov\.sa[^\n]+\*\.cloudflarestream\.com/);
+});

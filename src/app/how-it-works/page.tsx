@@ -1,7 +1,8 @@
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
 import { HowItWorksPageContent } from "@/components/sections/how-it-works-page";
 import { createPageMetadata } from "@/lib/seo/metadata";
+import { getPublicHowItWorksVideo } from "@/lib/video/public";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = createPageMetadata({
   title: "كيف يعمل iSaudi | How iSaudi Works",
@@ -10,14 +11,6 @@ export const metadata = createPageMetadata({
   path: "/how-it-works",
 });
 
-export default function HowItWorksPage() {
-  return (
-    <main className="min-h-screen bg-white selection:bg-isaudi-green/20 selection:text-isaudi-green-dark">
-      <Header />
-      <div className="pt-20">
-        <HowItWorksPageContent />
-      </div>
-      <Footer />
-    </main>
-  );
+export default async function HowItWorksPage() {
+  return <HowItWorksPageContent video={await getPublicHowItWorksVideo()} />;
 }

@@ -14,6 +14,10 @@ import {
   readJsonWithLimit, REQUEST_BODY_LIMITS, RequestBodyTooLargeError,
 } from '@/lib/security/request-size';
 import { getRuntimeString } from '@/lib/runtime/environment';
+import {
+  StreamConfigurationError, createDirectUpload, createPlaybackUrl, deleteStreamVideo,
+  getStreamVideo, isStreamConfigured, validateVideoMetadata,
+} from '@/lib/video/stream';
 
 type Context = { params: Promise<{ action: string }> };
 type PasswordRecord = {
@@ -31,6 +35,13 @@ type TransferRecord = {
   from_admin_id: string;
   target_email: string;
   code_hash: string;
+};
+type VideoRecord = {
+  active_uid: string | null;
+  pending_uid: string | null;
+  pending_status: 'uploading' | 'processing' | 'error' | null;
+  pending_error: string | null;
+  updated_at: number;
 };
 const genericLogin = { error: 'بيانات الدخول غير صحيحة أو تعذر إكمال الطلب' };
 
@@ -154,6 +165,105 @@ async function portalData(admin: { id: string; email: string; role: string }) {
     payments: payments.results, connections: connections.results, reports: reports.results,
     audit: auditRows.results,
   };
+}
+
+async function readVideoRecord() {
+  return adminDb().prepare(`SELECT active_uid, pending_uid, pending_status, pending_error, updated_at
+    FROM how_it_works_video WHERE id=1`).first<VideoRecord>();
+}
+
+async function videoStatus(admin: { id: string; role: string }, request: NextRequest) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  const db = adminDb();
+  let record = await readVideoRecord();
+  if (record?.pending_uid && record.pending_status !== 'uploading' && isStreamConfigured()) {
+    const stream = await getStreamVideo(record.pending_uid);
+    if (stream.ready) {
+      const previousUid = record.active_uid;
+      const nextUid = record.pending_uid;
+      await db.prepare(`UPDATE how_it_works_video SET active_uid=?, pending_uid=NULL,
+        pending_status=NULL, pending_error=NULL, updated_by=?, updated_at=? WHERE id=1 AND pending_uid=?`)
+        .bind(nextUid, admin.id, Date.now(), nextUid).run();
+      await audit(
+        db, admin.id, previousUid ? 'how_it_works_video_replaced' : 'how_it_works_video_ready',
+        await requestIpHash(request), 'stream_video', nextUid
+      );
+      if (previousUid && previousUid !== nextUid) void deleteStreamVideo(previousUid).catch(() => undefined);
+    } else if (stream.state === 'error') {
+      await db.prepare(`UPDATE how_it_works_video SET pending_status='error', pending_error=?,
+        updated_by=?, updated_at=? WHERE id=1 AND pending_uid=?`)
+        .bind('processing_error', admin.id, Date.now(), record.pending_uid).run();
+    } else if (record.pending_status !== 'processing') {
+      await db.prepare(`UPDATE how_it_works_video SET pending_status='processing',
+        updated_by=?, updated_at=? WHERE id=1 AND pending_uid=?`)
+        .bind(admin.id, Date.now(), record.pending_uid).run();
+    }
+    record = await readVideoRecord();
+  }
+  let playbackUrl: string | null = null;
+  if (record?.active_uid && isStreamConfigured()) playbackUrl = await createPlaybackUrl(record.active_uid);
+  return json({
+    configured: isStreamConfigured(),
+    active: record?.active_uid ? { status: 'ready', playbackUrl } : null,
+    pending: record?.pending_uid ? { status: record.pending_status, error: record.pending_error } : null,
+    updatedAt: record?.updated_at ?? null,
+  });
+}
+
+async function requestVideoUpload(request: NextRequest, admin: { id: string; role: string }) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  const data = await body(request);
+  let metadata: ReturnType<typeof validateVideoMetadata>;
+  try { metadata = validateVideoMetadata(data.fileName, data.fileType, data.fileSize); }
+  catch { return json({ error: 'ملف الفيديو غير صالح أو يتجاوز 200 MB' }, 400); }
+  const db = adminDb();
+  if (!await consumeLimit(db, `stream-upload:${admin.id}:${clientIp(request)}`, 5, 60 * 60_000)) {
+    return json({ error: 'تم تجاوز عدد محاولات الرفع المسموح' }, 429, { 'Retry-After': '3600' });
+  }
+  const previous = await readVideoRecord();
+  const direct = await createDirectUpload(admin.id, metadata.fileName);
+  const now = Date.now();
+  await db.prepare(`INSERT INTO how_it_works_video
+    (id, active_uid, pending_uid, pending_status, pending_error, updated_by, created_at, updated_at)
+    VALUES (1, NULL, ?, 'uploading', NULL, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET pending_uid=excluded.pending_uid,
+      pending_status='uploading', pending_error=NULL, updated_by=excluded.updated_by,
+      updated_at=excluded.updated_at`)
+    .bind(direct.uid, admin.id, now, now).run();
+  await audit(db, admin.id, 'how_it_works_video_upload_requested', await requestIpHash(request),
+    'stream_video', direct.uid, { bytes: metadata.bytes, mime: metadata.mime });
+  if (previous?.pending_uid && previous.pending_uid !== direct.uid) {
+    void deleteStreamVideo(previous.pending_uid).catch(() => undefined);
+  }
+  return json({ uploadURL: direct.uploadURL, uid: direct.uid });
+}
+
+async function completeVideoUpload(request: NextRequest, admin: { id: string; role: string }) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  const data = await body(request);
+  const uid = typeof data.uid === 'string' ? data.uid : '';
+  if (!/^[a-f0-9]{32}$/i.test(uid)) return json({ error: 'معرّف الفيديو غير صالح' }, 400);
+  const updated = await adminDb().prepare(`UPDATE how_it_works_video SET pending_status='processing',
+    pending_error=NULL, updated_by=?, updated_at=? WHERE id=1 AND pending_uid=? RETURNING id`)
+    .bind(admin.id, Date.now(), uid).first();
+  if (!updated) return json({ error: 'عملية الرفع غير معروفة' }, 409);
+  return json({ success: true });
+}
+
+async function removeVideo(request: NextRequest, admin: { id: string; role: string }) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  const data = await body(request);
+  if (data.confirm !== true) return json({ error: 'يلزم تأكيد الحذف' }, 400);
+  const db = adminDb();
+  const record = await readVideoRecord();
+  const uids = [...new Set([record?.active_uid, record?.pending_uid].filter((uid): uid is string => Boolean(uid)))];
+  await Promise.all(uids.map(deleteStreamVideo));
+  await db.prepare(`UPDATE how_it_works_video SET active_uid=NULL, pending_uid=NULL,
+    pending_status=NULL, pending_error=NULL, updated_by=?, updated_at=? WHERE id=1`)
+    .bind(admin.id, Date.now()).run();
+  await audit(db, admin.id, 'how_it_works_video_removed', await requestIpHash(request),
+    'stream_video', record?.active_uid ?? record?.pending_uid ?? undefined);
+  return json({ success: true });
 }
 
 async function changePassword(request: NextRequest, admin: { id: string }) {
@@ -358,7 +468,7 @@ async function confirmTransfer(request: NextRequest) {
   return json({ success: true });
 }
 
-export async function GET(_request: NextRequest, context: Context) {
+export async function GET(request: NextRequest, context: Context) {
   const { action } = await context.params;
   try {
     const admin = await currentAdmin();
@@ -369,6 +479,7 @@ export async function GET(_request: NextRequest, context: Context) {
     }
     if (!admin) return json({ error: 'غير مصرح' }, 401);
     if (action === 'data') return json(await portalData(admin));
+    if (action === 'video') return videoStatus(admin, request);
     return json({ error: 'غير موجود' }, 404);
   } catch {
     if (action === 'status' && getRuntimeString('NODE_ENV') !== 'production') {
@@ -404,8 +515,14 @@ export async function POST(request: NextRequest, context: Context) {
     }
     if (action === 'change-password') return changePassword(request, admin);
     if (action === 'request-transfer') return requestTransfer(request, admin);
+    if (action === 'video-upload') return requestVideoUpload(request, admin);
+    if (action === 'video-uploaded') return completeVideoUpload(request, admin);
+    if (action === 'video-remove') return removeVideo(request, admin);
     return json({ error: 'غير موجود' }, 404);
   } catch (error) {
+    if (error instanceof StreamConfigurationError) {
+      return json({ error: 'Cloudflare Stream غير مهيأ' }, 503);
+    }
     return error instanceof RequestBodyTooLargeError
       ? json({ error: 'حجم الطلب كبير جداً' }, 413)
       : json({ error: 'تعذر إكمال الطلب' }, 400);

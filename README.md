@@ -15,6 +15,17 @@ Production: **https://isaudi.ai**
 - `/design-preview/dashboard-review` remains an isolated, non-mutating QA
   environment and now covers dashboard and Phase 3 fixture states.
 - `public/brand/design-preview-logo.png` is the approved production logo.
+
+### Managed How It Works video
+
+The Admin console uploads videos directly from the browser to Cloudflare Stream. D1 migration
+`0014_how_it_works_video.sql` stores only the active/pending Stream UIDs and processing state;
+the current video remains active until its replacement is ready. Public playback uses short-lived
+signed Stream tokens and origin-restricted embeds.
+
+Required environment variable names: `CLOUDFLARE_ACCOUNT_ID`,
+`CLOUDFLARE_STREAM_API_TOKEN`, and `CLOUDFLARE_STREAM_CUSTOMER_CODE`.
+Run the new D1 migration and verify Stream credentials/origin restrictions during deployment.
 - The official Saudi Business Center verification seal is integrated.
 - No TikTok integration or external competitor-data feed exists.
 
