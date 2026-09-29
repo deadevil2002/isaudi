@@ -8,14 +8,15 @@ Production: **https://isaudi.ai**
 
 ## Current status
 
-- The production application and its existing routes remain unchanged.
-- `/design-preview` is an isolated, non-mutating visual preview.
-- **The approved `/design-preview` is the visual source of truth for the
-  upcoming production UI migration.**
-- `public/brand/design-preview-logo.png` is the approved logo for that migration.
-- The approved visual system has not yet been migrated to production routes.
-- No TikTok integration exists. The TikTok section in `/design-preview` is an
-  explicitly unavailable visual concept, not a product commitment.
+- UI migration Phases 1–3 are complete on `new-ui-migration` (starting from
+  migration baseline `fde22bd3c690c05c726f6839868aa74aaa7431ee`).
+- Public/auth pages, the authenticated dashboard, dynamic charts/KPIs,
+  reports, Settings, Billing, Salla, and CSV now use the approved visual system.
+- `/design-preview/dashboard-review` remains an isolated, non-mutating QA
+  environment and now covers dashboard and Phase 3 fixture states.
+- `public/brand/design-preview-logo.png` is the approved production logo.
+- The official Saudi Business Center verification seal is integrated.
+- No TikTok integration or external competitor-data feed exists.
 
 See `PROJECT_STATUS.md`, `MIGRATION_NOTES_V2.md`, and `AI_CONTEXT.md` before
 continuing development.
@@ -39,9 +40,8 @@ Browser
 - Production assets: `.open-next/assets`
 - Canonical API base: `https://isaudi.ai/api`
 
-The Replit workspace contains the app under `artifacts/isaudi`, while the
-standalone GitHub repository stores this directory's contents at repository
-root. Do not push the whole Replit workspace to the iSaudi repository.
+The standalone local workspace and GitHub repository root are the application
+root. Do not recreate the obsolete Replit `artifacts/isaudi` directory layout.
 
 ## Product systems
 
@@ -158,7 +158,8 @@ repository's GitHub Action is the authoritative OpenNext packaging check.
 
 ## Stop point
 
-Development is stopped immediately before migrating the approved visual system
-from `/design-preview` into production routes. Do not start that migration,
-merge a migration branch, change backend behavior, or deploy production without
-an explicit next task.
+Phase 3 is complete on `new-ui-migration`. The next major UI phase, after review,
+is the separately scoped Admin redesign. It must preserve the Admin security
+model. A future Admin-managed “How It Works” video should prefer protected
+Cloudflare Stream playback; it is not implemented by Phase 3. Do not merge or
+deploy without explicit approval.

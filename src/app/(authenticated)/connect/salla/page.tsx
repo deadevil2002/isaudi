@@ -215,7 +215,7 @@ function ConnectSallaContent() {
     if (!linkCode) return null;
 
     return (
-      <div className="mb-8 p-6 bg-gray-50 border border-gray-100 rounded-xl text-center space-y-4 shadow-inner">
+      <div className="mb-8 space-y-4 rounded-2xl border border-[#e6b95c]/20 bg-[#161c24] p-6 text-center shadow-inner">
         <div className="flex items-center justify-center gap-3">
           <code dir="ltr" className="min-w-0 break-all text-lg font-mono font-bold tracking-wide text-[#004D5A] bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
             {linkCode}
@@ -224,7 +224,7 @@ function ConnectSallaContent() {
             variant="outline"
             size="icon"
             onClick={copyToClipboard}
-            className="shrink-0 h-12 w-12 text-gray-500 hover:text-[#004D5A]"
+            className="h-12 w-12 shrink-0 text-[#94a3b8] hover:text-[#e6b95c]"
             title={t("connect.salla.code.copy")}
           >
             {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
@@ -235,12 +235,12 @@ function ConnectSallaContent() {
           {copied ? (
             <p className="text-sm text-green-600 font-medium">{t("connect.salla.code.copied")}</p>
           ) : !isExpired ? (
-            <div className="text-sm text-gray-500 flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 text-sm text-[#94a3b8]">
               <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-isaudi-green opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-isaudi-green"></span>
               </span>
-              {t("connect.salla.code.expiresIn")} <span className="font-mono font-medium text-gray-700">{formatTime(timeLeft)}</span>
+              {t("connect.salla.code.expiresIn")} <span className="font-mono font-medium text-[#e6b95c]">{formatTime(timeLeft)}</span>
             </div>
           ) : (
             <div className="text-sm text-red-500 font-medium">
@@ -250,7 +250,7 @@ function ConnectSallaContent() {
         </div>
 
         <div className="pt-4 border-t border-gray-200">
-          <ul className={`text-sm text-gray-600 space-y-3 ${isRtl ? "text-right" : "text-left"}`}>
+          <ul className={`space-y-3 text-sm text-[#b7c0cd] ${isRtl ? "text-right" : "text-left"}`}>
             <li className="flex items-start gap-2">
               <span className="font-bold text-[#004D5A] shrink-0">1.</span>
               <span>{t("connect.salla.code.instruction1")}</span>
@@ -269,7 +269,7 @@ function ConnectSallaContent() {
         <div className="pt-4 flex flex-col gap-3">
           <Button
             onClick={handleInstallClick}
-            className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9] group"
+            className="group w-full rounded-xl bg-[#e6b95c] py-6 text-lg font-bold text-[#06090c] hover:bg-[#f0c96e]"
           >
             {t("connect.salla.button.install")}
             <ExternalLink className={`w-5 h-5 ${isRtl ? "mr-2" : "ml-2"} opacity-70 group-hover:opacity-100 transition-opacity`} />
@@ -280,7 +280,7 @@ function ConnectSallaContent() {
               variant="ghost"
               onClick={generateCode}
               disabled={loading}
-              className="text-gray-500 hover:text-gray-800"
+              className="text-[#94a3b8] hover:text-white"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("connect.salla.code.regenerate")}
             </Button>
@@ -297,18 +297,19 @@ function ConnectSallaContent() {
       !verificationResult.orders.ok);
 
   return (
-    <div className="max-w-xl mx-auto">
-      <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm text-center">
-        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <ShoppingBag className="w-10 h-10 text-isaudi-green" />
+    <div className="mx-auto max-w-2xl" dir={isRtl ? "rtl" : "ltr"}>
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e1218] p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,.25)] sm:p-8">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#0fc9a7] to-transparent" />
+        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10">
+            <ShoppingBag className="h-10 w-10 text-[#0fc9a7]" />
         </div>
 
-        <h1 className="text-2xl font-bold mb-4">{t("connect.salla.title")}</h1>
-        <p className="text-gray-600 mb-8">
+        <h1 className="mb-4 text-3xl font-bold text-white">{t("connect.salla.title")}</h1>
+        <p className="mb-8 leading-7 text-[#94a3b8]">
           {t("connect.salla.description")}
         </p>
 
-        <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-700">
+        <div className="mb-6 rounded-xl border border-white/10 bg-[#161c24] p-4 text-sm font-medium text-[#b7c0cd] transition-colors duration-300">
           {connectState === "connected" && t("connect.salla.status.connected")}
           {connectState === "reconnect_required" && t("connect.salla.status.reconnectRequired")}
           {connectState === "disconnected" && t("connect.salla.status.disconnected")}
@@ -317,7 +318,7 @@ function ConnectSallaContent() {
         </div>
 
         {(error || codeError) && (
-          <div className={`mb-6 p-4 bg-red-50 text-red-700 rounded-xl flex items-center gap-3 border border-red-100 ${isRtl ? "text-right" : "text-left"}`}>
+          <div className={`mb-6 flex items-center gap-3 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-red-300 ${isRtl ? "text-right" : "text-left"}`}>
             <AlertCircle className="w-5 h-5 shrink-0" />
             <div className="text-sm">
               {error === "config_missing" && t("connect.salla.error.config_missing")}
@@ -336,7 +337,7 @@ function ConnectSallaContent() {
           {connectState === "connected" ? (
             <>
               <Button
-                className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9]"
+                className="w-full rounded-xl bg-[#0fc9a7] py-6 text-lg font-bold text-[#06251f] hover:bg-[#29ddbc]"
                 disabled
               >
                 <Check className={`w-5 h-5 ${isRtl ? "ml-2" : "mr-2"}`} />
@@ -350,7 +351,7 @@ function ConnectSallaContent() {
                 disabled={verificationLoading}
                 aria-busy={verificationLoading}
                 data-testid="button-test-salla-connection"
-                className="w-full py-6 text-lg font-bold border-isaudi-green/30 text-[#004D5A] hover:bg-isaudi-green/5 hover:text-[#004D5A]"
+                className="w-full rounded-xl border-[#0fc9a7]/30 bg-[#0fc9a7]/5 py-6 text-lg font-bold text-[#72ead4] hover:bg-[#0fc9a7]/10 hover:text-white"
               >
                 {verificationLoading ? (
                   <Loader2 className={`h-5 w-5 animate-spin ${isRtl ? "ml-2" : "mr-2"}`} />
@@ -363,7 +364,7 @@ function ConnectSallaContent() {
           ) : connectState === "reconnect_required" || connectState === "disconnected" ? (
             <Button
               onClick={handleInstallClick}
-              className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9] group"
+              className="group w-full rounded-xl bg-[#e6b95c] py-6 text-lg font-bold text-[#06090c] hover:bg-[#f0c96e]"
             >
               {connectState === "reconnect_required" ? t("connect.salla.button.reconnect") : t("connect.salla.button.primary")}
               <ExternalLink className={`w-5 h-5 ${isRtl ? "mr-2" : "ml-2"} opacity-70 group-hover:opacity-100 transition-opacity`} />
@@ -371,7 +372,7 @@ function ConnectSallaContent() {
           ) : !linkCode ? (
             <Button
               onClick={generateCode}
-              className="w-full py-6 text-lg font-bold bg-[#B4F3EC] text-[#004D5A] hover:bg-[#A0E0D9]"
+              className="w-full rounded-xl bg-[#e6b95c] py-6 text-lg font-bold text-[#06090c] hover:bg-[#f0c96e]"
               disabled={loading}
             >
               {loading ? <Loader2 className="animate-spin" /> : t("connect.salla.code.generate")}
@@ -381,7 +382,7 @@ function ConnectSallaContent() {
           )}
 
           <Link href="/connect/csv" className="block">
-            <Button variant="ghost" className="w-full text-gray-500">
+            <Button variant="ghost" className="w-full text-[#94a3b8] hover:bg-white/5 hover:text-white">
               {t("connect.salla.button.csv")}
             </Button>
           </Link>
@@ -395,16 +396,16 @@ function ConnectSallaContent() {
             data-testid="status-salla-verification"
             className={`mt-6 rounded-2xl border p-5 ${
               verificationError || verificationFailed
-                ? "border-red-100 bg-red-50/70"
-                : "border-isaudi-green/20 bg-[#f4fffd]"
+                ? "border-red-400/20 bg-red-400/10"
+                : "border-[#0fc9a7]/20 bg-[#0fc9a7]/5"
             } ${isRtl ? "text-right" : "text-left"}`}
           >
             {verificationLoading ? (
-              <div className="flex items-start gap-3 text-gray-700">
+              <div className="flex items-start gap-3 text-[#b7c0cd]">
                 <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-isaudi-green" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">{t("connect.salla.verification.loading")}</p>
-                  <p className="mt-1 text-sm text-gray-600">{t("connect.salla.verification.loadingDescription")}</p>
+                  <p className="mt-1 text-sm text-[#94a3b8]">{t("connect.salla.verification.loadingDescription")}</p>
                 </div>
               </div>
             ) : verificationError ? (
@@ -431,7 +432,7 @@ function ConnectSallaContent() {
                           : "connect.salla.verification.successTitle",
                       )}
                     </p>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 text-sm text-[#94a3b8]">
                       {t(
                         verificationFailed
                           ? "connect.salla.verification.partialDescription"
@@ -457,8 +458,8 @@ function ConnectSallaContent() {
                     <div
                       key={key}
                       data-testid={`status-salla-verification-${key}`}
-                      className={`rounded-xl border bg-white/80 p-4 ${
-                        operation.ok ? "border-isaudi-green/15" : "border-red-100"
+                      className={`rounded-xl border bg-[#161c24] p-4 ${
+                        operation.ok ? "border-[#0fc9a7]/15" : "border-red-400/20"
                       }`}
                     >
                       <div className="flex items-start gap-2">
@@ -468,7 +469,7 @@ function ConnectSallaContent() {
                           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" aria-hidden="true" />
                         )}
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-900">{label}</p>
+                          <p className="font-semibold text-white">{label}</p>
                           <p className={`mt-1 text-sm ${operation.ok ? "text-isaudi-green-dark" : "text-red-700"}`}>
                             {t(
                               operation.ok
@@ -477,9 +478,9 @@ function ConnectSallaContent() {
                             )}
                           </p>
                           {operation.ok && operation.count !== undefined && (
-                            <p className="mt-2 text-xs text-gray-600">
+                            <p className="mt-2 text-xs text-[#94a3b8]">
                               {t("connect.salla.verification.firstPageCount")}:{" "}
-                              <span className="font-semibold text-gray-800">{operation.count}</span>
+                              <span className="font-semibold text-white">{operation.count}</span>
                             </p>
                           )}
                         </div>
@@ -488,7 +489,7 @@ function ConnectSallaContent() {
                   ))}
                 </div>
 
-                <p className="mt-4 text-xs leading-5 text-gray-500">
+                <p className="mt-4 text-xs leading-5 text-[#64748b]">
                   {t("connect.salla.verification.firstPageNote")}
                 </p>
               </>
@@ -496,7 +497,7 @@ function ConnectSallaContent() {
           </div>
         )}
 
-        <div className="mt-8 text-xs text-gray-400">
+        <div className="mt-8 text-xs text-[#64748b]">
           {t("connect.salla.note")}
         </div>
       </div>
@@ -506,7 +507,7 @@ function ConnectSallaContent() {
 
 export default function ConnectSallaPage() {
   return (
-    <Suspense fallback={<div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-isaudi-green" /></div>}>
+    <Suspense fallback={<div className="flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-[#0fc9a7]" /></div>}>
       <ConnectSallaContent />
     </Suspense>
   );

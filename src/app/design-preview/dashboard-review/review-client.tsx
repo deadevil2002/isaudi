@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { LayoutDashboard, PieChart, ShoppingBag, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CreditCard, LayoutDashboard, PieChart, Settings, ShoppingBag, TrendingUp } from "lucide-react";
 import { DashboardClient } from "@/app/(authenticated)/dashboard/dashboard-client";
 import CostsPage from "@/app/(authenticated)/dashboard/costs/page";
 import { ReportsClient } from "@/app/(authenticated)/dashboard/reports/reports-client";
@@ -20,6 +20,7 @@ import {
   fixtureTrendData,
   fixtureTrendDataB,
 } from "./fixtures";
+import { Phase3Preview, type Phase3State } from "./phase3-preview";
 
 type PreviewLanguage = "ar" | "en";
 type PlanState = "free" | "growth";
@@ -27,7 +28,7 @@ type StoreState = "connected" | "none";
 type DataState = "populated" | "empty" | "error" | "loading";
 type AnalysisState = "idle" | "loading" | "error" | "done";
 type InsightsState = "populated" | "empty" | "error" | "loading";
-type PreviewSection = "dashboard" | "reports" | "costs" | "connect";
+type PreviewSection = "dashboard" | "reports" | "costs" | "connect" | "settings" | "billing" | "connections";
 type DatasetState = "datasetA" | "datasetB";
 type MotionState = "default" | "reduced";
 type ComparisonState = "open" | "closed";
@@ -45,6 +46,7 @@ interface DashboardReviewClientProps {
   initialMessage: string;
   initialSelectedReport: string;
   initialComparison: ComparisonState;
+  initialPhase3State: string;
 }
 
 function ReviewContent({
@@ -59,6 +61,7 @@ function ReviewContent({
   initialMessage,
   initialSelectedReport,
   initialComparison,
+  initialPhase3State,
 }: Omit<DashboardReviewClientProps, "initialLanguage">) {
   const { lang, setLanguage } = useLanguage();
   const t = createTranslator(lang);
@@ -70,6 +73,15 @@ function ReviewContent({
   const [insightsState, setInsightsState] = useState<InsightsState>(initialInsights);
   const [dataset, setDataset] = useState<DatasetState>(initialDataset);
   const [motionPref, setMotionPref] = useState<MotionState>(initialMotion);
+  const [phase3State, setPhase3State] = useState<Phase3State>(initialPhase3State as Phase3State);
+
+  useEffect(() => {
+    const direction = lang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+    document.documentElement.dir = direction;
+    document.body.lang = lang;
+    document.body.dir = direction;
+  }, [lang]);
 
   const stateFields = {
     lang,
@@ -81,6 +93,7 @@ function ReviewContent({
     insights: insightsState,
     dataset,
     motion: motionPref,
+    phase3State,
   };
   const previewHref = (nextSection: PreviewSection) => {
     const params = new URLSearchParams({ ...stateFields, section: nextSection });
@@ -130,6 +143,8 @@ function ReviewContent({
     { href: previewHref("reports"), label: t("dashboard.menu.reports"), icon: PieChart, active: section === "reports" },
     { href: previewHref("costs"), label: t("dashboard.menu.costs"), icon: TrendingUp, active: section === "costs" },
     { href: previewHref("connect"), label: t("dashboard.menu.connectStore"), icon: ShoppingBag, active: section === "connect" },
+    { href: previewHref("billing"), label: t("dashboard.menu.billing"), icon: CreditCard, active: section === "billing" },
+    { href: previewHref("settings"), label: t("dashboard.menu.settings"), icon: Settings, active: section === "settings" },
   ];
 
   // We use MotionConfig to apply reduced-motion in preview without monkeypatching window.matchMedia.
@@ -172,6 +187,16 @@ function ReviewContent({
             <option value="reports">Reports (Weekly)</option>
             <option value="costs">Costs Management</option>
             <option value="connect">Connect Store</option>
+            <option value="settings">Phase 3: Settings</option>
+            <option value="billing">Phase 3: Billing</option>
+            <option value="connections">Phase 3: Salla / CSV</option>
+          </select>
+          <label className="sr-only" htmlFor="qa-phase3-state">Phase 3 state</label>
+          <select id="qa-phase3-state" className={selectClass} name="phase3State" value={phase3State} onChange={(event) => setPhase3State(event.target.value as Phase3State)}>
+            <option value="default">Default</option><option value="unverified">Settings: Unverified</option><option value="sending">Settings: Sending</option><option value="success">Settings: Success</option><option value="error">Settings: Error</option><option value="inactive">Settings: Inactive</option>
+            <option value="starter">Billing: Starter current</option><option value="growth">Billing: Growth current</option><option value="business">Billing: Business current</option><option value="yearly">Billing: Yearly</option><option value="checkout">Billing: Checkout loading</option><option value="verify_error">Billing: Verify error</option>
+            <option value="before_install">Salla: Before install</option><option value="waiting">Salla: Waiting</option><option value="connected">Salla: Connected</option><option value="disconnected">Salla: Disconnected</option><option value="reconnect">Salla: Reconnect</option><option value="partial">Salla: Partial validation</option>
+            <option value="files">CSV: Files selected</option><option value="invalid">CSV: Invalid</option><option value="processing">CSV: Processing</option><option value="warning">CSV: Warning</option><option value="complete">CSV: Complete</option>
           </select>
           <label className="sr-only" htmlFor="qa-plan">Preview plan</label>
           <select id="qa-plan" className={selectClass} name="plan" value={plan} onChange={(event) => setPlan(event.target.value as PlanState)}>
@@ -295,6 +320,9 @@ function ReviewContent({
         )}
         {section === "connect" && (
           <StoreSetup onConnectSalla={() => undefined} onUploadCsv={() => undefined} />
+        )}
+        {(section === "settings" || section === "billing" || section === "connections") && (
+          <Phase3Preview section={section} state={phase3State} />
         )}
       </AuthenticatedShell>
     </div>

@@ -2,14 +2,14 @@
 
 ## Read first
 
-This is the standalone iSaudi.ai Next.js application. In Replit it lives under
-`artifacts/isaudi`; in GitHub this directory maps to repository root.
+This is the standalone iSaudi.ai Next.js application. The local workspace and
+GitHub repository root are the application root; do not recreate the obsolete
+Replit `artifacts/isaudi` layout.
 
-**`/design-preview` is the approved visual source of truth for the next UI
-migration.** The approved logo is `public/brand/design-preview-logo.png`.
-
-The current task boundary ends before production UI migration. Do not migrate,
-merge, or deploy without a new explicit task.
+The approved logo is `public/brand/design-preview-logo.png`. UI migration Phases
+1–3 are complete on `new-ui-migration`: public/auth, dashboard and reactive
+analytics, reports/comparison, the official SBC seal, Settings, Billing, Salla,
+and CSV. `/design-preview/dashboard-review` is QA-only.
 
 ## Architecture summary
 
@@ -97,6 +97,8 @@ Never place values in documentation or commits:
 
 ## Next task
 
-Create a controlled production UI migration on the dedicated migration branch.
-Preserve all existing APIs, schemas, security controls, pricing, and provider
-flows. Do not introduce TikTok or external-market claims during the UI migration.
+After Phase 3 review, the next major UI phase is Admin. Do not begin it without
+explicit scope. Preserve separate Admin authentication, roles, audit logs,
+reset, and transfer controls. The future Admin-managed “How It Works” video
+should prefer protected Cloudflare Stream playback without promising absolute
+screen-recording prevention. Do not merge or deploy without explicit approval.

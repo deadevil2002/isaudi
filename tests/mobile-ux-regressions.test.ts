@@ -5,6 +5,7 @@ import {
   calculateAnnualSavingsPercent,
   calculateMinimumAnnualSavingsPercent,
 } from "../src/lib/pricing/annual-savings";
+import { billingPlanRank, normalizeBillingPlanId } from "../src/lib/billing/ui-plans";
 import {
   formatReportComparison,
   type ReportComparison,
@@ -131,8 +132,8 @@ test("interaction guards prevent stale comparisons and nested CTA key capture", 
     /requestGeneration !== compareGenerationRef\.current/,
   );
   assert.match(pricingSource, /e\.target !== e\.currentTarget/);
-  assert.match(billingSource, /\[status, tapId, router\]/);
-  assert.doesNotMatch(billingSource, /\[status, tapId, router, lang\]/);
+  assert.match(billingSource, /\[preview, status, tapId, router\]/);
+  assert.doesNotMatch(billingSource, /\[preview, status, tapId, router, lang\]/);
 });
 
 test("authenticated routes share one accessible navigation shell", () => {
@@ -167,7 +168,7 @@ test("authenticated routes share one accessible navigation shell", () => {
   assert.match(layoutSource, /noStore\(\)/);
   assert.match(layoutSource, /<AuthenticatedShell userEmail=\{user\.email\}>/);
   assert.match(csvSource, /type="file"/);
-  assert.match(csvSource, /focus-within:border-isaudi-green/);
+  assert.match(csvSource, /focus-within:border-\[#e6b95c\]/);
   assert.match(csvSource, /className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"/);
   assert.match(csvSource, /window\.requestAnimationFrame\(\(\) => inputRef\.current\?\.focus\(\)\)/);
   assert.doesNotMatch(csvSource, /10 \* 1024 \* 1024/);
@@ -191,4 +192,14 @@ test("public How It Works links use the canonical page", () => {
   );
   assert.match(pageSource, /path: "\/how-it-works"/);
   assert.match(pageSource, /How iSaudi Works/);
+});
+
+test("billing UI normalizes legacy aliases without changing canonical plan order", () => {
+  assert.equal(normalizeBillingPlanId("basic"), "starter");
+  assert.equal(normalizeBillingPlanId("starter"), "starter");
+  assert.equal(normalizeBillingPlanId("pro"), "growth");
+  assert.equal(normalizeBillingPlanId("growth"), "growth");
+  assert.equal(normalizeBillingPlanId("business"), "business");
+  assert.ok(billingPlanRank.starter < billingPlanRank.growth);
+  assert.ok(billingPlanRank.growth < billingPlanRank.business);
 });

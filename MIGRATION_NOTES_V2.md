@@ -18,19 +18,19 @@ Use:
 
 The preview is a presentation reference, not production business logic.
 
-## Migration target
+## Migration progress
 
-Apply the approved visual language to the existing production surfaces without
-replacing their behavior:
+The approved visual language has been applied without replacing existing behavior:
 
 1. Public header, footer, homepage, and marketing sections
 2. Pricing presentation and billing entry points
 3. Login, OTP, verification, and session-aware states
 4. Authenticated shell and dashboard
 5. Report generation, report details, comparison, and assistant
-6. CSV and Salla connection flows
-7. Account, settings, and subscription status
-8. Admin presentation only after its separate security model is preserved
+6. CSV and Salla connection flows — complete in Phase 3
+7. Account, settings, and subscription status — complete in Phase 3
+8. Admin presentation — not started; only proceed as a separate phase after its
+   security model is explicitly preserved
 
 ## Contracts that must not change
 
@@ -84,6 +84,7 @@ Do not copy preview simulation behavior into production:
 
 ## Exact stopping point
 
-The visual direction and logo are approved, but no production route has been
-migrated. Stop after creating the approved-state recovery commit/tag and
-switching to the dedicated migration branch.
+Phases 1–3 are complete on `new-ui-migration`. Stop before Admin work, merging,
+or deployment. The future Admin requirement for managing the public “How It
+Works” video is documented but not implemented; prefer protected streaming and
+never claim that screen recording can be absolutely prevented.

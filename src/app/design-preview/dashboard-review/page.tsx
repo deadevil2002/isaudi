@@ -6,7 +6,7 @@ type StoreState = "connected" | "none";
 type DataState = "populated" | "empty" | "error" | "loading";
 type AnalysisState = "idle" | "loading" | "error" | "done";
 type InsightsState = "populated" | "empty" | "error" | "loading";
-type PreviewSection = "dashboard" | "reports" | "costs" | "connect";
+type PreviewSection = "dashboard" | "reports" | "costs" | "connect" | "settings" | "billing" | "connections";
 type DatasetState = "datasetA" | "datasetB";
 type MotionState = "default" | "reduced";
 type ComparisonState = "open" | "closed";
@@ -43,21 +43,14 @@ export default async function DashboardReviewPage({
 }) {
   const params = await searchParams;
   const language = readValue<PreviewLanguage>(params, "lang", ["ar", "en"], "en");
-  const direction = language === "ar" ? "rtl" : "ltr";
-
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `document.documentElement.lang="${language}";document.documentElement.dir="${direction}";document.body.lang="${language}";document.body.dir="${direction}";`,
-        }}
-      />
       <DashboardReviewClient
         initialLanguage={language}
         initialSection={readValue<PreviewSection>(
           params,
           "section",
-          ["dashboard", "reports", "costs", "connect"],
+          ["dashboard", "reports", "costs", "connect", "settings", "billing", "connections"],
           "dashboard",
         )}
         initialPlan={readValue<PlanState>(params, "plan", ["free", "growth"], "growth")}
@@ -85,11 +78,7 @@ export default async function DashboardReviewPage({
         initialMessage={readText(params, "qaMessage")}
         initialSelectedReport={readText(params, "selectedReport")}
         initialComparison={readValue<ComparisonState>(params, "comparison", ["open", "closed"], "closed")}
-      />
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function enhance(){var d=document.getElementById("authenticated-mobile-navigation");if(!d){setTimeout(enhance,0);return;}if(d.dataset.qaEnhanced)return;d.dataset.qaEnhanced="1";d.addEventListener("keydown",function(e){if(e.key!=="Tab"||!d.open)return;var items=Array.prototype.filter.call(d.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'),function(el){return el.getClientRects().length>0;});if(!items.length)return;var first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}});document.addEventListener("pointerdown",function(e){if(!d.open)return;var r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();},true);window.addEventListener("resize",function(){if(window.innerWidth>=768&&d.open)d.close();});})();`,
-        }}
+        initialPhase3State={readText(params, "phase3State") || "default"}
       />
     </>
   );

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-09-19
+Last updated: 2026-09-29
 
 ## Approved state
 
@@ -14,10 +14,12 @@ Last updated: 2026-09-19
 
 ## Production UI status
 
-Production continues to use the existing pages and components under `src/app`
-and `src/components`. The approved preview has not been copied into the
-homepage, authentication, pricing, dashboard, reports, billing, settings, or
-admin routes.
+- Phase 1: public navigation, homepage, pricing, login, OTP, and verification complete.
+- Phase 2: authenticated shell, dashboard, costs, assistant, reactive KPIs/charts,
+  reports rail, and owned-report comparison complete.
+- Official Saudi Business Center seal integration complete.
+- Phase 3: Settings, Billing/subscriptions, Salla connection, and CSV import complete.
+- Admin remains on the existing presentation and is the next separately approved phase.
 
 ## Implemented production capabilities
 
@@ -47,7 +49,8 @@ the internal entitlement is `business`.
 
 - No production TikTok integration
 - No external competitor/market-data feed
-- No migration of the approved preview UI into production routes
+- No Admin visual migration
+- No Admin-managed “How It Works” video or protected streaming workflow
 
 The preview's TikTok and market-comparison presentations are visual/illustrative
 unless backed by existing report comparison data.
@@ -63,8 +66,8 @@ unless backed by existing report comparison data.
 4. Salla Easy Mode depends on correct external Partner Portal settings and
    runtime secrets.
 5. AI routes fail when `OPENAI_API_KEY` is not configured.
-6. The visual OTP flow in `/design-preview` must never be mistaken for real
-   authentication.
+6. QA fixtures in `/design-preview/dashboard-review` must never be imported by
+   production pages or mistaken for real account, billing, or connection state.
 7. Production admin provisioning and current remote D1 migration state require
    separate operational verification.
 8. Next.js/OpenNext compatibility must be runtime-tested on an isolated Worker;
@@ -72,7 +75,8 @@ unless backed by existing report comparison data.
 
 ## Current stop point
 
-The approved-state recovery commit and safety tag are being prepared before any
-production UI migration begins. The next development task is a controlled
-migration on a dedicated branch while preserving all backend contracts and
-production behavior.
+Phase 3 is complete on `new-ui-migration`, based on migration HEAD
+`fde22bd3c690c05c726f6839868aa74aaa7431ee`. Review and isolated runtime testing
+must precede any merge or deployment. The next major UI task is Admin; it must
+remain separate and preserve its authentication, roles, audit, reset, and
+transfer protections.
