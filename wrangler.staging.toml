@@ -1,0 +1,32 @@
+name = "isaudi-staging"
+main = ".open-next/worker.js"
+compatibility_date = "2026-09-29"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+workers_dev = true
+preview_urls = false
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "isaudi-staging-db"
+database_id = "86d3c78e-ceea-422e-999a-08d5fc08da26"
+migrations_dir = "migrations"
+
+[vars]
+APP_ENV = "staging"
+APP_URL = "https://isaudi-staging.tabbakheen.workers.dev"
+BASE_URL = "https://isaudi-staging.tabbakheen.workers.dev"
+NEXT_PUBLIC_APP_URL = "https://isaudi-staging.tabbakheen.workers.dev"
+RESEND_FROM = "Staging only <no-reply@invalid.example>"
+
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+redact_query_string = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1

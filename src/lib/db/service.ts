@@ -446,7 +446,7 @@ export const dbService = {
   getStoreStats: async (userId: string): Promise<any> => {
     const db = await getDb();
     const notCounted = ['ملغي', 'محذوف', 'ملغى'];
-    const row = db.prepare(`
+    const row = await db.prepare(`
       SELECT
         (SELECT COUNT(*) FROM products WHERE userId = ?) AS products,
         COALESCE(SUM(CASE WHEN COALESCE(status,'') NOT IN (${notCounted.map(() => '?').join(',')}) THEN 1 ELSE 0 END), 0) AS orders_count,

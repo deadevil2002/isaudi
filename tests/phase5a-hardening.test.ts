@@ -40,6 +40,7 @@ test('dashboard auth and aggregate work are request-efficient', async () => {
   assert.match(dashboard, /getCurrentUser/);
   const stats = service.match(/getStoreStats:[\s\S]*?\/\/ Costs identity helpers/)?.[0] || '';
   assert.equal((stats.match(/\.prepare\(/g) || []).length, 1);
+  assert.match(stats, /const row = await db\.prepare/);
   assert.match(stats, /SUM\(CASE WHEN/);
 });
 
