@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { SALLA_INSTALL_URL } from "@/lib/salla/constants";
+import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 
 type ConnectState = "before_install" | "waiting_for_link" | "reconnect_required" | "connected" | "disconnected";
 
@@ -67,6 +68,7 @@ function ConnectSallaContent() {
 
   const { lang } = useLanguage();
   const t = createTranslator(lang);
+  const reduceMotion = useReducedMotionConfig();
 
   const isRtl = lang === "ar";
 
@@ -215,9 +217,9 @@ function ConnectSallaContent() {
     if (!linkCode) return null;
 
     return (
-      <div className="mb-8 space-y-4 rounded-2xl border border-[#e6b95c]/20 bg-[#161c24] p-6 text-center shadow-inner">
+      <div className="mb-6 space-y-4 rounded-2xl border border-[#e6b95c]/20 bg-[#161c24] p-4 text-center shadow-inner sm:p-6">
         <div className="flex items-center justify-center gap-3">
-          <code dir="ltr" className="min-w-0 break-all text-lg font-mono font-bold tracking-wide text-[#004D5A] bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+          <code dir="ltr" className="min-w-0 [overflow-wrap:anywhere] rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[13px] font-bold tracking-[.04em] text-[#004D5A] shadow-sm min-[360px]:text-sm min-[360px]:tracking-[.08em] sm:px-4 sm:text-lg sm:tracking-wide">
             {linkCode}
           </code>
           <Button
@@ -297,8 +299,8 @@ function ConnectSallaContent() {
       !verificationResult.orders.ok);
 
   return (
-    <div className="mx-auto max-w-2xl" dir={isRtl ? "rtl" : "ltr"}>
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e1218] p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,.25)] sm:p-8">
+    <div className="mx-auto max-w-3xl" dir={isRtl ? "rtl" : "ltr"}>
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e1218] p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,.25)] sm:p-7">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#0fc9a7] to-transparent" />
         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10">
             <ShoppingBag className="h-10 w-10 text-[#0fc9a7]" />
@@ -333,7 +335,15 @@ function ConnectSallaContent() {
           </div>
         )}
 
-        <div className="space-y-4">
+        <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={`${connectState}-${linkCode ? "code" : "action"}`}
+          initial={reduceMotion ? false : { opacity: .88, y: 6, scale: .995 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={reduceMotion ? undefined : { opacity: .88, y: -4, scale: .995 }}
+          transition={{ duration: reduceMotion ? 0 : .3, ease: "easeOut" }}
+          className="space-y-4"
+        >
           {connectState === "connected" ? (
             <>
               <Button
@@ -386,7 +396,8 @@ function ConnectSallaContent() {
               {t("connect.salla.button.csv")}
             </Button>
           </Link>
-        </div>
+        </motion.div>
+        </AnimatePresence>
 
         {(verificationLoading || verificationError || verificationResult) && (
           <div

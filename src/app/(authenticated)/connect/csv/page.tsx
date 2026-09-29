@@ -6,6 +6,7 @@ import { FileSpreadsheet, FileUp, Check, AlertCircle, Loader2, UploadCloud, X } 
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
+import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 
 function FilePicker({
   label,
@@ -30,6 +31,7 @@ function FilePicker({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  const reduceMotion = useReducedMotionConfig();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -91,8 +93,9 @@ function FilePicker({
           aria-label={selectLabel}
         />
 
+        <AnimatePresence mode="wait" initial={false}>
         {!file ? (
-          <div className="flex flex-col items-center justify-center p-6">
+          <motion.div key="empty" initial={reduceMotion ? false : { opacity: .88, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: reduceMotion ? 0 : .28 }} className="flex flex-col items-center justify-center p-6">
           <UploadCloud className="mb-2 h-8 w-8 text-[#e6b95c]" />
           <span className="text-sm font-medium text-white">
             {selectLabel}
@@ -100,9 +103,9 @@ function FilePicker({
           <span className="mt-1 text-xs text-[#64748b]">
             {emptyLabel}
           </span>
-          </div>
+          </motion.div>
         ) : (
-          <div className="flex items-center justify-between p-4">
+          <motion.div key="selected" initial={reduceMotion ? false : { opacity: .88, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: reduceMotion ? 0 : .28 }} className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0fc9a7]/10 text-[#0fc9a7]">
               <FileSpreadsheet className="w-5 h-5" />
@@ -122,8 +125,9 @@ function FilePicker({
           >
             <X className="w-4 h-4" />
           </Button>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -133,6 +137,7 @@ export default function ConnectCsvPage() {
   const router = useRouter();
   const { lang } = useLanguage();
   const t = createTranslator(lang);
+  const reduceMotion = useReducedMotionConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -180,8 +185,8 @@ export default function ConnectCsvPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl" dir={lang === "ar" ? "rtl" : "ltr"}>
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e1218] p-6 shadow-[0_25px_60px_rgba(0,0,0,.25)] md:p-8">
+    <div className="mx-auto max-w-4xl" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e1218] p-6 shadow-[0_25px_60px_rgba(0,0,0,.25)] md:p-7">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e6b95c] to-transparent" />
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]">
@@ -193,22 +198,23 @@ export default function ConnectCsvPage() {
           </p>
         </div>
 
+        <AnimatePresence mode="popLayout" initial={false}>
         {error && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-red-300">
+          <motion.div key="error" initial={reduceMotion ? false : { opacity: .88, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: reduceMotion ? 0 : .3 }} className="mb-6 flex items-center gap-3 rounded-xl border border-red-400/20 bg-red-400/10 p-4 text-red-300">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span className="text-sm">{error}</span>
-          </div>
+          </motion.div>
         )}
 
         {success && (
-          <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 p-4 text-[#72ead4]">
+          <motion.div key="success" initial={reduceMotion ? false : { opacity: .88, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: reduceMotion ? 0 : .3 }} className="mb-6 flex items-center gap-3 rounded-xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 p-4 text-[#72ead4]">
             <Check className="w-5 h-5 shrink-0" />
             <span className="text-sm">{success}</span>
-          </div>
+          </motion.div>
         )}
 
         {warnings.length > 0 && (
-          <div className="mb-6 rounded-xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 p-4 text-sm text-[#f4d58d]">
+          <motion.div key="warnings" initial={reduceMotion ? false : { opacity: .88, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -4 }} transition={{ duration: reduceMotion ? 0 : .3 }} className="mb-6 rounded-xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 p-4 text-sm text-[#f4d58d]">
             <div className="font-bold mb-1">{t("connect.csv.warnings.title")}</div>
             <ul className="list-disc pr-5 space-y-1">
               {warnings.slice(0, 5).map((w, i) => <li key={i}>{w}</li>)}
@@ -221,10 +227,11 @@ export default function ConnectCsvPage() {
                 </li>
               )}
             </ul>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
-        <div className="space-y-6">
+        <motion.div layout transition={{ duration: reduceMotion ? 0 : .3 }} className="space-y-6">
           <div className="grid grid-cols-1 gap-6">
             <FilePicker
               label={t("connect.csv.products.title")}
@@ -249,12 +256,12 @@ export default function ConnectCsvPage() {
             />
           </div>
           <div className="pt-4">
-            <Button className="h-12 w-full rounded-xl bg-[#e6b95c] text-lg font-bold text-[#06090c] hover:bg-[#f0c96e] disabled:bg-[#161c24] disabled:text-[#64748b]" onClick={handleRun} disabled={loading || !productsFile || !ordersFile}>
+            <Button aria-busy={loading} className="h-12 w-full rounded-xl bg-[#e6b95c] text-lg font-bold text-[#06090c] hover:bg-[#f0c96e] disabled:cursor-not-allowed disabled:border disabled:border-white/10 disabled:bg-[#161c24] disabled:text-[#94a3b8] disabled:shadow-none disabled:hover:bg-[#161c24]" onClick={handleRun} disabled={loading || !productsFile || !ordersFile}>
               {loading ? <Loader2 className="animate-spin mr-2" /> : <FileUp className="w-5 h-5 mr-2" />}
               {loading ? t("connect.csv.button.loading") : t("connect.csv.button.run")}
             </Button>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

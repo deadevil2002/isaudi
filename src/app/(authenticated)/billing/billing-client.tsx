@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 import { AlertCircle, CalendarDays, Check, Crown, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ const basePlans = [
 export function BillingClient({ user, subscription, previewState }: { user: User; subscription: SubscriptionEntitlements | null; previewState?: BillingPreviewState }) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const searchParams = useSearchParams();
   const router = useRouter();
   const preview = Boolean(previewState);
@@ -82,7 +82,7 @@ export function BillingClient({ user, subscription, previewState }: { user: User
 
       <section className="relative overflow-hidden rounded-3xl border border-[#0fc9a7]/20 bg-[#0e1218] p-5 shadow-[0_25px_60px_rgba(0,0,0,.25)] sm:p-7">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#0fc9a7] to-transparent" />
-        <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center"><div className="flex items-center gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#0fc9a7]"><ShieldCheck className="h-7 w-7" /></span><div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#64748b]">{t("billing.currentPlan")}</p><div className="mt-1 flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-white">{currentName}</h2><span className="rounded-full border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 px-2.5 py-1 text-xs font-bold text-[#0fc9a7]">{subscription?.status || (currentPlan === "free" ? "free" : "active")}</span></div></div></div><dl className="grid grid-cols-2 gap-3 text-sm md:min-w-72"><div className="rounded-xl bg-[#161c24] p-3"><dt className="text-xs text-[#64748b]">{lang === "ar" ? "دورة الفوترة" : "Billing period"}</dt><dd className="mt-1 font-semibold text-white">{interval === "year" ? t("billing.toggle.yearly") : interval === "month" ? t("billing.toggle.monthly") : "—"}</dd></div><div className="rounded-xl bg-[#161c24] p-3"><dt className="flex items-center gap-1 text-xs text-[#64748b]"><CalendarDays className="h-3.5 w-3.5" />{t("billing.expiresAt")}</dt><dd className="mt-1 font-semibold text-white">{date || "—"}</dd></div></dl></div>
+        <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center"><div className="flex items-center gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#0fc9a7]"><ShieldCheck className="h-7 w-7" /></span><div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#64748b]">{t("billing.currentPlan")}</p><div className="mt-1 flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-white">{currentName}</h2><span className="rounded-full border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 px-2.5 py-1 text-xs font-bold text-[#0fc9a7]">{subscription?.status || (currentPlan === "free" ? "free" : "active")}</span></div></div></div><dl className={`grid gap-3 text-sm md:min-w-72 ${interval ? "grid-cols-2" : "grid-cols-1"}`}>{interval && <div className="rounded-xl bg-[#161c24] p-3"><dt className="text-xs text-[#64748b]">{lang === "ar" ? "دورة الفوترة" : "Billing period"}</dt><dd className="mt-1 font-semibold text-white">{interval === "year" ? t("billing.toggle.yearly") : t("billing.toggle.monthly")}</dd></div>}<div className="rounded-xl bg-[#161c24] p-3"><dt className="flex items-center gap-1 text-xs text-[#64748b]"><CalendarDays className="h-3.5 w-3.5" />{t("billing.expiresAt")}</dt><dd className="mt-1 font-semibold text-white">{date || "—"}</dd></div></dl></div>
         <AnimatePresence>{status === "processed" && <motion.div initial={reduceMotion ? false : { y: 5, opacity: .8 }} animate={{ y: 0, opacity: 1 }} className={`mt-5 flex items-start gap-3 rounded-xl border p-4 text-sm ${verifyErrorKey ? "border-red-400/20 bg-red-400/10 text-red-300" : "border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#72ead4]"}`}>{verifyErrorKey ? <AlertCircle className="h-5 w-5 shrink-0" /> : <Check className="h-5 w-5 shrink-0" />}<span>{t(verifyErrorKey || "billing.status.processed")}</span></motion.div>}</AnimatePresence>
       </section>
 

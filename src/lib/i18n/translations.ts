@@ -759,7 +759,7 @@ const translations: Record<string, { ar: string; en: string }> = {
   },
   "billing.plan.basic": {
     ar: "البداية",
-    en: "Basic",
+    en: "Starter",
   },
   "billing.plan.pro": {
     ar: "النمو",
@@ -1026,8 +1026,8 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Copied!",
   },
   "connect.salla.code.expiresIn": {
-    ar: "صالح لمدة",
-    en: "Valid for",
+    ar: "ينتهي الرمز خلال",
+    en: "Code expires in",
   },
   "connect.salla.code.expired": {
     ar: "انتهت صلاحية الرمز",
@@ -1046,8 +1046,8 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "In Salla app settings, paste the code into the 'iSaudi Link Code' field and save",
   },
   "connect.salla.button.install": {
-    ar: "الذهاب إلى سلة للتثبيت",
-    en: "Go to Salla to install",
+    ar: "افتح سلة وأدخل رمز الربط",
+    en: "Open Salla and enter the linking code",
   },
   "connect.salla.button.csv": {
     ar: "أو استخدم رفع ملف CSV",

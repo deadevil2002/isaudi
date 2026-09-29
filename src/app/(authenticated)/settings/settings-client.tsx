@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 import { useState } from "react";
 import { BadgeCheck, CalendarDays, CreditCard, LogOut, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ const card = "relative overflow-hidden rounded-2xl border border-white/10 bg-[#0
 export function SettingsClient({ userEmail, emailVerified, plan, subscription, previewState }: SettingsClientProps) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotionConfig();
   const preview = Boolean(previewState);
   const [sending, setSending] = useState(previewState === "sending");
   const [statusMessage, setStatusMessage] = useState<string | null>(previewState === "success" ? t("settings.verification.sent") : null);
@@ -70,7 +70,7 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
     <div className="mx-auto max-w-5xl space-y-6" dir={lang === "ar" ? "rtl" : "ltr"}>
       <header className="flex flex-col gap-2 pb-2"><span className="text-xs font-bold uppercase tracking-[.22em] text-[#e6b95c]">iSaudi.ai</span><h1 className="text-3xl font-bold text-white sm:text-4xl">{t("settings.title")}</h1><p className="max-w-2xl text-sm leading-7 text-[#94a3b8]">{t("settings.subtitle")}</p></header>
       <div className="grid gap-6 lg:grid-cols-[1.08fr_.92fr]">
-        <motion.section animate={enter} transition={{ duration: .3 }} className={card}>
+        <motion.section animate={enter} transition={{ duration: .3 }} className={`${card} lg:self-start`}>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e6b95c]/60 to-transparent" />
           <div className="mb-6 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]"><Mail className="h-5 w-5" /></span><div><h2 className="font-bold text-white">{t("settings.account.title")}</h2><p className="text-xs text-[#64748b]">{t("settings.account.email")}</p></div></div>
           <div className="rounded-xl border border-white/10 bg-[#161c24] p-4"><p className="break-all text-sm font-semibold text-white" dir="ltr">{userEmail}</p><div className="mt-3 flex items-center gap-2">{verified ? <BadgeCheck className="h-4 w-4 text-[#0fc9a7]" /> : <ShieldCheck className="h-4 w-4 text-[#e6b95c]" />}<span className={verified ? "text-sm text-[#0fc9a7]" : "text-sm text-[#e6b95c]"}>{verified ? t("settings.account.verified") : t("settings.account.notVerified")}</span></div></div>
