@@ -35,6 +35,9 @@ jobs:
       - name: Install Wrangler
         run: npm i -g wrangler
 
+      - name: Verify Cloudflare production account and resources
+        run: npm run cf:preflight:production
+
       - name: Build and deploy Worker
         run: npm run deploy
 

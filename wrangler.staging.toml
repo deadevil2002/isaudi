@@ -1,4 +1,5 @@
 name = "isaudi-staging"
+account_id = "e8ae8afc6a6708283d6b0b4534f7c91f"
 main = ".open-next/worker.js"
 compatibility_date = "2026-09-29"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
@@ -13,14 +14,14 @@ html_handling = "drop-trailing-slash"
 [[d1_databases]]
 binding = "DB"
 database_name = "isaudi-staging-db"
-database_id = "86d3c78e-ceea-422e-999a-08d5fc08da26"
+database_id = "48ad8f80-6aae-4147-84e5-9f88161401eb"
 migrations_dir = "migrations"
 
 [vars]
 APP_ENV = "staging"
-APP_URL = "https://isaudi-staging.tabbakheen.workers.dev"
-BASE_URL = "https://isaudi-staging.tabbakheen.workers.dev"
-NEXT_PUBLIC_APP_URL = "https://isaudi-staging.tabbakheen.workers.dev"
+APP_URL = "https://isaudi-staging.isaudi-official.workers.dev"
+BASE_URL = "https://isaudi-staging.isaudi-official.workers.dev"
+NEXT_PUBLIC_APP_URL = "https://isaudi-staging.isaudi-official.workers.dev"
 RESEND_FROM = "Staging only <no-reply@invalid.example>"
 
 [observability]
