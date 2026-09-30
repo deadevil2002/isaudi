@@ -6,6 +6,7 @@ compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
+html_handling = "drop-trailing-slash"
 
 [[d1_databases]]
 binding = "DB"

@@ -56,6 +56,10 @@ const nextConfig: NextConfig = {
             value:
               "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
           },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
         ],
       },
     ];

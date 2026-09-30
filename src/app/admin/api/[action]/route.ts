@@ -140,10 +140,11 @@ async function portalData(admin: { id: string; email: string; role: string }) {
     };
   }
   const overview = await db.prepare(`SELECT
-      (SELECT COUNT(*) FROM users) users,
-      (SELECT COUNT(*) FROM subscriptions WHERE status = 'active') active_subscriptions,
-      (SELECT COALESCE(SUM(amountHalala),0) FROM payments WHERE status IN ('paid','captured','completed')) revenue_halala,
-      (SELECT COUNT(*) FROM reports) reports`).first();
+      users_count AS users,
+      active_subscriptions_count AS active_subscriptions,
+      captured_revenue_halala AS revenue_halala,
+      reports_count AS reports
+    FROM runtime_admin_summary WHERE id = 1`).first();
   return {
     admin, overview, users: [], subscriptions: [], payments: [], connections: [], reports: [], audit: [],
   };

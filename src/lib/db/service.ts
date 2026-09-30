@@ -445,16 +445,35 @@ export const dbService = {
 
   getStoreStats: async (userId: string): Promise<any> => {
     const db = await getDb();
-    const notCounted = ['ملغي', 'محذوف', 'ملغى'];
-    const row = await db.prepare(`
-      SELECT
-        (SELECT COUNT(*) FROM products WHERE userId = ?) AS products,
-        COALESCE(SUM(CASE WHEN COALESCE(status,'') NOT IN (${notCounted.map(() => '?').join(',')}) THEN 1 ELSE 0 END), 0) AS orders_count,
-        COALESCE(SUM(CASE WHEN COALESCE(status,'') NOT IN (${notCounted.map(() => '?').join(',')}) THEN totalHalala ELSE 0 END), 0) AS sales,
-        COALESCE(SUM(CASE WHEN COALESCE(status,'') IN (${notCounted.map(() => '?').join(',')}) THEN 1 ELSE 0 END), 0) AS excluded_count,
-        COALESCE(SUM(CASE WHEN COALESCE(status,'') IN (${notCounted.map(() => '?').join(',')}) THEN totalHalala ELSE 0 END), 0) AS excluded_sales
-      FROM orders WHERE userId = ?
-    `).get(userId, ...notCounted, ...notCounted, ...notCounted, ...notCounted, userId) as any;
+    const selectSummary = () => db.prepare(`
+      SELECT products_count AS products, orders_count, sales_halala AS sales,
+        excluded_orders_count AS excluded_count, excluded_sales_halala AS excluded_sales
+      FROM user_runtime_summaries WHERE user_id = ?
+    `).get(userId) as Promise<any>;
+    let row = await selectSummary();
+
+    if (!row) {
+      // The NOT EXISTS guard is part of the write statement. D1 serializes writes, so
+      // only the first missing-row request performs the historical scalar subqueries.
+      await db.prepare(`
+        INSERT INTO user_runtime_summaries (
+          user_id, products_count, orders_count, sales_halala,
+          excluded_orders_count, excluded_sales_halala, updated_at
+        )
+        SELECT ?,
+          (SELECT COUNT(*) FROM products WHERE userId = ?),
+          (SELECT COUNT(*) FROM orders WHERE userId = ? AND COALESCE(status, '') NOT IN ('ملغي', 'محذوف', 'ملغى')),
+          (SELECT COALESCE(SUM(totalHalala), 0) FROM orders WHERE userId = ? AND COALESCE(status, '') NOT IN ('ملغي', 'محذوف', 'ملغى')),
+          (SELECT COUNT(*) FROM orders WHERE userId = ? AND COALESCE(status, '') IN ('ملغي', 'محذوف', 'ملغى')),
+          (SELECT COALESCE(SUM(totalHalala), 0) FROM orders WHERE userId = ? AND COALESCE(status, '') IN ('ملغي', 'محذوف', 'ملغى')),
+          ?
+        WHERE NOT EXISTS (SELECT 1 FROM user_runtime_summaries WHERE user_id = ?)
+        ON CONFLICT(user_id) DO NOTHING
+      `).run(userId, userId, userId, userId, userId, userId, Date.now(), userId);
+      row = await selectSummary();
+    }
+
+    row ||= { products: 0, orders_count: 0, sales: 0, excluded_count: 0, excluded_sales: 0 };
     const totalOrders = row.orders_count || 0;
     const totalSalesHalala = row.sales || 0;
     const avgOrderValue = totalOrders > 0 ? Math.round((totalSalesHalala / totalOrders)) : 0;

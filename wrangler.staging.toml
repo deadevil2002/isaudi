@@ -8,6 +8,7 @@ preview_urls = false
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
+html_handling = "drop-trailing-slash"
 
 [[d1_databases]]
 binding = "DB"

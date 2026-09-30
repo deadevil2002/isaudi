@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Direction = "rtl" | "ltr";
 type Language = "ar" | "en";
@@ -22,11 +21,23 @@ interface LanguageProviderProps {
 }
 
 export function LanguageProvider({ children, initialLang, localOnly = false }: LanguageProviderProps) {
-  const router = useRouter();
-
   const [lang, setLang] = useState<Language>(initialLang);
 
   const [dir, setDir] = useState<Direction>(initialLang === "en" ? "ltr" : "rtl");
+
+  useEffect(() => {
+    const cookieLanguage = localOnly ? undefined : document.cookie
+      .split("; ")
+      .find((item) => item.startsWith("lang="))
+      ?.split("=")[1];
+    if (cookieLanguage === "en") {
+      const timer = window.setTimeout(() => {
+        setLang("en");
+        setDir("ltr");
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [localOnly]);
 
   useEffect(() => {
     document.documentElement.dir = dir;
@@ -37,11 +48,11 @@ export function LanguageProvider({ children, initialLang, localOnly = false }: L
   }, [dir, lang, localOnly]);
 
   const applyLanguage = (next: Language) => {
+    if (!localOnly) {
+      document.cookie = `lang=${next}; path=/; max-age=31536000; samesite=lax`;
+    }
     setLang(next);
     setDir(next === "en" ? "ltr" : "rtl");
-    if (!localOnly) {
-      router.refresh();
-    }
   };
 
   const toggleLanguage = () => {

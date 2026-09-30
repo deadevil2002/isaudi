@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/components/providers/language-provider";
-import { cookies } from "next/headers";
 import { t } from "@/lib/i18n/translations";
 import {
   BRAND_APPLE_ICON_URL,
@@ -52,17 +51,13 @@ export const metadata: Metadata = {
   manifest: MANIFEST_URL,
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const langCookie = cookieStore.get("lang")?.value === "en" ? "en" : "ar";
-  const dir = langCookie === "en" ? "ltr" : "rtl";
-
   return (
-    <html lang={langCookie} dir={dir}>
+    <html lang="ar" dir="rtl">
       <head>
         <script
           id="saudi-business-center-verification-seal"
@@ -73,7 +68,7 @@ export default async function RootLayout({
       <body
         className={`${ibmPlexSansArabic.variable} antialiased font-sans bg-white`}
       >
-        <LanguageProvider initialLang={langCookie}>
+        <LanguageProvider initialLang="ar">
           {children}
         </LanguageProvider>
       </body>

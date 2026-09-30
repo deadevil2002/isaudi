@@ -79,7 +79,7 @@ export function middleware(request: NextRequest) {
       return adminHeaders(request, noStore(NextResponse.redirect(canonicalUrl, 308)));
     }
   }
-  
+
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const session = request.cookies.get('session_id');
     if (!session) {
@@ -99,5 +99,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!$|pricing(?:/|$)|how-it-works(?:/|$)|_next/static|_next/image|favicon.ico).*)'],
 };

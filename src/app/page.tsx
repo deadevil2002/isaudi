@@ -5,43 +5,25 @@ import { HowItWorks } from "@/components/sections/how-it-works";
 import { SampleReport } from "@/components/sections/sample-report";
 import { Pricing } from "@/components/sections/pricing";
 import { Trust } from "@/components/sections/trust";
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { dbService } from '@/lib/db/service';
 import { createPageMetadata } from '@/lib/seo/metadata';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
 export const metadata = createPageMetadata({
   title: 'isaudi.ai | ذكاء اصطناعي لتحليل ونمو المتاجر الإلكترونية',
   description:
     'حلّل أداء متجرك الإلكتروني في السعودية واحصل على تقارير وتوصيات عملية تساعدك على فهم المبيعات واكتشاف فرص النمو.',
   path: '/',
 });
-export const revalidate = 0;
+export const revalidate = false;
 
-import { getCurrentUser } from "@/lib/auth/utils";
-import { getUserEntitlements } from "@/lib/subscription/service";
-
-export default async function Home() {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get('session_id')?.value;
-  if (sessionId) {
-    const session = await dbService.getSession(sessionId);
-    if (session) {
-      redirect('/dashboard');
-    }
-  }
-
-  const user = await getCurrentUser();
-  const subscription = user ? await getUserEntitlements(user.id) : null;
-
+export default function Home() {
   return (
     <main className="min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
       <Header />
       <Hero />
       <HowItWorks />
       <SampleReport />
-      <Pricing user={user} subscription={subscription} />
+      <Pricing user={null} subscription={null} />
       <Trust />
       <Footer />
     </main>

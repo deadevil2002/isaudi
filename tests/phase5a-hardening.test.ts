@@ -39,9 +39,10 @@ test('dashboard auth and aggregate work are request-efficient', async () => {
   assert.match(layout, /getCurrentUser/);
   assert.match(dashboard, /getCurrentUser/);
   const stats = service.match(/getStoreStats:[\s\S]*?\/\/ Costs identity helpers/)?.[0] || '';
-  assert.equal((stats.match(/\.prepare\(/g) || []).length, 1);
-  assert.match(stats, /const row = await db\.prepare/);
-  assert.match(stats, /SUM\(CASE WHEN/);
+  assert.match(stats, /FROM user_runtime_summaries WHERE user_id = \?/);
+  assert.match(stats, /if \(!row\)/);
+  assert.match(stats, /WHERE NOT EXISTS \(SELECT 1 FROM user_runtime_summaries/);
+  assert.match(stats, /ON CONFLICT\(user_id\) DO NOTHING/);
 });
 
 test('Admin rows are allowlisted, lazy, paginated, and bounded', async () => {
