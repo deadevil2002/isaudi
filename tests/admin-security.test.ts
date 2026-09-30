@@ -101,3 +101,18 @@ test('admin mutation bodies use the strict auth limit', () => {
   assert.equal(requestBodyLimit('/admin/api/login'), REQUEST_BODY_LIMITS.auth);
   assert.equal(requestBodyLimit('/admin/api/confirm-transfer'), REQUEST_BODY_LIMITS.auth);
 });
+
+test('dashboard login redirect preserves the trusted request origin', () => {
+  const production = middleware(new NextRequest('https://isaudi.ai/dashboard'));
+  const staging = middleware(new NextRequest(
+    'https://isaudi-staging.isaudi-official.workers.dev/dashboard'
+  ));
+
+  assert.equal(production.status, 307);
+  assert.equal(production.headers.get('location'), 'https://isaudi.ai/login');
+  assert.equal(staging.status, 307);
+  assert.equal(
+    staging.headers.get('location'),
+    'https://isaudi-staging.isaudi-official.workers.dev/login'
+  );
+});

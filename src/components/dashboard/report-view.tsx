@@ -4,18 +4,15 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { AnimatedNumber } from "@/components/dashboard/animated-number";
 import { InsightCard } from "@/components/dashboard/insight-card";
+import type { ReportViewData } from "@/lib/dashboard/report-view-data";
 
 interface ReportViewProps {
-  report: {
-    reportJson: string;
-    [key: string]: unknown;
-  };
+  data: ReportViewData;
 }
 
-export function ReportView({ report }: ReportViewProps) {
+export function ReportView({ data }: ReportViewProps) {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
-  const data = JSON.parse(report.reportJson);
   const ai = data.aiNarrative || null;
 
   const executiveSummary =
@@ -80,7 +77,7 @@ export function ReportView({ report }: ReportViewProps) {
         </div>
       )}
 
-      {data.metrics && (data.metrics.excludedOrdersCount > 0 || data.metrics.excludedSales > 0) && (
+      {data.metrics && ((data.metrics.excludedOrdersCount ?? 0) > 0 || (data.metrics.excludedSales ?? 0) > 0) && (
         <div className="text-xs text-[#64748b]">
           {t("dashboard.reportView.metrics.excluded")
             .replace("{orders}", String(data.metrics.excludedOrdersCount || 0))
@@ -165,7 +162,7 @@ export function ReportView({ report }: ReportViewProps) {
               <div className="bg-[#0e1218] p-5 rounded-2xl border border-[#ffffff1a] flex flex-col justify-center">
                 <div className="text-sm text-[#94a3b8] mb-1">{t("dashboard.reportView.profitability.incomplete")}</div>
                 <div className="text-sm text-[#e6b95c] font-medium">
-                  {profitability.missingCostProductsCount > 0
+                  {(profitability.missingCostProductsCount ?? 0) > 0
                     ? t("dashboard.reportView.profitability.incompleteSummary")
                         .replace("{products}", String(profitability.missingCostProductsCount))
                         .replace("{sales}", (profitability.missingCostSales || 0).toFixed(2))
@@ -178,9 +175,9 @@ export function ReportView({ report }: ReportViewProps) {
               <div>
                 <div className="text-sm font-bold text-white mb-3 uppercase tracking-wider">{t("dashboard.reportView.profitability.topProfit")}</div>
                 <ul className="space-y-2">
-                  {(profitability.topProfitProducts || []).map((p: { name: string; sku?: string; totalProfit?: number; marginPct?: number }, i: number) => (
+                  {(profitability.topProfitProducts || []).map((p, i: number) => (
                     <li key={i} className="text-sm bg-[#ffffff0a] p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-1 border border-[#ffffff0a]">
-                      <span className="truncate text-white font-medium">{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
+                      <span className="truncate text-white font-medium">{p.name || p.sku || t("dashboard.reportView.topProducts.defaultName")}{p.name && p.sku ? ` — ${p.sku}` : ''}</span>
                       <span className="text-[#0fc9a7] font-bold whitespace-nowrap">{(p.totalProfit || 0).toFixed(2)} SAR • {p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
                     </li>
                   ))}
@@ -189,9 +186,9 @@ export function ReportView({ report }: ReportViewProps) {
               <div>
                 <div className="text-sm font-bold text-white mb-3 uppercase tracking-wider">{t("dashboard.reportView.profitability.worstMargins")}</div>
                 <ul className="space-y-2">
-                  {(profitability.lowMarginProducts || []).map((p: { name: string; sku?: string; marginPct?: number }, i: number) => (
+                  {(profitability.lowMarginProducts || []).map((p, i: number) => (
                     <li key={i} className="text-sm bg-[#ffffff0a] p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-1 border border-[#ffffff0a]">
-                      <span className="truncate text-white font-medium">{p.name}{p.sku ? ` — ${p.sku}` : ''}</span>
+                      <span className="truncate text-white font-medium">{p.name || p.sku || t("dashboard.reportView.weakProducts.defaultName")}{p.name && p.sku ? ` — ${p.sku}` : ''}</span>
                       <span className="text-[#ef4444] font-bold whitespace-nowrap">{p.marginPct != null ? `${p.marginPct}%` : '—'}</span>
                     </li>
                   ))}

@@ -253,7 +253,7 @@ function ReviewContent({
               freeReportsUsed: plan === "free" ? 2 : 0,
             }}
             stats={populated ? { products: dataset === 'datasetA' ? 450 : 500, orders: dataset === 'datasetA' ? 120 : 180, sales: dataset === 'datasetA' ? 1500000 : 2850000 } : { products: 0, orders: 0, sales: 0 }}
-            storeConnection={storeState === "connected" ? { id: "qa-store" } : null}
+            storeConnected={storeState === "connected"}
             latestReport={storeState === "connected" && analysisState === "done" && populated ? report : null}
             previewProps={{
               dataState,

@@ -3,24 +3,44 @@ import { cache } from 'react';
 import { dbService } from '@/lib/db/service';
 import { getD1Database } from '@/lib/db/d1';
 
+type D1Statement = {
+  bind(...values: unknown[]): D1Statement;
+  first<T>(): Promise<T | null>;
+};
+
+type D1Database = {
+  prepare(sql: string): D1Statement;
+};
+
+type SessionLookup = { userId: string };
+type AuthenticatedUser = {
+  id: string;
+  email: string;
+  plan: string;
+  planExpiresAt: number | null;
+  email_verified: number;
+  freeReportsUsed: number;
+};
+
 export const getCurrentUser = cache(async function getCurrentUser() {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('session_id')?.value;
 
   if (!sessionId) return null;
 
-  const d1 = getD1Database() as any;
+  const d1 = getD1Database() as D1Database | null;
   if (d1) {
-    const session = (await d1
-      .prepare('SELECT * FROM sessions WHERE sessionId = ? AND expiresAt > ?')
+    const session = await d1
+      .prepare('SELECT userId FROM sessions WHERE sessionId = ? AND expiresAt > ?')
       .bind(sessionId, Date.now())
-      .first()) as any | null;
+      .first<SessionLookup>();
     if (!session) return null;
 
-    const user = (await d1
-      .prepare('SELECT *, free_reports_used as freeReportsUsed FROM users WHERE id = ?')
+    const user = await d1
+      .prepare(`SELECT id, email, plan, planExpiresAt, email_verified,
+        free_reports_used AS freeReportsUsed FROM users WHERE id = ?`)
       .bind(session.userId)
-      .first()) as any | null;
+      .first<AuthenticatedUser>();
     return user ?? null;
   }
 

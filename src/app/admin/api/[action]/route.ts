@@ -133,9 +133,10 @@ async function setup(request: NextRequest) {
 
 async function portalData(admin: { id: string; email: string; role: string }) {
   const db = adminDb();
+  const clientAdmin = { email: admin.email, role: admin.role };
   if (admin.role !== 'super_admin') {
     return {
-      admin, overview: {}, users: [], subscriptions: [], payments: [],
+      admin: clientAdmin, overview: {}, users: [], subscriptions: [], payments: [],
       connections: [], reports: [], audit: [],
     };
   }
@@ -146,7 +147,7 @@ async function portalData(admin: { id: string; email: string; role: string }) {
       reports_count AS reports
     FROM runtime_admin_summary WHERE id = 1`).first();
   return {
-    admin, overview, users: [], subscriptions: [], payments: [], connections: [], reports: [], audit: [],
+    admin: clientAdmin, overview, users: [], subscriptions: [], payments: [], connections: [], reports: [], audit: [],
   };
 }
 
@@ -500,9 +501,28 @@ async function confirmTransfer(request: NextRequest) {
   return json({ success: true });
 }
 
+async function adminBootstrap() {
+  const admin = await currentAdmin();
+  if (admin) {
+    return json({
+      authenticated: true,
+      setupAvailable: false,
+      data: await portalData(admin),
+    });
+  }
+  const count = await adminDb().prepare('SELECT COUNT(*) count FROM admin_accounts')
+    .first<{ count: number }>();
+  return json({
+    authenticated: false,
+    setupAvailable: Number(count?.count ?? 0) === 0,
+    data: null,
+  });
+}
+
 export async function GET(request: NextRequest, context: Context) {
   const { action } = await context.params;
   try {
+    if (action === 'bootstrap') return adminBootstrap();
     const admin = await currentAdmin();
     if (action === 'status') {
       const count = await adminDb().prepare('SELECT COUNT(*) count FROM admin_accounts')
@@ -515,10 +535,11 @@ export async function GET(request: NextRequest, context: Context) {
     if (action === 'video') return videoStatus(admin, request);
     return json({ error: 'غير موجود' }, 404);
   } catch {
-    if (action === 'status' && getRuntimeString('NODE_ENV') !== 'production') {
+    if ((action === 'status' || action === 'bootstrap') && getRuntimeString('NODE_ENV') !== 'production') {
       return json({
         authenticated: false,
         setupAvailable: false,
+        data: null,
         databaseUnavailable: true,
       });
     }

@@ -1,6 +1,12 @@
 import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
 import { getCurrentUser } from '@/lib/auth/utils';
+import {
+  getDashboardReportForUser,
+  getLatestDashboardReport,
+  hasStoreConnection,
+} from '@/lib/dashboard/data';
+import { parseReportViewData } from '@/lib/dashboard/report-view-data';
 import { DashboardClient } from './dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -12,14 +18,28 @@ async function loadDashboardData(reportId?: string) {
       redirect('/login');
     }
 
-    const stats = await dbService.getStoreStats(user.id);
-    const storeConnection = await dbService.getStoreConnection(user.id);
-    const latestReport = reportId
-      ? (await dbService.getReportForUser(user.id, reportId)) ||
-        (await dbService.getLatestReport(user.id))
-      : await dbService.getLatestReport(user.id);
+    const report = async () => {
+      if (!reportId) return getLatestDashboardReport(user.id);
+      return (await getDashboardReportForUser(user.id, reportId)) ||
+        getLatestDashboardReport(user.id);
+    };
+    const [stats, storeConnected, reportRow] = await Promise.all([
+      dbService.getStoreStats(user.id),
+      hasStoreConnection(user.id),
+      report(),
+    ]);
+    const latestReport = reportRow ? {
+      id: reportRow.id,
+      data: parseReportViewData(reportRow.reportViewJson),
+    } : null;
+    const dashboardUser = {
+      id: user.id,
+      email: user.email,
+      plan: user.plan,
+      freeReportsUsed: user.freeReportsUsed,
+    };
 
-    return { user, stats, storeConnection, latestReport };
+    return { user: dashboardUser, stats, storeConnected, latestReport };
   } catch (error: unknown) {
     const details = error instanceof Error
       ? { name: error.name, message: error.message, stack: error.stack }
@@ -36,13 +56,13 @@ export default async function DashboardPage({
   searchParams: Promise<{ reportId?: string }>;
 }) {
   const { reportId } = await searchParams;
-  const { user, stats, storeConnection, latestReport } = await loadDashboardData(reportId);
+  const { user, stats, storeConnected, latestReport } = await loadDashboardData(reportId);
 
   return (
     <DashboardClient
       user={user}
       stats={stats}
-      storeConnection={storeConnection}
+      storeConnected={storeConnected}
       latestReport={latestReport}
     />
   );

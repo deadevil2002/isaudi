@@ -83,10 +83,7 @@ export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const session = request.cookies.get('session_id');
     if (!session) {
-      const loginUrl =
-        process.env.NODE_ENV === 'production'
-          ? new URL('/login', CANONICAL_ORIGIN)
-          : new URL('/login', request.url);
+      const loginUrl = new URL('/login', request.url);
       return adminHeaders(request, noStore(NextResponse.redirect(loginUrl)));
     }
   }

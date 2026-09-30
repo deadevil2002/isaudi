@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
-import { User } from "@/lib/db/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StoreSetup } from '@/components/dashboard/store-setup';
@@ -16,6 +15,23 @@ import { TrendChart } from '@/components/dashboard/trend-chart';
 import { InsightCard } from '@/components/dashboard/insight-card';
 import { Skeleton } from '@/components/dashboard/skeleton';
 import { Lightbulb, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { parseReportViewData, type ReportViewData } from '@/lib/dashboard/report-view-data';
+
+type DashboardUser = {
+  id: string;
+  email: string;
+  plan: string;
+  planExpiresAt?: number | null;
+  createdAt?: number;
+  freeReportsUsed?: number;
+};
+
+type DashboardReport = {
+  id: string;
+  data?: ReportViewData;
+  reportJson?: string;
+  [key: string]: unknown;
+};
 
 interface InsightsBlock {
   insights?: string[];
@@ -73,19 +89,19 @@ export interface DashboardPreviewProps {
 export function DashboardClient({
   user,
   stats,
-  storeConnection,
+  storeConnected,
   latestReport,
   previewProps
 }: {
-  user: User;
+  user: DashboardUser;
   stats?: { products: number; orders: number; sales: number; excludedOrdersCount?: number; excludedSalesHalala?: number } | null;
-  storeConnection?: Record<string, unknown> | null;
-  latestReport?: { id: string; reportJson: string; [key: string]: unknown } | null;
+  storeConnected?: boolean;
+  latestReport?: DashboardReport | null;
   previewProps?: DashboardPreviewProps;
 }) {
   const { lang } = useLanguage();
   const router = useRouter();
-  const [report, setReport] = useState(latestReport);
+  const [report, setReport] = useState<DashboardReport | null | undefined>(latestReport);
   const [trend, setTrend] = useState<TrendSnapshot[]>(previewProps?.trend || []);
   const [compare, setCompare] = useState<CompareData | null>(previewProps?.compare || null);
   const [loadingTrend, setLoadingTrend] = useState(previewProps?.loadingTrend || false);
@@ -93,7 +109,10 @@ export function DashboardClient({
   const [insightsBlock, setInsightsBlock] = useState<InsightsBlock | null>(previewProps?.insightsBlock || null);
   const [loadingInsights, setLoadingInsights] = useState(previewProps?.loadingInsights || false);
   const [insightsError, setInsightsError] = useState<string | null>(previewProps?.insightsError || null);
-  const parsedReport = report?.reportJson ? JSON.parse(report.reportJson) : null;
+  const parsedReport = useMemo(() => {
+    if (report?.data) return report.data;
+    return report?.reportJson ? parseReportViewData(report.reportJson) : null;
+  }, [report]);
   const missingCosts = parsedReport?.profitability?.missingCostProductsCount || 0;
 
   const isPremium = user.plan !== 'free';
@@ -135,8 +154,8 @@ export function DashboardClient({
       : user.plan;
   const hasData = stats && (stats.products > 0 || stats.orders > 0);
 
-  const showSetup = !storeConnection;
-  const showGenerate = storeConnection && !report;
+  const showSetup = !storeConnected;
+  const showGenerate = storeConnected && !report;
   const showReport = !!report;
 
   useEffect(() => {
@@ -248,7 +267,7 @@ export function DashboardClient({
       </div>
 
       {/* Stats Overview */}
-      {hasData && storeConnection && (
+      {hasData && storeConnected && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm hover:border-white/10 transition-colors">
@@ -264,7 +283,7 @@ export function DashboardClient({
                 {t("dashboard.stats.ordersLabel")} {t("dashboard.stats.ordersNote")}
               </div>
               <div className="text-3xl font-bold text-white">
-                <AnimatedNumber value={report?.reportJson ? (JSON.parse(report.reportJson)?.metrics?.totalOrders ?? stats.orders) : stats.orders} />
+                <AnimatedNumber value={parsedReport?.metrics?.totalOrders ?? stats.orders} />
               </div>
             </div>
             <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm hover:border-white/10 transition-colors">
@@ -273,7 +292,7 @@ export function DashboardClient({
               </div>
               <div className="text-3xl font-bold text-[#0fc9a7]">
                 <AnimatedNumber
-                  value={report?.reportJson ? (JSON.parse(report.reportJson)?.metrics?.totalSales ?? (stats.sales / 100)) : (stats.sales / 100)}
+                  value={parsedReport?.metrics?.totalSales ?? (stats.sales / 100)}
                   formatter={(v) => `${v.toLocaleString()} SAR`}
                 />
               </div>
@@ -640,7 +659,7 @@ export function DashboardClient({
             </div>
           )}
           <div className="lg:col-span-2">
-            <ReportView report={report!} />
+            <ReportView data={parsedReport ?? {}} />
           </div>
           <div className="lg:col-span-1">
             <ChatPanel
