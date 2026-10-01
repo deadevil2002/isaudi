@@ -68,17 +68,33 @@ test('admin pseudonyms are keyed, deterministic, and domain separated', async ()
   assert.match(first, /^[a-f0-9]{64}$/);
 });
 
-test('PBKDF2 uses strong work factor, random salts and verifies safely', async () => {
+test('PBKDF2 stays within the Cloudflare Workers limit and verifies safely', async () => {
   const password = 'a sufficiently long password';
   const first = await hashPassword(password);
   const second = await hashPassword(password);
-  assert.ok(PBKDF2_ITERATIONS >= 300_000);
+  assert.equal(PBKDF2_ITERATIONS, 100_000);
+  assert.equal(first.iterations, 100_000);
   assert.notEqual(first.salt, second.salt);
   assert.notEqual(first.hash, second.hash);
   assert.equal(await verifyPassword(password, first.hash, first.salt, first.iterations), true);
   assert.equal(await verifyPassword('incorrect password', first.hash, first.salt, first.iterations), false);
   assert.equal(timingSafeEqual(first.hash, first.hash), true);
   assert.equal(timingSafeEqual(first.hash, `${first.hash}00`), false);
+});
+
+test('PBKDF2 verification uses the iteration count stored with the account', async () => {
+  const password = 'another sufficiently long password';
+  const stored = await hashPassword(password, undefined, 80_000);
+
+  assert.equal(stored.iterations, 80_000);
+  assert.equal(
+    await verifyPassword(password, stored.hash, stored.salt, stored.iterations),
+    true
+  );
+  assert.equal(
+    await verifyPassword(password, stored.hash, stored.salt, PBKDF2_ITERATIONS),
+    false
+  );
 });
 
 test('admin password policy rejects short and oversized passwords', () => {

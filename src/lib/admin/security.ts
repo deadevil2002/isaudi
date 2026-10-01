@@ -2,7 +2,7 @@ import { getRuntimeString } from '@/lib/runtime/environment';
 
 export const ADMIN_COOKIE = 'isaudi_admin_session';
 export const ADMIN_SESSION_MS = 8 * 60 * 60 * 1000;
-export const PBKDF2_ITERATIONS = 310_000;
+export const PBKDF2_ITERATIONS = 100_000;
 
 const encoder = new TextEncoder();
 
