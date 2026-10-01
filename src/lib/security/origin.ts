@@ -1,3 +1,5 @@
+import { getRuntimeString } from '@/lib/runtime/environment';
+
 /**
  * Explicit browser state-changing endpoints protected by Origin/Referer.
  */
@@ -57,10 +59,18 @@ function developmentTrustedOrigins(): Set<string> {
   return origins;
 }
 
-function isTrustedOrigin(value: string, production: boolean): boolean {
+function isTrustedOrigin(
+  value: string,
+  production: boolean,
+  configuredAppUrl?: string
+): boolean {
   const origin = originFromUrl(value, false);
   if (!origin) return false;
   if (origin === 'https://isaudi.ai') return true;
+  const configuredOrigin = configuredAppUrl
+    ? originFromUrl(configuredAppUrl, false)
+    : null;
+  if (configuredOrigin && origin === configuredOrigin) return true;
   if (production) return false;
 
   const url = new URL(origin);
@@ -80,7 +90,8 @@ function isTrustedOrigin(value: string, production: boolean): boolean {
  */
 export function originGuard(
   request: Request,
-  production = process.env.NODE_ENV === 'production'
+  production = process.env.NODE_ENV === 'production',
+  configuredAppUrl = getRuntimeString('APP_URL')
 ): Response | null {
   const pathname = new URL(request.url).pathname;
   const isAdminMutation =
@@ -99,11 +110,12 @@ export function originGuard(
   const originHeader = request.headers.get('origin');
   const refererHeader = request.headers.get('referer');
   const trusted = originHeader
-    ? isTrustedOrigin(originHeader, production)
+    ? isTrustedOrigin(originHeader, production, configuredAppUrl)
     : refererHeader
       ? isTrustedOrigin(
           originFromUrl(refererHeader.trim(), true) ?? '',
-          production
+          production,
+          configuredAppUrl
         )
       : false;
 

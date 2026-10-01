@@ -73,11 +73,15 @@ test('deployed source contains no debug or plan-escalation route handlers', asyn
 
 test('managed video stores only validated YouTube references with super-admin authorization', async () => {
   const admin = await readFile(new URL('../src/app/admin/api/[action]/route.ts', import.meta.url), 'utf8');
+  const manager = await readFile(new URL('../src/app/admin/video-manager.tsx', import.meta.url), 'utf8');
   const migration = await readFile(new URL('../migrations/0017_youtube_how_it_works_video.sql', import.meta.url), 'utf8');
   assert.match(admin, /admin\.role !== 'super_admin'/);
   assert.match(admin, /parseYouTubeVideoUrl/);
   assert.match(admin, /how_it_works_youtube_set/);
   assert.match(admin, /how_it_works_youtube_removed/);
+  assert.match(manager, /useState<NoticeKey \| ''>/);
+  assert.match(manager, /\{t\[notice\]\}/);
+  assert.doesNotMatch(manager, /setNotice\(t\./);
   assert.match(migration, /youtube_video_id TEXT/);
   assert.doesNotMatch(migration, /BLOB/i);
 });

@@ -46,13 +46,16 @@ test('dashboard auth and aggregate work are request-efficient', async () => {
 });
 
 test('cost listing is tenant-scoped, bounded, and avoids request N+1 reads', async () => {
-  const [service, route] = await Promise.all([
+  const [client, service, route] = await Promise.all([
+    source('../src/lib/db/client.ts'),
     source('../src/lib/db/service.ts'),
     source('../src/app/api/costs/route.ts'),
   ]);
+  assert.match(client, /Array\.isArray\(result\) \? result : \(result\?\.results \?\? \[\]\)/);
   const listing = service.match(/listDistinctProductsForUser:[\s\S]*?getCostsByIdentity:/)?.[0] || '';
   assert.match(listing, /WHERE p\.userId = \?/);
   assert.match(listing, /LEFT JOIN product_costs/);
+  assert.match(listing, /const rows = await db\.prepare/);
   assert.match(listing, /LIMIT 501/);
   assert.match(listing, /slice\(0, 500\)/);
   assert.doesNotMatch(route, /getCostsByIdentity/);

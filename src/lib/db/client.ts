@@ -5,7 +5,10 @@ function createD1Adapter(d1: any): any {
     prepare(sql: string) {
       return {
         get: async (...params: any[]) => d1.prepare(sql).bind(...params).first(),
-        all: async (...params: any[]) => d1.prepare(sql).bind(...params).all(),
+        all: async (...params: any[]) => {
+          const result = await d1.prepare(sql).bind(...params).all();
+          return Array.isArray(result) ? result : (result?.results ?? []);
+        },
         run: async (...params: any[]) => d1.prepare(sql).bind(...params).run(),
       };
     },

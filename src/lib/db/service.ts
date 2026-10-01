@@ -522,7 +522,7 @@ export const dbService = {
       ads_cost_per_unit_halala: number;
       payment_fee_percent_bps: number;
     };
-    const rows = db.prepare(`
+    const rows = await db.prepare(`
       SELECT
         p.id, p.sku, p.externalId, p.title, p.priceHalala, p.createdAt, p.updatedAt,
         COALESCE(c.is_configured, 0) AS is_configured,
@@ -602,24 +602,24 @@ export const dbService = {
 
   getCostsByIdentity: async (identityKey: string, userId: string): Promise<any> => {
     const db = await getDb();
-    const resolve = (): string | null => {
+    const resolve = async (): Promise<string | null> => {
       const [prefix, ...rest] = identityKey.split(':');
       const value = rest.join(':').trim();
       if (!value) return null;
       if (prefix === 'sku') {
-        const r = db.prepare(`
+        const r = await db.prepare(`
           SELECT id FROM products WHERE userId = ? AND TRIM(COALESCE(sku,'')) = ? 
           ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC LIMIT 1
         `).get(userId, value) as any;
         return r?.id || null;
       } else if (prefix === 'ext') {
-        const r = db.prepare(`
+        const r = await db.prepare(`
           SELECT id FROM products WHERE userId = ? AND TRIM(COALESCE(externalId,'')) = ? 
           ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC LIMIT 1
         `).get(userId, value) as any;
         return r?.id || null;
       } else if (prefix === 'name') {
-        const rows = db.prepare(`
+        const rows = await db.prepare(`
           SELECT id, title FROM products WHERE userId = ? 
           ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
           LIMIT 501
@@ -632,7 +632,7 @@ export const dbService = {
       }
       return null;
     };
-    const productId = resolve();
+    const productId = await resolve();
     if (!productId) {
       return {
         is_configured: 0,
@@ -644,7 +644,7 @@ export const dbService = {
         payment_fee_percent_bps: 0
       };
     }
-    const cost = db.prepare('SELECT * FROM product_costs WHERE product_id = ?').get(productId) as any;
+    const cost = await db.prepare('SELECT * FROM product_costs WHERE product_id = ?').get(productId) as any;
     if (!cost) {
       return {
         is_configured: 0,
@@ -680,19 +680,19 @@ export const dbService = {
     const value = rest.join(':').trim();
     let productId: string | null = null;
     if (prefix === 'sku') {
-      const r = db.prepare(`
+      const r = await db.prepare(`
         SELECT id FROM products WHERE userId = ? AND TRIM(COALESCE(sku,'')) = ? 
         ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC LIMIT 1
       `).get(userId, value) as any;
       productId = r?.id || null;
     } else if (prefix === 'ext') {
-      const r = db.prepare(`
+      const r = await db.prepare(`
         SELECT id FROM products WHERE userId = ? AND TRIM(COALESCE(externalId,'')) = ? 
         ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC LIMIT 1
       `).get(userId, value) as any;
       productId = r?.id || null;
     } else if (prefix === 'name') {
-      const rows = db.prepare(`
+      const rows = await db.prepare(`
         SELECT id, title FROM products WHERE userId = ? 
         ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
         LIMIT 501

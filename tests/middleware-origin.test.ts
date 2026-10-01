@@ -112,3 +112,23 @@ test('GET reads and excluded endpoints are not protected', () => {
     assert.equal(originGuard(request(path), true), null, path);
   }
 });
+
+test('production-mode staging accepts only its configured Worker origin', () => {
+  const staging = 'https://isaudi-staging.isaudi-official.workers.dev';
+  const stagingRequest = new Request(`${staging}/admin/api/login`, {
+    method: 'POST',
+    headers: { Origin: staging },
+  });
+  assert.equal(originGuard(stagingRequest, true, staging), null);
+  assert.equal(
+    originGuard(
+      new Request(`${staging}/admin/api/login`, {
+        method: 'POST',
+        headers: { Origin: 'https://evil.example' },
+      }),
+      true,
+      staging
+    )?.status,
+    403
+  );
+});

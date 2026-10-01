@@ -13,6 +13,7 @@ type VideoState = {
 };
 
 export type VideoFixture = 'none' | 'saving' | 'ready' | 'disabled' | 'error';
+type NoticeKey = 'saved' | 'disabledDone' | 'removed';
 
 const copy = {
   ar: {
@@ -48,7 +49,7 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
   const [url, setUrl] = useState(state?.youtubeUrl ?? '');
   const [busy, setBusy] = useState(fixture === 'saving');
   const [error, setError] = useState(fixture === 'error' ? t.invalid : '');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<NoticeKey | ''>('');
 
   useEffect(() => {
     if (fixture) return;
@@ -59,16 +60,16 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
     return () => { live = false; };
   }, [fixture]);
 
-  async function refresh(message: string) {
+  async function refresh(message: NoticeKey) {
     const next = await jsonApi('video');
     setState(next); setUrl(next.youtubeUrl ?? ''); setNotice(message);
   }
 
   async function persist(candidate: string) {
     try { parseYouTubeVideoUrl(candidate); } catch { setError(t.invalid); return; }
-    if (fixture) { setState(fixtureState('ready')); setNotice(t.saved); return; }
+    if (fixture) { setState(fixtureState('ready')); setNotice('saved'); return; }
     setBusy(true);
-    try { await jsonApi('video-save', { youtubeUrl: candidate }); await refresh(t.saved); }
+    try { await jsonApi('video-save', { youtubeUrl: candidate }); await refresh('saved'); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Request failed'); }
     finally { setBusy(false); }
   }
@@ -79,9 +80,9 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
   }
 
   async function disable() {
-    if (fixture) { setState(current => current ? { ...current, active: false } : current); setNotice(t.disabledDone); return; }
+    if (fixture) { setState(current => current ? { ...current, active: false } : current); setNotice('disabledDone'); return; }
     setBusy(true); setError(''); setNotice('');
-    try { await jsonApi('video-disable', { confirm: true }); await refresh(t.disabledDone); }
+    try { await jsonApi('video-disable', { confirm: true }); await refresh('disabledDone'); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Request failed'); }
     finally { setBusy(false); }
   }
@@ -94,9 +95,9 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
 
   async function remove() {
     if (!window.confirm(lang === 'ar' ? 'إزالة رابط الفيديو نهائياً؟' : 'Remove the saved video URL?')) return;
-    if (fixture) { setState(fixtureState('none')); setUrl(''); setNotice(t.removed); return; }
+    if (fixture) { setState(fixtureState('none')); setUrl(''); setNotice('removed'); return; }
     setBusy(true); setError(''); setNotice('');
-    try { await jsonApi('video-remove', { confirm: true }); await refresh(t.removed); }
+    try { await jsonApi('video-remove', { confirm: true }); await refresh('removed'); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Request failed'); }
     finally { setBusy(false); }
   }
@@ -120,7 +121,7 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
         </div>
         <p id="youtube-video-help" className="text-xs leading-5 text-slate-500">{t.helper}</p>
         {error && <p id="youtube-video-error" role="alert" className="text-sm text-red-300">{error}</p>}
-        {notice && <p role="status" aria-live="polite" className="text-sm text-teal-300">{notice}</p>}
+        {notice && <p role="status" aria-live="polite" className="text-sm text-teal-300">{t[notice]}</p>}
       </form>
 
       <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
