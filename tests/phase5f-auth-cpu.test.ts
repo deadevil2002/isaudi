@@ -47,7 +47,12 @@ test('dashboard initial data uses narrow parallel reads without full report rows
 });
 
 test('dashboard weekly dates use a deterministic Riyadh timezone during hydration', async () => {
-  const dashboardClient = await source('../src/app/(authenticated)/dashboard/dashboard-client.tsx');
+  const [dashboardClient, reportsClient, comparison, trendChart] = await Promise.all([
+    source('../src/app/(authenticated)/dashboard/dashboard-client.tsx'),
+    source('../src/app/(authenticated)/dashboard/reports/reports-client.tsx'),
+    source('../src/components/dashboard/report-comparison.tsx'),
+    source('../src/components/dashboard/trend-chart.tsx'),
+  ]);
 
   assert.match(dashboardClient, /timeZone: 'Asia\/Riyadh'/);
   assert.match(dashboardClient, /formatReportDate\(w\.timeRangeStart\)/);
@@ -56,6 +61,9 @@ test('dashboard weekly dates use a deterministic Riyadh timezone during hydratio
     dashboardClient,
     /new Date\(w\.timeRange(?:Start|End)\)\.toLocaleDateString\(\)/,
   );
+  assert.match(reportsClient, /timeZone: "Asia\/Riyadh"/);
+  assert.match(comparison, /timeZone: "Asia\/Riyadh"/);
+  assert.match(trendChart, /timeZone: "Asia\/Riyadh"/);
 });
 
 test('Admin initial bootstrap is one authenticated request with one overview payload', async () => {

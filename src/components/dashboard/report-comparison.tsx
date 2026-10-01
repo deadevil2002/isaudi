@@ -65,7 +65,7 @@ export function ReportComparisonDetails({
     },
   };
   const dateRange = (start: number, end: number) =>
-    `${new Date(start).toLocaleDateString(locale)} – ${new Date(end).toLocaleDateString(locale)}`;
+    `${new Date(start).toLocaleDateString(locale, { timeZone: "Asia/Riyadh" })} – ${new Date(end).toLocaleDateString(locale, { timeZone: "Asia/Riyadh" })}`;
 
   return (
     <div className="space-y-4">

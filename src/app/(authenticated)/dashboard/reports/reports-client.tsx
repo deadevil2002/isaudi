@@ -71,6 +71,7 @@ export function ReportsClient({
 
   const locale = lang === "ar" ? "ar-SA-u-nu-latn" : "en-US";
   const currency = t("common.currency.short") || (lang === "ar" ? "ر.س." : "SAR");
+  const dateOptions = { timeZone: "Asia/Riyadh" } as const;
 
   const loadReports = async () => {
     if (isPreview) return;
@@ -160,10 +161,15 @@ export function ReportsClient({
   }, [isPreview, loadingCompareId, previewProps]);
 
   const formatDateRange = (start: number, end: number) => {
-    const s = new Date(start).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-    const e = new Date(end).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+    const s = new Date(start).toLocaleDateString(locale, { month: 'short', day: 'numeric', ...dateOptions });
+    const e = new Date(end).toLocaleDateString(locale, { month: 'short', day: 'numeric', ...dateOptions });
     return `${s} — ${e}`;
   };
+
+  const formatYear = (value: number) => new Date(value).toLocaleDateString(locale, {
+    year: 'numeric',
+    ...dateOptions,
+  });
 
   const handleScrollNext = () => {
     if (railRef.current) {
@@ -332,7 +338,7 @@ export function ReportsClient({
                     <div className="flex justify-between items-start w-full">
                       <div>
                         <div className="text-sm font-bold text-white mb-0.5">{formatDateRange(r.timeRangeStart, r.timeRangeEnd)}</div>
-                        <div className="text-[11px] text-[#64748b]">{new Date(r.timeRangeStart).getFullYear()}</div>
+                        <div className="text-[11px] text-[#64748b]">{formatYear(r.timeRangeStart)}</div>
                       </div>
                       {r.reportId ? (
                         <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#0fc9a7]/10 text-[#0fc9a7] border border-[#0fc9a7]/20 shadow-sm" title={t("reports.table.report")}>
@@ -430,7 +436,7 @@ export function ReportsClient({
                         <h2 className="text-2xl lg:text-3xl font-bold text-white">
                           {formatDateRange(selectedSnap.timeRangeStart, selectedSnap.timeRangeEnd)}
                         </h2>
-                        <div className="text-sm text-[#94a3b8] mt-1">{new Date(selectedSnap.timeRangeStart).getFullYear()}</div>
+                        <div className="text-sm text-[#94a3b8] mt-1">{formatYear(selectedSnap.timeRangeStart)}</div>
                       </div>
 
                       {selectedSnap.reportId ? (

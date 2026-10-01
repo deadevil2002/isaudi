@@ -46,6 +46,9 @@ export function TrendChart({ data, height = 240 }: TrendChartProps) {
 
   const locale = lang === "ar" ? "ar-SA-u-nu-latn" : "en-US";
   const currency = t("common.currency.short");
+  const formatDate = (value: string | number) => new Date(value).toLocaleDateString(locale, {
+    timeZone: "Asia/Riyadh",
+  });
   const activePoint = selectedIndex === null ? null : sortedData[selectedIndex];
   const groupWidth = (dimensions.width - dimensions.padding.left - dimensions.padding.right) / Math.max(sortedData.length, 1);
   const barWidth = Math.min(26, groupWidth * 0.28);
@@ -92,7 +95,7 @@ export function TrendChart({ data, height = 240 }: TrendChartProps) {
           const salesY = valueY(point.grossSales);
           const profitY = valueY(point.totalProfit);
           const isSelected = selectedIndex === index;
-          const label = `${new Date(point.timeRangeStart).toLocaleDateString(locale)}. ${t("common.sales")} ${point.grossSales.toLocaleString(locale)} ${currency}. ${t("common.profit")} ${point.totalProfit.toLocaleString(locale)} ${currency}.`;
+          const label = `${formatDate(point.timeRangeStart)}. ${t("common.sales")} ${point.grossSales.toLocaleString(locale)} ${currency}. ${t("common.profit")} ${point.totalProfit.toLocaleString(locale)} ${currency}.`;
 
           return (
             <g
@@ -166,7 +169,7 @@ export function TrendChart({ data, height = 240 }: TrendChartProps) {
             }}
           >
             <div className="text-[#94a3b8] mb-2 text-center border-b border-[#ffffff1a] pb-2 font-medium">
-              {new Date(activePoint.timeRangeStart).toLocaleDateString(locale)} — {new Date(activePoint.timeRangeEnd).toLocaleDateString(locale)}
+              {formatDate(activePoint.timeRangeStart)} — {formatDate(activePoint.timeRangeEnd)}
             </div>
             <div className="flex justify-between items-center mt-1">
               <span className="text-white">{t("common.sales")}</span>
