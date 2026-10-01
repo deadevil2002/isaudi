@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/components/providers/language-provider";
@@ -58,19 +59,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <head>
-        <script
-          id="saudi-business-center-verification-seal"
-          src="https://eauthenticate.saudibusiness.gov.sa/EAuthSealApi/seal.js"
-          defer
-        />
-      </head>
       <body
         className={`${ibmPlexSansArabic.variable} antialiased font-sans bg-white`}
       >
         <LanguageProvider initialLang="ar">
           {children}
         </LanguageProvider>
+        <Script
+          id="saudi-business-center-verification-seal"
+          src="https://eauthenticate.saudibusiness.gov.sa/EAuthSealApi/seal.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

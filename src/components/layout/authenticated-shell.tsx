@@ -173,10 +173,10 @@ export function AuthenticatedShell({
         }}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex min-h-11 w-full items-center rounded-xl font-medium transition-colors",
+          "group relative flex min-h-11 w-full items-center rounded-xl font-medium transition-[background-color,color,transform] duration-200 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100",
           mobile ? "gap-3 px-4 py-2.5" : "gap-3 px-3 py-2.5",
           active
-            ? "bg-[#0fc9a7]/10 text-[#0fc9a7]"
+            ? "bg-[#0fc9a7]/10 text-[#72ead4] shadow-[inset_0_0_0_1px_rgba(15,201,167,.12)]"
             : "text-[#94a3b8] hover:bg-[#1d252f] hover:text-[#f0f4f8]",
         )}
       >
@@ -374,7 +374,7 @@ export function AuthenticatedShell({
       <div id="qa-shell-content" className="min-h-[100dvh] bg-[#06090c] text-[#f0f4f8] pt-16 md:pt-24 pb-12 flex flex-col font-sans relative">
         {/* Ambient Background */}
         <div
-          className="fixed inset-0 pointer-events-none z-0"
+          className="fixed inset-0 pointer-events-none z-0 isaudi-grid-bg"
           style={{
             background: 'radial-gradient(circle at 50% 0%, rgba(15, 201, 167, 0.08) 0%, transparent 50%), radial-gradient(circle at 100% 50%, rgba(230, 185, 92, 0.08) 0%, transparent 40%)'
           }}
@@ -385,7 +385,7 @@ export function AuthenticatedShell({
 
             {/* Desktop Sidebar */}
             <aside className={cn("hidden w-64 shrink-0 self-start md:sticky md:flex", previewTopOffsetClass ? "md:top-[calc(1.5rem+3rem)]" : "md:top-6")}>
-              <div className="w-full bg-[#0e1218] p-4 rounded-2xl border border-[#ffffff1a] shadow-lg flex flex-col gap-2 relative overflow-hidden">
+              <div className="isaudi-surface relative flex w-full flex-col gap-2 overflow-hidden rounded-3xl p-4">
                 {/* Subtle top edge highlight */}
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ffffff1a] to-transparent" />
 

@@ -14,7 +14,7 @@ import { AnimatedNumber } from '@/components/dashboard/animated-number';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { InsightCard } from '@/components/dashboard/insight-card';
 import { Skeleton } from '@/components/dashboard/skeleton';
-import { Lightbulb, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { Lightbulb, TrendingUp, TrendingDown, Activity, Package, ShoppingCart, WalletCards, ArrowUpRight } from 'lucide-react';
 import { parseReportViewData, type ReportViewData } from '@/lib/dashboard/report-view-data';
 
 function ReportDetailsSkeleton() {
@@ -353,7 +353,7 @@ export function DashboardClient({
       )}
 
       {/* Plan Card */}
-      <div className="bg-[#161c24] border border-[#ffffff1a] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+      <div className="isaudi-card p-6 text-white sm:p-8">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#e6b95c]/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
@@ -364,8 +364,9 @@ export function DashboardClient({
             </p>
           </div>
           <Link href={previewProps ? "#" : "/billing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined}>
-            <Button className="bg-[#e6b95c] text-black hover:bg-[#c5993c] border-0 shadow-xl whitespace-nowrap rounded-full px-6 py-2 font-bold text-black transition-transform hover:scale-105 active:scale-95">
+            <Button className="whitespace-nowrap rounded-full border-0 bg-[#e6b95c] px-6 font-bold text-[#171004] shadow-[0_12px_30px_rgba(230,185,92,.14)] hover:bg-[#f0c96e]">
               {isPremium ? t("dashboard.plan.manage") : t("dashboard.plan.upgrade")}
+              <ArrowUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
             </Button>
           </Link>
         </div>
@@ -374,28 +375,43 @@ export function DashboardClient({
       {/* Stats Overview */}
       {hasData && storeConnected && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm hover:border-white/10 transition-colors">
-              <div className="text-sm text-[#94a3b8] mb-2">
-                {t("dashboard.stats.productsLabel")} {t("dashboard.stats.productsNote")}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="isaudi-card isaudi-card-interactive group p-5 sm:p-6">
+              <div className="mb-7 flex items-start justify-between gap-4">
+                <div className="text-sm leading-6 text-[#a4b0c0]">
+                  {t("dashboard.stats.productsLabel")} <span className="text-[#728196]">{t("dashboard.stats.productsNote")}</span>
+                </div>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-[#e6b95c] transition-colors group-hover:border-[#e6b95c]/25 group-hover:bg-[#e6b95c]/10">
+                  <Package className="h-5 w-5" aria-hidden="true" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-white">
+              <div className="isaudi-data-number text-3xl font-bold text-white sm:text-4xl">
                 <AnimatedNumber value={stats.products} />
               </div>
             </div>
-            <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm hover:border-white/10 transition-colors">
-              <div className="text-sm text-[#94a3b8] mb-2">
-                {t("dashboard.stats.ordersLabel")} {t("dashboard.stats.ordersNote")}
+            <div className="isaudi-card isaudi-card-interactive group p-5 sm:p-6">
+              <div className="mb-7 flex items-start justify-between gap-4">
+                <div className="text-sm leading-6 text-[#a4b0c0]">
+                  {t("dashboard.stats.ordersLabel")} <span className="text-[#728196]">{t("dashboard.stats.ordersNote")}</span>
+                </div>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-white transition-colors group-hover:border-white/20 group-hover:bg-white/[0.07]">
+                  <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-white">
+              <div className="isaudi-data-number text-3xl font-bold text-white sm:text-4xl">
                 <AnimatedNumber value={parsedReport?.metrics?.totalOrders ?? stats.orders} />
               </div>
             </div>
-            <div className="bg-[#161c24] p-6 rounded-3xl border border-[#ffffff1a] shadow-sm hover:border-white/10 transition-colors">
-              <div className="text-sm text-[#94a3b8] mb-2">
-                {t("dashboard.stats.salesLabel")} {t("dashboard.stats.salesNote")}
+            <div className="isaudi-card isaudi-card-interactive group p-5 sm:p-6">
+              <div className="mb-7 flex items-start justify-between gap-4">
+                <div className="text-sm leading-6 text-[#a4b0c0]">
+                  {t("dashboard.stats.salesLabel")} <span className="text-[#728196]">{t("dashboard.stats.salesNote")}</span>
+                </div>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#20d4b2] transition-colors group-hover:border-[#0fc9a7]/35 group-hover:bg-[#0fc9a7]/15">
+                  <WalletCards className="h-5 w-5" aria-hidden="true" />
+                </span>
               </div>
-              <div className="text-3xl font-bold text-[#0fc9a7]">
+              <div className="isaudi-data-number text-3xl font-bold text-[#20d4b2] sm:text-4xl">
                 <AnimatedNumber
                   value={parsedReport?.metrics?.totalSales ?? (stats.sales / 100)}
                   formatter={(v) => `${v.toLocaleString()} SAR`}

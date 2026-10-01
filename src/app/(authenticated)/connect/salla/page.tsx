@@ -219,7 +219,7 @@ function ConnectSallaContent() {
     return (
       <div className="mb-6 space-y-4 rounded-2xl border border-[#e6b95c]/20 bg-[#161c24] p-4 text-center shadow-inner sm:p-6">
         <div className="flex items-center justify-center gap-3">
-          <code dir="ltr" className="min-w-0 [overflow-wrap:anywhere] rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-[13px] font-bold tracking-[.04em] text-[#004D5A] shadow-sm min-[360px]:text-sm min-[360px]:tracking-[.08em] sm:px-4 sm:text-lg sm:tracking-wide">
+          <code dir="ltr" className="isaudi-data-number min-w-0 [overflow-wrap:anywhere] rounded-xl border border-[#e6b95c]/25 bg-[#090d12] px-3 py-3 font-mono text-[13px] font-bold tracking-[.04em] text-[#f3ce7c] shadow-inner min-[360px]:text-sm min-[360px]:tracking-[.08em] sm:px-4 sm:text-lg sm:tracking-wide">
             {linkCode}
           </code>
           <Button
@@ -235,14 +235,11 @@ function ConnectSallaContent() {
 
         <div className="h-6 flex items-center justify-center">
           {copied ? (
-            <p className="text-sm text-green-600 font-medium">{t("connect.salla.code.copied")}</p>
+            <p className="text-sm font-medium text-[#72ead4]" role="status">{t("connect.salla.code.copied")}</p>
           ) : !isExpired ? (
             <div className="flex items-center justify-center gap-2 text-sm text-[#94a3b8]">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-isaudi-green opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-isaudi-green"></span>
-              </span>
-              {t("connect.salla.code.expiresIn")} <span className="font-mono font-medium text-[#e6b95c]">{formatTime(timeLeft)}</span>
+              <span className="h-2.5 w-2.5 rounded-full bg-[#20d4b2]" aria-hidden="true" />
+              {t("connect.salla.code.expiresIn")} <span className="isaudi-data-number font-mono font-medium text-[#e6b95c]">{formatTime(timeLeft)}</span>
             </div>
           ) : (
             <div className="text-sm text-red-500 font-medium">
@@ -251,18 +248,18 @@ function ConnectSallaContent() {
           )}
         </div>
 
-        <div className="pt-4 border-t border-gray-200">
+        <div className="border-t border-white/10 pt-4">
           <ul className={`space-y-3 text-sm text-[#b7c0cd] ${isRtl ? "text-right" : "text-left"}`}>
             <li className="flex items-start gap-2">
-              <span className="font-bold text-[#004D5A] shrink-0">1.</span>
+              <span className="shrink-0 font-bold text-[#20d4b2]">1.</span>
               <span>{t("connect.salla.code.instruction1")}</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="font-bold text-[#004D5A] shrink-0">2.</span>
+              <span className="shrink-0 font-bold text-[#20d4b2]">2.</span>
               <span>{t("connect.salla.code.instruction2")}</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="font-bold text-[#004D5A] shrink-0">3.</span>
+              <span className="shrink-0 font-bold text-[#20d4b2]">3.</span>
               <span>{t("connect.salla.code.instruction3")}</span>
             </li>
           </ul>
@@ -420,16 +417,16 @@ function ConnectSallaContent() {
                 </div>
               </div>
             ) : verificationError ? (
-              <div className="flex items-start gap-3 text-red-800">
+              <div className="flex items-start gap-3 text-red-300">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                 <div>
                   <p className="font-semibold">{t("connect.salla.verification.errorTitle")}</p>
-                  <p className="mt-1 text-sm text-red-700">{t("connect.salla.verification.errorDescription")}</p>
+                  <p className="mt-1 text-sm text-red-200/80">{t("connect.salla.verification.errorDescription")}</p>
                 </div>
               </div>
             ) : verificationResult ? (
               <>
-                <div className={`flex items-start gap-3 ${verificationFailed ? "text-red-800" : "text-[#004D5A]"}`}>
+                <div className={`flex items-start gap-3 ${verificationFailed ? "text-red-300" : "text-[#72ead4]"}`}>
                   {verificationFailed ? (
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                   ) : (
@@ -481,7 +478,7 @@ function ConnectSallaContent() {
                         )}
                         <div className="min-w-0">
                           <p className="font-semibold text-white">{label}</p>
-                          <p className={`mt-1 text-sm ${operation.ok ? "text-isaudi-green-dark" : "text-red-700"}`}>
+                          <p className={`mt-1 text-sm ${operation.ok ? "text-[#72ead4]" : "text-red-200/80"}`}>
                             {t(
                               operation.ok
                                 ? "connect.salla.verification.operationSuccess"

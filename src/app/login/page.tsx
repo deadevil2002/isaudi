@@ -93,14 +93,14 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
+    <main className="isaudi-grid-bg min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
       <Header />
       <div className="min-h-screen pt-32 pb-20 flex flex-col justify-center relative z-10">
         {/* Background Gradient similar to preview modal wrapper */}
         <div className="absolute inset-0 bg-[rgba(2,5,8,0.78)] backdrop-blur-[14px] -z-10" />
 
         <Container>
-          <div className="w-full max-w-[30rem] mx-auto p-8 rounded-[1.5rem] bg-[#0e1218] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.5)] relative overflow-hidden">
+          <div className="isaudi-card mx-auto w-full max-w-[30rem] p-6 sm:p-8">
             <div className="absolute top-0 right-0 w-full h-[150px] pointer-events-none" style={{ background: 'radial-gradient(circle at 100% 0%, rgba(15, 201, 167, 0.1), transparent 38%)' }} />
 
             <div className="flex items-center justify-between mb-8 relative z-10">
@@ -114,14 +114,14 @@ export default function LoginPage() {
                 <h2 className="text-2xl font-bold mt-2 text-white">{t("login.title")}</h2>
               </div>
               <Link href="/">
-                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full border border-white/10 bg-[#161c24] text-white hover:bg-white/10">
+                <Button variant="ghost" size="icon" aria-label={t("header.nav.closeMenu")} className="rounded-full border border-white/10 bg-[#161c24] text-white hover:bg-white/10">
                   <X size={20} />
                 </Button>
               </Link>
             </div>
 
             {error && (
-              <div className="mb-6 p-4 bg-[#ef4444]/10 border border-[#ef4444]/20 text-[#ef4444] text-sm rounded-lg text-center relative z-10">
+              <div role="alert" className="relative z-10 mb-6 rounded-xl border border-[#ef4444]/20 bg-[#ef4444]/10 p-4 text-center text-sm text-red-300">
                 {error}
               </div>
             )}
@@ -136,6 +136,7 @@ export default function LoginPage() {
                     <input
                       id="login-email"
                       type="email"
+                      autoComplete="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@company.com"
@@ -167,6 +168,7 @@ export default function LoginPage() {
                       id="login-otp"
                       type="text"
                       inputMode="numeric"
+                      autoComplete="one-time-code"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                       placeholder="••••••"

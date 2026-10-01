@@ -69,7 +69,7 @@ export function Header({ userEmail }: HeaderProps) {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#06090c]/80 backdrop-blur-md border-b border-white/10">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#06090c]/82 backdrop-blur-xl supports-[backdrop-filter]:bg-[#06090c]/72">
         <Container>
           <div className="flex items-center justify-between h-16 md:h-20">
             <div className="flex items-center gap-2">
@@ -98,10 +98,10 @@ export function Header({ userEmail }: HeaderProps) {
 
               {/* Desktop Navigation */}
               <nav className="ms-8 hidden items-center gap-6 md:flex">
-                <Link href={userEmail ? "/billing" : "/pricing"} className="text-sm font-medium text-[#94a3b8] hover:text-white transition-colors">
+                <Link href={userEmail ? "/billing" : "/pricing"} className="isaudi-focus rounded-lg px-2 py-2 text-sm font-medium text-[#a4b0c0] transition-colors hover:text-white">
                   {t("header.nav.pricing")}
                 </Link>
-                <Link href="/how-it-works" className="text-sm font-medium text-[#94a3b8] hover:text-white transition-colors">
+                <Link href="/how-it-works" className="isaudi-focus rounded-lg px-2 py-2 text-sm font-medium text-[#a4b0c0] transition-colors hover:text-white">
                   {t("header.nav.how")}
                 </Link>
               </nav>
@@ -138,7 +138,7 @@ export function Header({ userEmail }: HeaderProps) {
                 </div>
               ) : (
                 <Link href="/login">
-                  <Button size="sm" className="bg-gradient-to-r from-[#c5993c] to-[#e6b95c] hover:opacity-90 text-black shadow-sm transition-all border-none font-semibold rounded-full px-6">
+                  <Button size="sm" className="rounded-full border-none bg-gradient-to-r from-[#f0cb77] to-[#dbaa49] px-6 text-[#171004] shadow-[0_10px_25px_rgba(230,185,92,.12)] hover:brightness-105">
                     {t("header.login")}
                   </Button>
                 </Link>

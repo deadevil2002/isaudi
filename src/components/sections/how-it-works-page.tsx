@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Film, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Film, PlayCircle, Link2, BarChart3, Lightbulb } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/components/providers/language-provider';
 import type { PublicVideo } from '@/lib/video/public';
@@ -25,7 +25,7 @@ export function HowItWorksPageContent({ video: initialVideo, previewLoading = fa
     return () => { active = false; };
   }, [loadPublicVideo]);
 
-  return <main dir={ar ? 'rtl' : 'ltr'} className="relative min-h-screen overflow-hidden bg-[#06090c] px-4 py-8 text-white sm:px-6 sm:py-10">
+  return <main dir={ar ? 'rtl' : 'ltr'} className="isaudi-grid-bg relative min-h-screen overflow-hidden bg-[#06090c] px-4 py-8 text-white sm:px-6 sm:py-10">
     <div className="pointer-events-none absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_50%_0%,rgba(25,119,108,.2),transparent_55%)]" />
     <div className="relative mx-auto max-w-6xl">
       <header className="flex items-center justify-between">
@@ -39,7 +39,21 @@ export function HowItWorksPageContent({ video: initialVideo, previewLoading = fa
         <h1 className="mt-4 text-3xl font-semibold leading-tight sm:text-5xl">{ar ? 'شاهد كيف يحوّل iSaudi بياناتك إلى قرارات أوضح' : 'See how iSaudi turns your data into clearer decisions'}</h1>
         <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">{ar ? 'جولة مختصرة توضّح تجربة الربط والتحليل والوصول إلى رؤى عملية.' : 'A focused walkthrough of connecting, analyzing, and reaching practical insights.'}</p>
       </section>
-      <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0b1219] shadow-2xl shadow-black/50">
+      <ol className="mx-auto mb-6 grid max-w-4xl gap-3 sm:grid-cols-3" aria-label={ar ? 'مراحل عمل المنصة' : 'How the platform works'}>
+        {[
+          { icon: Link2, ar: 'اربط متجرك بأمان', en: 'Connect your store securely' },
+          { icon: BarChart3, ar: 'نحلّل بياناتك الفعلية', en: 'We analyze your real data' },
+          { icon: Lightbulb, ar: 'تحصل على قرارات عملية', en: 'Receive actionable decisions' },
+        ].map(({ icon: Icon, ar: arLabel, en }, index) => (
+          <li key={en} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-start">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#20d4b2]">
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div><span className="block text-[10px] font-bold uppercase tracking-[.18em] text-[#e6b95c]">{String(index + 1).padStart(2, '0')}</span><span className="mt-1 block text-sm font-semibold text-[#dce3eb]">{ar ? arLabel : en}</span></div>
+          </li>
+        ))}
+      </ol>
+      <section className="isaudi-card overflow-hidden rounded-[1.75rem]">
         {fetching ? <div className="flex min-h-72 items-center justify-center sm:aspect-video"><PlayCircle className="h-10 w-10 animate-pulse text-[#d7b568] motion-reduce:animate-none" /></div> : video.status === 'ready' ? <div className="relative aspect-video bg-black">
           {(!loaded || previewLoading) && <div className="absolute inset-0 z-10 grid place-items-center bg-[#091118] transition-opacity duration-300 motion-reduce:transition-none"><div className="text-center"><PlayCircle className="mx-auto h-10 w-10 animate-pulse text-[#d7b568] motion-reduce:animate-none" /><p className="mt-3 text-sm text-slate-400">{ar ? 'جارٍ تجهيز المشغّل…' : 'Preparing the player…'}</p></div></div>}
           <iframe title={ar ? 'فيديو كيف يعمل iSaudi' : 'How iSaudi works'} src={video.playbackUrl} onLoad={() => setLoaded(true)} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen className="h-full w-full border-0" />

@@ -31,6 +31,35 @@
   --font-sans: var(--font-ibm-plex-sans-arabic), system-ui, sans-serif;
 }
 
+:root {
+  color-scheme: dark;
+  --isaudi-bg: #06090c;
+  --isaudi-surface: #0e1218;
+  --isaudi-surface-raised: #151c24;
+  --isaudi-surface-hover: #1b2530;
+  --isaudi-border: rgba(255, 255, 255, 0.1);
+  --isaudi-border-strong: rgba(255, 255, 255, 0.16);
+  --isaudi-text: #f0f4f8;
+  --isaudi-muted: #a4b0c0;
+  --isaudi-dim: #728196;
+  --isaudi-gold: #e6b95c;
+  --isaudi-gold-strong: #f3ce7c;
+  --isaudi-teal: #20d4b2;
+  --isaudi-danger: #fb7185;
+  --isaudi-radius-sm: 0.75rem;
+  --isaudi-radius-md: 1rem;
+  --isaudi-radius-lg: 1.5rem;
+  --isaudi-shadow-card: 0 20px 55px rgba(0, 0, 0, 0.24);
+  --isaudi-shadow-lift: 0 24px 70px rgba(0, 0, 0, 0.34);
+  --isaudi-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --isaudi-motion-micro: 180ms;
+  --isaudi-motion-interaction: 240ms;
+  --isaudi-motion-state: 320ms;
+  --foreground-rgb: 240, 244, 248;
+  --background-start-rgb: 6, 9, 12;
+  --background-end-rgb: 6, 9, 12;
+}
+
 /* Custom Utilities */
 @layer utilities {
   .dir-rtl {
@@ -79,9 +108,73 @@
   }
   
   .glass-panel {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(14, 18, 24, 0.88);
+    backdrop-filter: blur(18px);
+    border: 1px solid var(--isaudi-border);
+  }
+
+  .isaudi-surface {
+    background: linear-gradient(145deg, rgba(22, 28, 36, 0.94), rgba(10, 14, 19, 0.98));
+    border: 1px solid var(--isaudi-border);
+    box-shadow: var(--isaudi-shadow-card);
+  }
+
+  .isaudi-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--isaudi-radius-lg);
+    border: 1px solid var(--isaudi-border);
+    background: linear-gradient(145deg, rgba(22, 28, 36, 0.92), rgba(10, 14, 19, 0.96));
+    box-shadow: var(--isaudi-shadow-card);
+    transition:
+      border-color var(--isaudi-motion-interaction) var(--isaudi-ease-out),
+      box-shadow var(--isaudi-motion-interaction) var(--isaudi-ease-out),
+      transform var(--isaudi-motion-interaction) var(--isaudi-ease-out);
+  }
+
+  .isaudi-card::before {
+    content: "";
+    position: absolute;
+    inset-inline: 1.25rem;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent);
+    pointer-events: none;
+  }
+
+  .isaudi-card-interactive:hover {
+    border-color: var(--isaudi-border-strong);
+    box-shadow: var(--isaudi-shadow-lift);
+    transform: translateY(-2px);
+  }
+
+  .isaudi-eyebrow {
+    color: var(--isaudi-gold);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .isaudi-data-number {
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.025em;
+  }
+
+  .isaudi-focus {
+    outline: none;
+  }
+
+  .isaudi-focus:focus-visible {
+    box-shadow: 0 0 0 3px rgba(230, 185, 92, 0.38);
+  }
+
+  .isaudi-grid-bg {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
   }
 }
 
@@ -105,18 +198,25 @@
   }
 }
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 255, 255, 255;
-  --background-end-rgb: 255, 255, 255;
-}
-
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: var(--isaudi-bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(15, 201, 167, 0.28);
+  color: var(--isaudi-text);
+}
+
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--isaudi-gold);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .isaudi-card-interactive:hover {
+    transform: none;
+  }
 }

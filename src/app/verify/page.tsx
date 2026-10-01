@@ -137,13 +137,13 @@ export default async function VerifyPage(props: {
   }
 
   return (
-    <main className="min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
+    <main className="isaudi-grid-bg min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
       <Header />
       <div className="min-h-screen pt-32 pb-20 flex flex-col justify-center relative z-10">
         <div className="absolute inset-0 bg-[rgba(2,5,8,0.78)] backdrop-blur-[14px] -z-10" />
 
         <Container>
-          <div className="w-full max-w-[30rem] mx-auto p-8 rounded-[1.5rem] bg-[#0e1218] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.5)] relative overflow-hidden">
+          <div className="isaudi-card mx-auto w-full max-w-[30rem] p-6 sm:p-8">
             <div className="absolute top-0 right-0 w-full h-[150px] pointer-events-none" style={{ background: 'radial-gradient(circle at 100% 0%, rgba(15, 201, 167, 0.1), transparent 38%)' }} />
 
             <div className="flex items-center justify-between mb-8 relative z-10">

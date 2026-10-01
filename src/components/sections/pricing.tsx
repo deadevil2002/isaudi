@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -81,6 +81,7 @@ export function Pricing({
   const [isYearly, setIsYearly] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("growth");
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
 
   return (
     <section className={cn("bg-transparent", compact ? "py-12 md:py-16" : "py-32")} id="pricing">
@@ -106,48 +107,41 @@ export function Pricing({
           </motion.p>
 
           {/* Toggle */}
-          <div className="flex flex-col items-center justify-center mb-12">
+          <div className="mb-12 flex flex-col items-center justify-center">
             <div
               role="radiogroup"
               aria-label={t("billing.toggle.aria")}
               data-pricing-interval={isYearly ? "year" : "month"}
-              className="flex max-w-full items-center justify-center rounded-full bg-[#161c24] p-1 border border-white/10"
+              className="isaudi-surface flex max-w-full items-center justify-center rounded-2xl p-1"
             >
-              <label
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!isYearly}
                 onClick={() => setIsYearly(false)}
                 className={cn(
-                  "relative cursor-pointer rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-300 focus-within:ring-2 focus-within:ring-[#e6b95c]/70 focus-within:ring-offset-2 focus-within:ring-offset-[#06090c]",
+                  "relative min-h-11 cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b95c]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#06090c]",
                   !isYearly ? "bg-[#0fc9a7] text-[#02110e]" : "text-[#94a3b8] hover:text-white"
                 )}
               >
-                <input
-                  type="radio"
-                  name="pricing-interval"
-                  value="monthly"
-                  checked={!isYearly}
-                  onChange={() => setIsYearly(false)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
-                <span className="pointer-events-none">{t("pricing.monthly")}</span>
-              </label>
-              <label
+                {t("pricing.monthly")}
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isYearly}
                 onClick={() => setIsYearly(true)}
                 className={cn(
-                  "relative flex cursor-pointer items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-300 focus-within:ring-2 focus-within:ring-[#e6b95c]/70 focus-within:ring-offset-2 focus-within:ring-offset-[#06090c]",
+                  "relative flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b95c]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#06090c]",
                   isYearly ? "bg-[#0fc9a7] text-[#02110e]" : "text-[#94a3b8] hover:text-white"
                 )}
               >
-                <input
-                  type="radio"
-                  name="pricing-interval"
-                  value="yearly"
-                  checked={isYearly}
-                  onChange={() => setIsYearly(true)}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
-                <span className="pointer-events-none">{t("pricing.yearly")}</span>
-              </label>
+                {t("pricing.yearly")}
+              </button>
             </div>
+            <span className="sr-only" aria-live="polite">
+              {isYearly ? t("pricing.yearly") : t("pricing.monthly")}
+            </span>
           </div>
         </div>
 
@@ -197,10 +191,10 @@ export function Pricing({
                 }}
                 tabIndex={0}
                 className={cn(
-                  "relative flex flex-col p-8 rounded-[1.5rem] transition-all duration-300 cursor-pointer overflow-hidden",
+                  "isaudi-card isaudi-focus relative flex cursor-pointer flex-col p-6 transition-all duration-300 sm:p-8",
                   isActive
-                    ? "border border-[#e6b95c] bg-gradient-to-b from-[#0e1218] to-[rgba(230,185,92,0.05)] shadow-2xl scale-[1.02]"
-                    : "bg-[#0e1218] border border-white/10"
+                    ? "border-[#e6b95c]/55 bg-gradient-to-b from-[#151b23] to-[rgba(230,185,92,0.055)] shadow-[0_24px_70px_rgba(0,0,0,.34)] -translate-y-1"
+                    : "hover:border-white/20"
                 )}
               >
                 {plan.popular && (
@@ -217,9 +211,18 @@ export function Pricing({
                     {t(plan.descriptionKey)}
                   </p>
                   <div className={cn("flex items-baseline gap-2", lang === "ar" ? "dir-rtl" : "dir-ltr")}>
-                    <span className="text-4xl font-bold text-white">
-                      {isYearly ? plan.priceYearly : plan.priceMonthly}
-                    </span>
+                    <AnimatePresence initial={false} mode="popLayout">
+                      <motion.span
+                        key={isYearly ? "year" : "month"}
+                        initial={reduceMotion ? false : { opacity: 0.65, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
+                        className="isaudi-data-number text-4xl font-bold text-white"
+                      >
+                        {(isYearly ? plan.priceYearly : plan.priceMonthly).toLocaleString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-US")}
+                      </motion.span>
+                    </AnimatePresence>
                     <span className="text-[#64748b] text-sm">
                       {t("pricing.currency")} / {isYearly ? t("pricing.perYear") : t("pricing.perMonth")}
                     </span>
