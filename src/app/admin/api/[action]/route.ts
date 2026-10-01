@@ -1,10 +1,10 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeEmail } from '@/lib/auth/email';
-import { getCurrentUser } from '@/lib/auth/utils';
 import {
-  ADMIN_COOKIE, INITIAL_ADMIN_EMAIL, PBKDF2_ITERATIONS, adminCookieOptions, expiredAdminCookieOptions,
-  hashPassword, hmacPseudonym, randomToken, sha256, timingSafeEqual, verifyPassword,
+  ADMIN_COOKIE, PBKDF2_ITERATIONS, adminCookieOptions, expiredAdminCookieOptions,
+  hashPassword, hmacPseudonym, randomToken, sha256, timingSafeEqual, validAdminEmail,
+  validBootstrapToken, verifyPassword,
 } from '@/lib/admin/security';
 import {
   adminDb, audit, authenticateAdmin, clientIp, consumeLimit, createSession, requestIpHash,
@@ -102,14 +102,24 @@ async function login(request: NextRequest) {
 
 async function setup(request: NextRequest) {
   const data = await body(request);
+  const email = normalizeEmail(String(data.email ?? ''));
   const password = boundedPassword(data.password);
-  if (!password.acceptable) return json({ error: 'كلمة المرور يجب أن تكون 14 حرفاً على الأقل' }, 400);
-  const user = await getCurrentUser();
-  if (!user || user.email_verified !== 1 ||
-      normalizeEmail(String(user.email ?? '')) !== INITIAL_ADMIN_EMAIL) {
-    return json({ error: 'غير مصرح' }, 403);
-  }
+  const bootstrapToken = typeof data.bootstrapToken === 'string' ? data.bootstrapToken : '';
   const db = adminDb();
+  const count = await db.prepare('SELECT COUNT(*) count FROM admin_accounts')
+    .first<{ count: number }>();
+  if (Number(count?.count ?? 0) !== 0) return json({ error: 'تعذر إكمال الإعداد' }, 409);
+  if (!await consumeLimit(db, `setup:ip:${clientIp(request)}`, 5, 15 * 60_000)) {
+    return json({ error: 'تعذر إكمال الإعداد' }, 429, { 'Retry-After': '900' });
+  }
+  const tokenValid = await validBootstrapToken(
+    bootstrapToken,
+    getRuntimeString('ADMIN_BOOTSTRAP_TOKEN')
+  );
+  if (!tokenValid || !validAdminEmail(email) || !password.acceptable) {
+    await audit(db, null, 'initial_setup_failed', await requestIpHash(request));
+    return json({ error: 'تعذر إكمال الإعداد' }, 403);
+  }
   const hashed = await hashPassword(password.value);
   const id = crypto.randomUUID();
   const now = Date.now();
@@ -118,8 +128,8 @@ async function setup(request: NextRequest) {
      (id, email, password_hash, password_salt, password_iterations, role, created_at, updated_at)
      SELECT ?, ?, ?, ?, ?, 'super_admin', ?, ?
      WHERE NOT EXISTS (SELECT 1 FROM admin_accounts) RETURNING id`
-  ).bind(id, INITIAL_ADMIN_EMAIL, hashed.hash, hashed.salt, hashed.iterations, now, now).first();
-  if (!inserted) return json({ error: 'تم إعداد بوابة الإدارة مسبقاً' }, 409);
+  ).bind(id, email, hashed.hash, hashed.salt, hashed.iterations, now, now).first();
+  if (!inserted) return json({ error: 'تعذر إكمال الإعداد' }, 409);
   const session = await createSession(db, id);
   await audit(db, id, 'initial_setup', await requestIpHash(request));
   const response = json({ success: true });
@@ -362,7 +372,7 @@ async function requestTransfer(request: NextRequest, admin: { id: string; role: 
   const data = await body(request);
   const password = boundedPassword(data.currentPassword);
   const targetEmail = normalizeEmail(String(data.targetEmail ?? ''));
-  if (!targetEmail.includes('@') || targetEmail === INITIAL_ADMIN_EMAIL) return json({ error: 'البريد المستهدف غير صالح' }, 400);
+  if (!validAdminEmail(targetEmail)) return json({ error: 'البريد المستهدف غير صالح' }, 400);
   const db = adminDb();
   const [transferEmailAllowed, transferIpAllowed] = await Promise.all([
     consumeLimit(db, `transfer:email:${targetEmail}`, 3, 60 * 60_000),
@@ -482,7 +492,7 @@ async function adminBootstrap() {
     .first<{ count: number }>();
   return json({
     authenticated: false,
-    setupAvailable: Number(count?.count ?? 0) === 0,
+    setupAvailable: Number(count?.count ?? 0) === 0 && Boolean(getRuntimeString('ADMIN_BOOTSTRAP_TOKEN')),
     data: null,
   });
 }
@@ -495,7 +505,11 @@ export async function GET(request: NextRequest, context: Context) {
     if (action === 'status') {
       const count = await adminDb().prepare('SELECT COUNT(*) count FROM admin_accounts')
         .first<{ count: number }>();
-      return json({ authenticated: Boolean(admin), setupAvailable: Number(count?.count ?? 0) === 0, admin });
+      return json({
+        authenticated: Boolean(admin),
+        setupAvailable: Number(count?.count ?? 0) === 0 && Boolean(getRuntimeString('ADMIN_BOOTSTRAP_TOKEN')),
+        admin,
+      });
     }
     if (!admin) return json({ error: 'غير مصرح' }, 401);
     if (action === 'data') return json(await portalData(admin));

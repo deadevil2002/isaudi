@@ -58,6 +58,8 @@ and CSV. `/design-preview/dashboard-review` is QA-only.
 ### Admin
 
 - Separate admin accounts and sessions
+- First-Admin setup requires a server-only `ADMIN_BOOTSTRAP_TOKEN` and is
+  permanently closed once an Admin exists; it never depends on a customer identity
 - Role-aware portal and audited actions
 - Reset/transfer flows must retain their existing protections
 

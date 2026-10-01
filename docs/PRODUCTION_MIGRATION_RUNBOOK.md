@@ -29,7 +29,7 @@ Status: **not approved for execution**. Verified 2026-10-01. Production remained
 3. Rehearse on a disposable, access-controlled local database built from the export. Never print or commit customer data, and securely remove the local copy when verification is complete.
 4. The initial production-export rehearsal proved that `0009`–`0014` apply and `0015` then fails with `no such column: created_at`. The canonical chain must not be run without the bridge.
 5. An isolated `0016` rehearsal on the same production copy created 13 user summaries, one exact Admin summary, and all 16 runtime triggers. Source-table row counts were unchanged, aggregate comparisons had zero mismatches, `PRAGMA integrity_check` was `ok`, and `PRAGMA foreign_key_check` returned no rows.
-6. Local-only implementation is `migrations/production-reconciliation/0008b_reconcile_legacy_admin_audit.sql`. A representative rehearsal used the verified production cardinalities (13 users, 1,022 products, 1,546 orders, 1,671 items, and the remaining verified table counts), legacy audit fixtures, foreign keys, and recursive triggers. The bridge followed by `0009`–`0017` passed with unchanged business counts, exact audit projections, exact runtime aggregates, 16 runtime triggers, the final YouTube video schema, integrity `ok`, and no foreign-key violations. That regression rehearsal included historical `0014`; production must not.
+6. Local-only implementation is `migrations/production-reconciliation/0008b_reconcile_legacy_admin_audit.sql`. A representative rehearsal used the verified production cardinalities (13 users, 1,022 products, 1,546 orders, 1,671 items, and the remaining verified table counts), legacy audit fixtures, foreign keys, and recursive triggers. The bridge followed by `0009`–`0013`, skipped `0014`, then applied `0015`–`0017`; it passed with unchanged business counts, exact audit projections, exact runtime aggregates, 16 runtime triggers, the final YouTube video schema, integrity `ok`, and no foreign-key violations.
 7. The bridge is isolated behind `wrangler.production-reconciliation.toml`; normal production and staging migration discovery cannot include it accidentally. It requires the verified legacy camelCase table and must not run against a canonical database. After a fresh preflight, apply that one-file migration explicitly with the reconciliation config, then apply only the approved production set: `0009`–`0013`, `0015`, `0016`, and `0017`. Do not execute `0014` on production. Reconcile the migration ledger through the separately approved release procedure; do not make an ad-hoc ledger edit.
 
 ## Required Admin audit compatibility bridge
@@ -55,6 +55,14 @@ This bridge is implemented and locally rehearsed, but is not approved for remote
 4. Apply the approved production files in this exact order: `0009`–`0013`, skip `0014`, then `0015`, `0016`, and `0017`. Migration `0014` remains immutable history but must not execute on production; `0017` independently creates the final YouTube schema and also replaces the Stream table in environments where `0014` was historically applied. Use only the separately approved ledger-safe release procedure.
 5. Run all schema, bridge, aggregate, and data-safety checks before deploying application code.
 6. Deploy the reviewed new Worker only after checks pass. The current Worker remains compatible through `0016` because the bridge retains legacy columns. Applying `0017` removes the legacy Stream columns, so freeze traffic or deploy the reviewed new Worker immediately after final schema verification; do not leave the old Worker serving video-management requests after `0017`. The new Worker requires the final YouTube `how_it_works_video` table and both runtime summary tables. Never deploy the new Worker before the schema, and never replace the audit table with a canonical-only version while rollback to the old Worker remains possible.
+7. Under separate production approval, configure a strong
+   `ADMIN_BOOTSTRAP_TOKEN` with `wrangler secret put` after the production
+   identity preflight. Never place it in a command argument, file, log, or Git.
+   Create the first independent Admin only after the new Worker is live, verify
+   that setup is then closed and reuse is rejected, and remove the bootstrap
+   secret in a separately approved follow-up after the Admin login is verified.
+8. Run the listed smoke tests, monitor Worker/D1 errors, and retain the audit
+   bridge plus legacy backup throughout the rollback window.
 
 Cloudflare Stream availability is not a release dependency. The final application
 does not require `CLOUDFLARE_STREAM_API_TOKEN`,

@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ADMIN_COOKIE,
-  INITIAL_ADMIN_EMAIL,
   PBKDF2_ITERATIONS,
   adminCookieOptions,
   expiredAdminCookieOptions,
   hashPassword,
   hmacPseudonym,
   timingSafeEqual,
+  validAdminEmail,
+  validBootstrapToken,
   validPassword,
   verifyPassword,
 } from '../src/lib/admin/security';
@@ -20,8 +21,7 @@ import { readFile } from 'node:fs/promises';
 import { REQUEST_BODY_LIMITS, requestBodyLimit } from '../src/lib/security/request-size';
 
 test('admin identity and cookie are strictly isolated', () => {
-  assert.equal(INITIAL_ADMIN_EMAIL, 'isaudiofficial@gmail.com');
-  assert.equal(INITIAL_ADMIN_EMAIL, normalizeEmail('isaudi.official@gmail.com'));
+  assert.equal(validAdminEmail(normalizeEmail('admin@example.com')), true);
   assert.equal(ADMIN_COOKIE, 'isaudi_admin_session');
   const expires = Date.now() + 10_000;
   const cookie = adminCookieOptions(expires);
@@ -100,6 +100,22 @@ test('all admin state changes require a trusted browser origin', () => {
 test('admin mutation bodies use the strict auth limit', () => {
   assert.equal(requestBodyLimit('/admin/api/login'), REQUEST_BODY_LIMITS.auth);
   assert.equal(requestBodyLimit('/admin/api/confirm-transfer'), REQUEST_BODY_LIMITS.auth);
+});
+
+test('first Admin bootstrap uses only a strong server-side token and independent email', async () => {
+  const configured = 'local-test-bootstrap-token-32-characters';
+  assert.equal(await validBootstrapToken(configured, configured), true);
+  assert.equal(await validBootstrapToken('incorrect-token-that-is-long-enough', configured), false);
+  assert.equal(await validBootstrapToken('short', configured), false);
+  assert.equal(await validBootstrapToken(configured, undefined), false);
+
+  const route = await readFile(
+    new URL('../src/app/admin/api/[action]/route.ts', import.meta.url),
+    'utf8'
+  );
+  assert.match(route, /getRuntimeString\('ADMIN_BOOTSTRAP_TOKEN'\)/);
+  assert.match(route, /WHERE NOT EXISTS \(SELECT 1 FROM admin_accounts\)/);
+  assert.doesNotMatch(route, /getCurrentUser|INITIAL_ADMIN_EMAIL/);
 });
 
 test('dashboard login redirect preserves the trusted request origin', () => {

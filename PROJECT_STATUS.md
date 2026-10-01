@@ -8,7 +8,9 @@ Last updated: 2026-10-01
 - `public/brand/design-preview-logo.png` is the approved iSaudi.ai logo.
 - Phase 4 Admin visual migration and Admin-managed YouTube “How It Works” video are implemented.
 - Admin visual migration and managed “How It Works” video management are implemented.
-- Production deployment remains blocked on the audited D1 reconciliation/runbook and verification of production edge rules and Stream configuration.
+- Production deployment remains blocked on explicit approval for the audited D1
+  reconciliation/release, production Admin bootstrap-secret configuration, and
+  authoritative verification of production edge rules.
 - **`/design-preview` is the approved visual source of truth for the upcoming
   production UI migration.**
 - The preview is intentionally isolated and does not perform real login,
@@ -22,7 +24,9 @@ Last updated: 2026-10-01
   reports rail, and owned-report comparison complete.
 - Official Saudi Business Center seal integration complete.
 - Phase 3: Settings, Billing/subscriptions, Salla connection, and CSV import complete.
-- Admin uses the approved premium presentation while preserving its separate authentication and authorization model.
+- Admin uses the approved premium presentation with an independent email/password
+  identity, dedicated session, and one-time server-secret bootstrap; it does not
+  require a customer account.
 
 ## Implemented production capabilities
 
@@ -76,4 +80,4 @@ unless backed by existing report comparison data.
 
 ## Current stop point
 
-The approved design baseline is `a8906f2ceba795a32dd0313451503bb39cacae80` on `new-ui-migration`. Security-readiness changes must be validated on isolated staging only. Production and `main` remain untouched. Production D1 is not ready for migration until the legacy `admin_audit_log` schema is reconciled and the complete `0009`–`0016` sequence is rehearsed from a schema snapshot.
+The approved design baseline is `a8906f2ceba795a32dd0313451503bb39cacae80` on `new-ui-migration`. Security-readiness changes must be validated on isolated staging only. Production and `main` remain untouched. The locally rehearsed production sequence is the audit compatibility bridge, `0009`–`0013`, skip historical `0014`, then `0015`–`0017`; remote execution still requires explicit production approval.

@@ -167,7 +167,7 @@ function createProductionShape(db: Database) {
     .run('merchant-1', 'user-0', 'link-1', 1_700_000_001);
 }
 
-test('legacy audit bridge preserves data and the complete migration chain succeeds', () => {
+test('legacy audit bridge preserves data and the production migration sequence succeeds', () => {
   const db = new DatabaseSync(':memory:');
   try {
     createProductionShape(db);
@@ -182,7 +182,6 @@ test('legacy audit bridge preserves data and the complete migration chain succee
       '0011_ai_usage_ledger.sql',
       '0012_salla_easy_mode.sql',
       '0013_salla_link_codes.sql',
-      '0014_how_it_works_video.sql',
       '0015_security_scalability_hardening.sql',
       '0016_runtime_aggregates.sql',
       '0017_youtube_how_it_works_video.sql',

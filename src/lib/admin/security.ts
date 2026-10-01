@@ -1,7 +1,5 @@
-import { normalizeEmail } from '@/lib/auth/email';
 import { getRuntimeString } from '@/lib/runtime/environment';
 
-export const INITIAL_ADMIN_EMAIL = normalizeEmail('isaudi.official@gmail.com');
 export const ADMIN_COOKIE = 'isaudi_admin_session';
 export const ADMIN_SESSION_MS = 8 * 60 * 60 * 1000;
 export const PBKDF2_ITERATIONS = 310_000;
@@ -104,4 +102,25 @@ export function adminCookieOptions(expiresAt: number) {
 
 export function expiredAdminCookieOptions() {
   return { ...adminCookieOptions(0), maxAge: 0, expires: new Date(0) };
+}
+
+export function validAdminEmail(value: string): boolean {
+  return value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+export async function validBootstrapToken(
+  provided: string,
+  configured?: string
+): Promise<boolean> {
+  const safeProvided = provided.length <= 512 ? provided : '';
+  const safeConfigured = configured && configured.length <= 512 ? configured : '';
+  const [providedHash, configuredHash] = await Promise.all([
+    sha256(safeProvided || 'invalid-admin-bootstrap-token'),
+    sha256(safeConfigured || 'missing-admin-bootstrap-token'),
+  ]);
+  return Boolean(
+    safeConfigured.length >= 32 &&
+    safeProvided.length >= 32 &&
+    timingSafeEqual(providedHash, configuredHash)
+  );
 }

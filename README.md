@@ -101,8 +101,11 @@ configuration is present. Missing provider configuration fails explicitly.
 
 The application includes a separate admin authentication/session system,
 role-aware portal, audited actions, reset/transfer flows, and supporting D1
-schema. Code presence does not prove that production admin provisioning is
-complete; verify deployment state separately.
+schema. The first Admin is created with an independent email/password plus the
+server-only `ADMIN_BOOTSTRAP_TOKEN`; it never requires or links to a customer
+account. Configure that value only as a Worker secret. Code presence does not
+prove that production admin provisioning is complete; verify deployment state
+separately.
 
 ### TikTok
 

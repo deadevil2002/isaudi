@@ -15,9 +15,13 @@ Run the applicable preflight immediately before every remote command. Never use 
 
 ## Current staging state
 
-- Migrations `0001` through `0016` are recorded as applied.
+- Migrations `0001` through `0017` are recorded as applied. `0017` replaced the
+  historical Stream table with the final empty YouTube schema.
 - A read-only count on 2026-10-01 found zero users, sessions, products, orders, order items, payments, reports, and Admin audit rows. `runtime_admin_summary` contains its required singleton row.
-- The deployed Worker version was `35d5cfac-4787-48e0-a510-a331e024a2d9` and reported the `standard` usage model.
+- The deployed Worker version is `38d24fa7-f78c-45a5-84dd-633917a014ad`.
+- The staging Worker currently has no secrets, including no
+  `ADMIN_BOOTSTRAP_TOKEN`; first-Admin setup and authenticated/Admin E2E remain
+  unavailable until a secret and legitimate staging credentials are supplied.
 - Because the controlled representative tenant is absent, no seed and no c10/c25/c50 load test is permitted by the production-readiness scope. Only normal smoke traffic is allowed.
 
 ## Edge controls

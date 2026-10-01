@@ -84,4 +84,4 @@ Do not copy preview simulation behavior into production:
 
 ## Exact stopping point
 
-The approved design baseline is `a8906f2ceba795a32dd0313451503bb39cacae80` on `new-ui-migration`. Admin and protected Stream playback are implemented. Stop before production deployment, production D1 changes, or merging. Production migration history diverges from the canonical filenames and requires the dedicated reconciliation runbook before release.
+The approved design baseline is `a8906f2ceba795a32dd0313451503bb39cacae80` on `new-ui-migration`. Independent Admin authentication and privacy-enhanced YouTube playback are implemented. Stop before production deployment, production D1 changes, or merging. Production migration history diverges from the canonical filenames and requires the dedicated reconciliation runbook before release.
