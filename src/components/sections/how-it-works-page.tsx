@@ -6,12 +6,13 @@ import { ArrowLeft, Film, PlayCircle, Link2, BarChart3, Lightbulb } from 'lucide
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/components/providers/language-provider';
 import type { PublicVideo } from '@/lib/video/public';
+import { youtubeEmbedUrl } from '@/lib/video/youtube';
 
 export function HowItWorksPageContent({ video: initialVideo, previewLoading = false, loadPublicVideo = false }: { video: PublicVideo; previewLoading?: boolean; loadPublicVideo?: boolean }) {
   const { lang } = useLanguage();
   const [video, setVideo] = useState(initialVideo);
   const [fetching, setFetching] = useState(loadPublicVideo);
-  const [loaded, setLoaded] = useState(video.status === 'ready' && video.playbackUrl === 'about:blank' && !previewLoading);
+  const [loaded, setLoaded] = useState(false);
   const ar = lang === 'ar';
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export function HowItWorksPageContent({ video: initialVideo, previewLoading = fa
     let active = true;
     fetch('/api/public/how-it-works-video', { cache: 'no-store' })
       .then(response => response.ok ? response.json() as Promise<PublicVideo> : Promise.reject())
-      .then(value => { if (active) setVideo(value); })
+      .then(value => { if (active) { setLoaded(false); setVideo(value); } })
       .catch(() => { if (active) setVideo({ status: 'error' }); })
       .finally(() => { if (active) setFetching(false); });
     return () => { active = false; };
@@ -56,7 +57,7 @@ export function HowItWorksPageContent({ video: initialVideo, previewLoading = fa
       <section className="isaudi-card overflow-hidden rounded-[1.75rem]">
         {fetching ? <div className="flex min-h-72 items-center justify-center sm:aspect-video"><PlayCircle className="h-10 w-10 animate-pulse text-[#d7b568] motion-reduce:animate-none" /></div> : video.status === 'ready' ? <div className="relative aspect-video bg-black">
           {(!loaded || previewLoading) && <div className="absolute inset-0 z-10 grid place-items-center bg-[#091118] transition-opacity duration-300 motion-reduce:transition-none"><div className="text-center"><PlayCircle className="mx-auto h-10 w-10 animate-pulse text-[#d7b568] motion-reduce:animate-none" /><p className="mt-3 text-sm text-slate-400">{ar ? 'جارٍ تجهيز المشغّل…' : 'Preparing the player…'}</p></div></div>}
-          <iframe title={ar ? 'فيديو كيف يعمل iSaudi' : 'How iSaudi works'} src={video.playbackUrl} onLoad={() => setLoaded(true)} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen className="h-full w-full border-0" />
+          <iframe title={ar ? 'فيديو كيف يعمل iSaudi' : 'How iSaudi works'} src={youtubeEmbedUrl(video.videoId)} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" onLoad={() => setLoaded(true)} allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen className="h-full w-full border-0" />
         </div> : <div className="flex min-h-72 flex-col items-center justify-center overflow-hidden px-6 text-center sm:aspect-video">
           <span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/5 text-[#d7b568]"><Film className="h-7 w-7" /></span>
           <h2 className="mt-5 w-full min-w-0 break-words text-lg font-semibold sm:text-xl">{ar ? 'الفيديو غير متاح حالياً' : 'Video currently unavailable'}</h2>

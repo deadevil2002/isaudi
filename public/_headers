@@ -2,7 +2,7 @@
   Cache-Control: public,max-age=31536000,immutable
 
 /
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://eauthenticate.saudibusiness.gov.sa; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.videodelivery.net https://*.cloudflarestream.com; frame-src 'self' https://eauthenticate.saudibusiness.gov.sa https://*.cloudflarestream.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://eauthenticate.saudibusiness.gov.sa; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https://eauthenticate.saudibusiness.gov.sa https://www.youtube-nocookie.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000
@@ -10,7 +10,7 @@
   X-Frame-Options: DENY
 
 /pricing
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://eauthenticate.saudibusiness.gov.sa; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.videodelivery.net https://*.cloudflarestream.com; frame-src 'self' https://eauthenticate.saudibusiness.gov.sa https://*.cloudflarestream.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://eauthenticate.saudibusiness.gov.sa; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https://eauthenticate.saudibusiness.gov.sa https://www.youtube-nocookie.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000
@@ -18,7 +18,7 @@
   X-Frame-Options: DENY
 
 /how-it-works
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://eauthenticate.saudibusiness.gov.sa; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.videodelivery.net https://*.cloudflarestream.com; frame-src 'self' https://eauthenticate.saudibusiness.gov.sa https://*.cloudflarestream.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://eauthenticate.saudibusiness.gov.sa; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https://eauthenticate.saudibusiness.gov.sa https://www.youtube-nocookie.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Referrer-Policy: strict-origin-when-cross-origin
   Strict-Transport-Security: max-age=31536000

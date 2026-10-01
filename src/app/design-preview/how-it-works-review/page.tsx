@@ -6,7 +6,7 @@ export default async function HowItWorksReview({ searchParams }: { searchParams:
   const query = await searchParams;
   const state = query.state || 'unavailable';
   const video = state === 'ready' || state === 'loading'
-    ? { status: 'ready' as const, playbackUrl: 'about:blank' }
+    ? { status: 'ready' as const, videoId: 'aqz-KE-bpKQ' }
     : { status: state === 'error' ? 'error' as const : 'unavailable' as const };
   return <HowItWorksPageContent video={video} previewLoading={state === 'loading'} />;
 }

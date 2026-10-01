@@ -97,8 +97,8 @@ Never place values in documentation or commits:
 
 ## Next task
 
-After Phase 3 review, the next major UI phase is Admin. Do not begin it without
-explicit scope. Preserve separate Admin authentication, roles, audit logs,
-reset, and transfer controls. The future Admin-managed “How It Works” video
-should prefer protected Cloudflare Stream playback without promising absolute
-screen-recording prevention. Do not merge or deploy without explicit approval.
+Preserve separate Admin authentication, roles, audit logs, reset, and transfer
+controls. The Admin-managed “How It Works” video uses an unlisted YouTube URL
+and a privacy-enhanced `youtube-nocookie.com` embed. Unlisted reduces discovery
+but does not prevent sharing or recording. Do not merge or deploy without
+explicit approval.

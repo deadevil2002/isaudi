@@ -354,3 +354,20 @@ CREATE TABLE IF NOT EXISTS admin_audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at);
 
+CREATE TABLE IF NOT EXISTS how_it_works_video (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  youtube_video_id TEXT CHECK (
+    youtube_video_id IS NULL OR (
+      length(youtube_video_id) = 11 AND
+      youtube_video_id NOT GLOB '*[^A-Za-z0-9_-]*'
+    )
+  ),
+  youtube_url TEXT,
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+  updated_by TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (updated_by) REFERENCES admin_accounts(id) ON DELETE SET NULL,
+  CHECK (enabled = 0 OR (youtube_video_id IS NOT NULL AND youtube_url IS NOT NULL))
+);
+

@@ -6,7 +6,7 @@ Last updated: 2026-10-01
 
 - `/design-preview` is approved.
 - `public/brand/design-preview-logo.png` is the approved iSaudi.ai logo.
-- Phase 4 Admin visual migration and managed Cloudflare Stream “How It Works” video are implemented.
+- Phase 4 Admin visual migration and Admin-managed YouTube “How It Works” video are implemented.
 - Admin visual migration and managed “How It Works” video management are implemented.
 - Production deployment remains blocked on the audited D1 reconciliation/runbook and verification of production edge rules and Stream configuration.
 - **`/design-preview` is the approved visual source of truth for the upcoming

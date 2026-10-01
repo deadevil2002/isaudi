@@ -25,10 +25,11 @@
     "d1:release:salla": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0012_salla_easy_mode.sql",
     "d1:release:salla-link": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0013_salla_link_codes.sql",
     "d1:release:video": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0014_how_it_works_video.sql",
+    "d1:release:youtube-video": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0017_youtube_how_it_works_video.sql",
     "d1:release:hardening": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0015_security_scalability_hardening.sql",
     "d1:release:aggregates": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --file ./migrations/0016_runtime_aggregates.sql",
     "d1:verify:release": "npm run cf:preflight:production && wrangler d1 execute isaudi-db --remote --config ./wrangler.toml --yes --command \"SELECT (SELECT COUNT(id)+COUNT(userId)+COUNT(codeHash)+COUNT(expiresAt)+COUNT(consumedAt)+COUNT(invalidatedAt)+COUNT(createdAt) FROM salla_link_codes) AS salla_link_codes_schema_probe, (SELECT COUNT(merchantId)+COUNT(userId)+COUNT(linkCodeId)+COUNT(claimedAt) FROM salla_link_claims) AS salla_link_claims_schema_probe\"",
-    "d1:release:remote": "npm run d1:release:salla-link && npm run d1:release:video && npm run d1:release:hardening && npm run d1:release:aggregates && npm run d1:verify:release",
+    "d1:release:remote": "npm run d1:release:salla-link && npm run d1:release:hardening && npm run d1:release:aggregates && npm run d1:release:youtube-video && npm run d1:verify:release",
     "d1:migrate:list:remote": "wrangler d1 migrations list isaudi-db --remote",
     "release": "npm test && npx tsc --noEmit --pretty false && npm run deploy"
   },

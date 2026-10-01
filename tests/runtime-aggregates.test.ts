@@ -135,7 +135,7 @@ test('Admin overview is a single-row exact aggregate read', () => {
   assert.doesNotMatch(portal, /COUNT\(\*\)|SUM\(amountHalala\)/);
 });
 
-test('public shells are build-time assets and signed video remains a no-store API read', () => {
+test('public shells are build-time assets and YouTube video remains a no-store API read', () => {
   for (const relative of ['../src/app/page.tsx', '../src/app/pricing/page.tsx', '../src/app/how-it-works/page.tsx']) {
     const page = readFileSync(new URL(relative, import.meta.url), 'utf8');
     assert.match(page, /dynamic = ['"]force-static['"]/);

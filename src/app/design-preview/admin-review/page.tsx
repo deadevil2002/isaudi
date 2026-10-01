@@ -7,7 +7,7 @@ export default async function AdminReviewPage({ searchParams }: { searchParams: 
   if (process.env.NODE_ENV === 'production') notFound();
   const query = await searchParams;
   const lang = query.lang === 'en' ? 'en' : 'ar';
-  const states: VideoFixture[] = ['none', 'uploading', 'processing', 'ready', 'replacement', 'error'];
+  const states: VideoFixture[] = ['none', 'saving', 'ready', 'disabled', 'error'];
   const fixture = states.includes(query.state as VideoFixture) ? query.state as VideoFixture : 'ready';
   const nav = lang === 'ar' ? ['نظرة عامة', 'المستخدمون', 'الاشتراكات', 'المدفوعات', 'الاتصالات', 'التقارير', 'سجل التدقيق', 'فيديو كيف يعمل', 'الإعدادات'] : ['Overview', 'Users', 'Subscriptions', 'Payments', 'Connections', 'Reports', 'Audit log', 'How It Works Video', 'Settings'];
   const icons = [BarChart3, Users, ShieldCheck, CreditCard, Link2, FileText, ShieldCheck, Video, Settings];

@@ -18,14 +18,15 @@ Production: **https://isaudi.ai**
 
 ### Managed How It Works video
 
-The Admin console uploads videos directly from the browser to Cloudflare Stream. D1 migration
-`0014_how_it_works_video.sql` stores only the active/pending Stream UIDs and processing state;
-the current video remains active until its replacement is ready. Public playback uses short-lived
-signed Stream tokens and origin-restricted embeds.
+The Admin console lets a `super_admin` save, replace, disable, or remove one
+unlisted YouTube URL. The server accepts only HTTPS `youtube.com/watch` and
+`youtu.be` links, stores the normalized video ID and URL, and the public page
+constructs a privacy-enhanced `youtube-nocookie.com` embed from that ID.
 
-Required environment variable names: `CLOUDFLARE_ACCOUNT_ID`,
-`CLOUDFLARE_STREAM_API_TOKEN`, and `CLOUDFLARE_STREAM_CUSTOMER_CODE`.
-Run the new D1 migration and verify Stream credentials/origin restrictions during deployment.
+Migration `0014_how_it_works_video.sql` is retained as immutable history.
+`0017_youtube_how_it_works_video.sql` replaces its legacy Stream state with the
+final YouTube schema and intentionally starts disabled. No Stream API token,
+customer code, SDK, upload API, or paid Stream plan is required.
 - The official Saudi Business Center verification seal is integrated.
 - No TikTok integration or external competitor-data feed exists.
 
@@ -169,8 +170,6 @@ repository's GitHub Action is the authoritative OpenNext packaging check.
 
 ## Stop point
 
-Phase 3 is complete on `new-ui-migration`. The next major UI phase, after review,
-is the separately scoped Admin redesign. It must preserve the Admin security
-model. A future Admin-managed “How It Works” video should prefer protected
-Cloudflare Stream playback; it is not implemented by Phase 3. Do not merge or
+The Admin-managed “How It Works” video uses an unlisted YouTube link and a
+privacy-enhanced embed. Preserve the Admin security model and do not merge or
 deploy without explicit approval.

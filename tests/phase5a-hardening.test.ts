@@ -67,9 +67,10 @@ test('Admin rows are allowlisted, lazy, paginated, and bounded', async () => {
   assert.doesNotMatch(route, /ORDER BY createdAt DESC LIMIT 200/);
 });
 
-test('public signed video lookup has short burst caching and request coalescing', async () => {
+test('public YouTube video lookup has short burst caching and request coalescing', async () => {
   const video = await source('../src/lib/video/public.ts');
   assert.match(video, /let pending: Promise<PublicVideo>/);
   assert.match(video, /value\.status === 'ready' \? 15_000 : 5_000/);
-  assert.match(video, /createPlaybackUrl/);
+  assert.match(video, /publicYouTubeVideo/);
+  assert.doesNotMatch(video, /createPlaybackUrl/);
 });

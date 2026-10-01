@@ -28,7 +28,7 @@
 | Salla | authenticated state/link operations; signed provider webhook | interactive connection routes: 30/min/IP |
 | CSV | authenticated session, strict total/per-file/row limits | upload: 5 requests/10 min/IP |
 | Admin | isolated session/role/origin controls and action-specific limits | `/admin/api/*`: 120/min/IP; login: 20/15 min/IP |
-| Public video | signed Stream token, allowed origins, 15-second burst cache/coalescing | `/how-it-works`: 120/min/IP if abusive |
+| Public video | validated YouTube ID, privacy-enhanced embed, 15-second burst cache/coalescing | `/how-it-works`: 120/min/IP if abusive |
 | Provider webhooks | Tap/Salla signature and idempotency checks | **Exclude from generic rate rules**; use managed WAF only |
 
 Cloudflare rate counters are burst/abuse controls, not exact business quotas. Keep the existing D1 quotas for entitlement correctness. Configure the available path-based rules in the zone dashboard; these recommendations do not depend on Enterprise-only fields.

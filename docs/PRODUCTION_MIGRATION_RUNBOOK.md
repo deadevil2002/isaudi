@@ -7,7 +7,8 @@ Status: **not approved for execution**. Verified 2026-10-01. Production remained
 - Account/profile: `e8ae8afc6a6708283d6b0b4534f7c91f` / `isaudi`
 - Worker: `isaudi`
 - D1: `isaudi-db` / `9e19c212-0118-4660-aaeb-e46cc7f4470e`
-- Canonical `0009`–`0016` are reported pending by Wrangler.
+- Canonical `0009`–`0017` are reported pending by Wrangler; `0014` is historical
+  Stream schema and is explicitly excluded from the production execution set.
 - Objects from `0009`–`0013` mostly already exist from a different historical ledger.
 - `how_it_works_video`, `user_runtime_summaries`, and `runtime_admin_summary` are absent.
 - Production `admin_audit_log` is legacy camelCase (`adminUserId`, `targetType`, `targetId`, `metadata`, `createdAt`). Current code requires the canonical snake_case table. `0015` would fail on `created_at` if applied first.
@@ -28,8 +29,8 @@ Status: **not approved for execution**. Verified 2026-10-01. Production remained
 3. Rehearse on a disposable, access-controlled local database built from the export. Never print or commit customer data, and securely remove the local copy when verification is complete.
 4. The initial production-export rehearsal proved that `0009`–`0014` apply and `0015` then fails with `no such column: created_at`. The canonical chain must not be run without the bridge.
 5. An isolated `0016` rehearsal on the same production copy created 13 user summaries, one exact Admin summary, and all 16 runtime triggers. Source-table row counts were unchanged, aggregate comparisons had zero mismatches, `PRAGMA integrity_check` was `ok`, and `PRAGMA foreign_key_check` returned no rows.
-6. Local-only implementation is `migrations/production-reconciliation/0008b_reconcile_legacy_admin_audit.sql`. A representative rehearsal used the verified production cardinalities (13 users, 1,022 products, 1,546 orders, 1,671 items, and the remaining verified table counts), legacy audit fixtures, foreign keys, and recursive triggers. The bridge followed by `0009`–`0016` passed with unchanged business counts, exact audit projections, exact runtime aggregates, 16 runtime triggers, integrity `ok`, and no foreign-key violations.
-7. The bridge is isolated behind `wrangler.production-reconciliation.toml`; normal production and staging migration discovery cannot include it accidentally. It requires the verified legacy camelCase table and must not run against a canonical database. After a fresh preflight, apply that one-file migration explicitly with the reconciliation config, then apply `0009`–`0016` with the normal production config. Both use `d1_migrations`, so no manual ledger insert is needed.
+6. Local-only implementation is `migrations/production-reconciliation/0008b_reconcile_legacy_admin_audit.sql`. A representative rehearsal used the verified production cardinalities (13 users, 1,022 products, 1,546 orders, 1,671 items, and the remaining verified table counts), legacy audit fixtures, foreign keys, and recursive triggers. The bridge followed by `0009`–`0017` passed with unchanged business counts, exact audit projections, exact runtime aggregates, 16 runtime triggers, the final YouTube video schema, integrity `ok`, and no foreign-key violations. That regression rehearsal included historical `0014`; production must not.
+7. The bridge is isolated behind `wrangler.production-reconciliation.toml`; normal production and staging migration discovery cannot include it accidentally. It requires the verified legacy camelCase table and must not run against a canonical database. After a fresh preflight, apply that one-file migration explicitly with the reconciliation config, then apply only the approved production set: `0009`–`0013`, `0015`, `0016`, and `0017`. Do not execute `0014` on production. Reconcile the migration ledger through the separately approved release procedure; do not make an ad-hoc ledger edit.
 
 ## Required Admin audit compatibility bridge
 
@@ -44,16 +45,20 @@ This bridge is implemented and locally rehearsed, but is not approved for remote
 
 ## Expected write budget
 
-`0016` creates 13 per-user summary rows plus one Admin summary row at the verified cardinality; its triggers do not fire during that initial backfill. The 19 missing `0015` indexes cover 8,557 current row/index entries. The last read-only audit count was zero, so the reviewed data/index/ledger estimate is approximately 8,580 writes: 8,557 index entries, 14 aggregate rows, and nine migration-ledger rows (`0008b` plus `0009`–`0016`), excluding provider-specific schema accounting. If the fresh preflight finds `N` audit rows, add the bridge copy and index work for those `N` rows and reapprove the budget before execution.
+`0016` creates 13 per-user summary rows plus one Admin summary row at the verified cardinality; its triggers do not fire during that initial backfill. The 19 missing `0015` indexes cover 8,557 current row/index entries. The last read-only audit count was zero, so the reviewed data/index/ledger estimate remains approximately 8,580 writes: 8,557 index entries, 14 aggregate rows, and nine approved migration-ledger rows (`0008b`, `0009`–`0013`, and `0015`–`0017`), excluding provider-specific schema accounting. `0017` carries no legacy Stream UID forward and creates no video row. If the fresh preflight finds `N` audit rows, add the bridge copy and index work for those `N` rows and reapprove the budget before execution.
 
 ## Execution order after separate approval
 
 1. Freeze production-changing jobs and confirm no CSV, Salla sync, billing mutation, report generation, or Admin mutation is running.
 2. Repeat account/resource/schema preflight and capture the Time Travel bookmark.
 3. Apply only `0008b_reconcile_legacy_admin_audit.sql` through `wrangler.production-reconciliation.toml` with profile `isaudi`. Abort unless Wrangler lists exactly that one reconciliation file and the legacy-schema precondition is still exact. It preserves both legacy and canonical write/read contracts and records its filename in `d1_migrations`.
-4. Apply the canonical chain through Wrangler in the exact order `0009` through `0016`; this records the pending filenames without manual ledger edits.
+4. Apply the approved production files in this exact order: `0009`–`0013`, skip `0014`, then `0015`, `0016`, and `0017`. Migration `0014` remains immutable history but must not execute on production; `0017` independently creates the final YouTube schema and also replaces the Stream table in environments where `0014` was historically applied. Use only the separately approved ledger-safe release procedure.
 5. Run all schema, bridge, aggregate, and data-safety checks before deploying application code.
-6. Deploy the reviewed new Worker only after checks pass. The current Worker remains compatible because the bridge retains legacy columns; the new Worker requires `how_it_works_video` and both runtime summary tables. Never deploy the new Worker before the schema, and never replace the audit table with a canonical-only version while rollback to the old Worker remains possible.
+6. Deploy the reviewed new Worker only after checks pass. The current Worker remains compatible through `0016` because the bridge retains legacy columns. Applying `0017` removes the legacy Stream columns, so freeze traffic or deploy the reviewed new Worker immediately after final schema verification; do not leave the old Worker serving video-management requests after `0017`. The new Worker requires the final YouTube `how_it_works_video` table and both runtime summary tables. Never deploy the new Worker before the schema, and never replace the audit table with a canonical-only version while rollback to the old Worker remains possible.
+
+Cloudflare Stream availability is not a release dependency. The final application
+does not require `CLOUDFLARE_STREAM_API_TOKEN`,
+`CLOUDFLARE_STREAM_CUSTOMER_CODE`, a Stream subscription, or a Stream upload.
 
 ## Abort conditions
 
@@ -68,7 +73,7 @@ This bridge is implemented and locally rehearsed, but is not approved for remote
 - `PRAGMA foreign_key_check` returns no rows.
 - Canonical `admin_audit_log` columns and both expected indexes exist; preserved legacy backup count equals the copied count until final sign-off.
 - Legacy and canonical audit inserts both populate the opposite projection through the bridge triggers.
-- `how_it_works_video`, `user_runtime_summaries`, and `runtime_admin_summary` exist.
+- `how_it_works_video` exists with `youtube_video_id`, `youtube_url`, and `enabled`; `user_runtime_summaries` and `runtime_admin_summary` exist.
 - Per-user product/order/sales/excluded totals exactly match source queries; the Admin singleton exactly matches users, active subscriptions, captured revenue, and reports.
 - All runtime aggregate triggers and every justified `0015` index exist.
 - `d1_migrations` and `wrangler d1 migrations list` reflect the approved ledger outcome.
@@ -84,6 +89,9 @@ SELECT name, type FROM sqlite_schema
 WHERE name IN ('admin_audit_log', 'how_it_works_video',
   'user_runtime_summaries', 'runtime_admin_summary')
 ORDER BY name;
+
+SELECT name, type, notnull FROM pragma_table_info('how_it_works_video')
+ORDER BY cid;
 
 SELECT name FROM sqlite_schema
 WHERE type = 'trigger' AND name LIKE 'runtime_%'

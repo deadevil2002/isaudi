@@ -185,6 +185,7 @@ test('legacy audit bridge preserves data and the complete migration chain succee
       '0014_how_it_works_video.sql',
       '0015_security_scalability_hardening.sql',
       '0016_runtime_aggregates.sql',
+      '0017_youtube_how_it_works_video.sql',
     ]) apply(db, migration(name));
 
     assert.equal(count(db, 'admin_audit_log'), beforeAudit.length);
@@ -247,6 +248,11 @@ test('legacy audit bridge preserves data and the complete migration chain succee
     assert.equal(count(db, 'user_runtime_summaries'), 13);
     assert.equal(count(db, 'runtime_admin_summary'), 1);
     assert.equal(count(db, 'how_it_works_video'), 0);
+    assert.deepEqual(
+      db.prepare(`SELECT name FROM pragma_table_info('how_it_works_video') ORDER BY cid`)
+        .all().map((column: unknown) => (column as { name: string }).name),
+      ['id', 'youtube_video_id', 'youtube_url', 'enabled', 'updated_by', 'created_at', 'updated_at']
+    );
     assert.equal((db.prepare(`SELECT COUNT(*) AS count FROM sqlite_schema
       WHERE type='trigger' AND name LIKE 'runtime_%'`).get() as { count: number }).count, 16);
     assert.ok(db.prepare(`SELECT name FROM sqlite_schema WHERE type='index'
@@ -263,6 +269,24 @@ test('legacy audit bridge preserves data and the complete migration chain succee
     assert.equal(mismatches.count, 0);
     assert.equal(db.prepare('PRAGMA foreign_key_check').all().length, 0);
     assert.equal((db.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check, 'ok');
+  } finally {
+    db.close();
+  }
+});
+
+test('0017 creates the final YouTube table when production skips historical 0014', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(`PRAGMA foreign_keys = ON;
+      CREATE TABLE admin_accounts (id TEXT PRIMARY KEY);`);
+    apply(db, migration('0017_youtube_how_it_works_video.sql'));
+    assert.deepEqual(
+      db.prepare(`SELECT name FROM pragma_table_info('how_it_works_video') ORDER BY cid`)
+        .all().map((column: unknown) => (column as { name: string }).name),
+      ['id', 'youtube_video_id', 'youtube_url', 'enabled', 'updated_by', 'created_at', 'updated_at']
+    );
+    assert.equal(count(db, 'how_it_works_video'), 0);
+    assert.equal(db.prepare('PRAGMA foreign_key_check').all().length, 0);
   } finally {
     db.close();
   }
