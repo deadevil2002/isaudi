@@ -81,15 +81,15 @@ export async function GET(req: NextRequest) {
     externalId: string | null;
     name: string;
     latestPriceHalala: number | null;
-    costs: any;
+    costs: Parameters<typeof computeComputed>[1] & { is_configured: number };
     computed: ReturnType<typeof computeComputed>;
   }>;
 
   for (const id of identities) {
-    const costs = await dbService.getCostsByIdentity(id.identityKey, user.id);
+    const costs = id.costs;
     const computed = computeComputed(id.latestPriceHalala, costs);
     products.push({
-      primaryProductId: (id as any).productIds?.[0] || null,
+      primaryProductId: id.productIds[0] || null,
       identityKey: id.identityKey,
       sku: id.sku,
       externalId: id.externalId,

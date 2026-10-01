@@ -495,14 +495,49 @@ export const dbService = {
     name: string;
     latestPriceHalala: number | null;
     productIds: string[];
+    costs: {
+      is_configured: number;
+      purchase_cost_halala: number;
+      labor_cost_halala: number;
+      shipping_cost_halala: number;
+      packaging_cost_halala: number;
+      ads_cost_per_unit_halala: number;
+      payment_fee_percent_bps: number;
+    };
   }>> => {
     const db = await getDb();
+    type ProductCostRow = {
+      id: string;
+      sku: string | null;
+      externalId: string | null;
+      title: string | null;
+      priceHalala: number | null;
+      createdAt: number | null;
+      updatedAt: number | null;
+      is_configured: number;
+      purchase_cost_halala: number;
+      labor_cost_halala: number;
+      shipping_cost_halala: number;
+      packaging_cost_halala: number;
+      ads_cost_per_unit_halala: number;
+      payment_fee_percent_bps: number;
+    };
     const rows = db.prepare(`
-      SELECT id, sku, externalId, title, priceHalala, createdAt, updatedAt
-      FROM products
-      WHERE userId = ?
-      ORDER BY COALESCE(updatedAt, 0) DESC, COALESCE(createdAt, 0) DESC
-    `).all(userId) as any[];
+      SELECT
+        p.id, p.sku, p.externalId, p.title, p.priceHalala, p.createdAt, p.updatedAt,
+        COALESCE(c.is_configured, 0) AS is_configured,
+        COALESCE(c.purchase_cost_halala, 0) AS purchase_cost_halala,
+        COALESCE(c.labor_cost_halala, 0) AS labor_cost_halala,
+        COALESCE(c.shipping_cost_halala, 0) AS shipping_cost_halala,
+        COALESCE(c.packaging_cost_halala, 0) AS packaging_cost_halala,
+        COALESCE(c.ads_cost_per_unit_halala, 0) AS ads_cost_per_unit_halala,
+        COALESCE(c.payment_fee_percent_bps, 0) AS payment_fee_percent_bps
+      FROM products p
+      LEFT JOIN product_costs c ON c.product_id = p.id
+      WHERE p.userId = ?
+      ORDER BY COALESCE(p.updatedAt, 0) DESC, COALESCE(p.createdAt, 0) DESC
+      LIMIT 501
+    `).all(userId) as ProductCostRow[];
 
     const normalizeName = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
     const map = new Map<string, {
@@ -512,6 +547,15 @@ export const dbService = {
       name: string;
       latestPriceHalala: number | null;
       productIds: string[];
+      costs: {
+        is_configured: number;
+        purchase_cost_halala: number;
+        labor_cost_halala: number;
+        shipping_cost_halala: number;
+        packaging_cost_halala: number;
+        ads_cost_per_unit_halala: number;
+        payment_fee_percent_bps: number;
+      };
     }>();
 
     for (const r of rows) {
@@ -530,7 +574,16 @@ export const dbService = {
           externalId: ext || null,
           name: name || '(بدون اسم)',
           latestPriceHalala: r.priceHalala ?? null,
-          productIds: [r.id]
+          productIds: [r.id],
+          costs: {
+            is_configured: r.is_configured || 0,
+            purchase_cost_halala: r.purchase_cost_halala || 0,
+            labor_cost_halala: r.labor_cost_halala || 0,
+            shipping_cost_halala: r.shipping_cost_halala || 0,
+            packaging_cost_halala: r.packaging_cost_halala || 0,
+            ads_cost_per_unit_halala: r.ads_cost_per_unit_halala || 0,
+            payment_fee_percent_bps: r.payment_fee_percent_bps || 0
+          }
         });
       } else {
         const g = map.get(key)!;
@@ -544,7 +597,7 @@ export const dbService = {
       }
     }
 
-    return Array.from(map.values());
+    return Array.from(map.values()).slice(0, 500);
   },
 
   getCostsByIdentity: async (identityKey: string, userId: string): Promise<any> => {
@@ -569,6 +622,7 @@ export const dbService = {
         const rows = db.prepare(`
           SELECT id, title FROM products WHERE userId = ? 
           ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
+          LIMIT 501
         `).all(userId) as any[];
         const normalized = (value || '').toLowerCase();
         for (const row of rows) {
@@ -641,6 +695,7 @@ export const dbService = {
       const rows = db.prepare(`
         SELECT id, title FROM products WHERE userId = ? 
         ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
+        LIMIT 501
       `).all(userId) as any[];
       const normalized = (value || '').toLowerCase();
       for (const row of rows) {

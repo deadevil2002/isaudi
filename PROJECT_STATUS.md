@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-09-29
+Last updated: 2026-10-01
 
 ## Approved state
 
 - `/design-preview` is approved.
 - `public/brand/design-preview-logo.png` is the approved iSaudi.ai logo.
 - Phase 4 Admin visual migration and managed Cloudflare Stream “How It Works” video are implemented.
-- Deployment still requires D1 migration `0014_how_it_works_video.sql` and verification of
-  `CLOUDFLARE_STREAM_API_TOKEN` / `CLOUDFLARE_STREAM_CUSTOMER_CODE` in the target environment.
+- Admin visual migration and managed “How It Works” video management are implemented.
+- Production deployment remains blocked on the audited D1 reconciliation/runbook and verification of production edge rules and Stream configuration.
 - **`/design-preview` is the approved visual source of truth for the upcoming
   production UI migration.**
 - The preview is intentionally isolated and does not perform real login,
@@ -22,7 +22,7 @@ Last updated: 2026-09-29
   reports rail, and owned-report comparison complete.
 - Official Saudi Business Center seal integration complete.
 - Phase 3: Settings, Billing/subscriptions, Salla connection, and CSV import complete.
-- Admin remains on the existing presentation and is the next separately approved phase.
+- Admin uses the approved premium presentation while preserving its separate authentication and authorization model.
 
 ## Implemented production capabilities
 
@@ -52,8 +52,6 @@ the internal entitlement is `business`.
 
 - No production TikTok integration
 - No external competitor/market-data feed
-- No Admin visual migration
-- No Admin-managed “How It Works” video or protected streaming workflow
 
 The preview's TikTok and market-comparison presentations are visual/illustrative
 unless backed by existing report comparison data.
@@ -78,8 +76,4 @@ unless backed by existing report comparison data.
 
 ## Current stop point
 
-Phase 3 is complete on `new-ui-migration`, based on migration HEAD
-`fde22bd3c690c05c726f6839868aa74aaa7431ee`. Review and isolated runtime testing
-must precede any merge or deployment. The next major UI task is Admin; it must
-remain separate and preserve its authentication, roles, audit, reset, and
-transfer protections.
+The approved design baseline is `a8906f2ceba795a32dd0313451503bb39cacae80` on `new-ui-migration`. Security-readiness changes must be validated on isolated staging only. Production and `main` remain untouched. Production D1 is not ready for migration until the legacy `admin_audit_log` schema is reconciled and the complete `0009`–`0016` sequence is rehearsed from a schema snapshot.

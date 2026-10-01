@@ -45,7 +45,7 @@ export function createSallaTokenCipher(keyMaterial: string | undefined) {
     },
     decrypt(ciphertext: string): string {
       if (!ciphertext.startsWith(`${PREFIX}:`)) {
-        return decryptLegacyToken(ciphertext);
+        return decryptLegacyToken(ciphertext, keyMaterial);
       }
       const parts = ciphertext.split(':');
       if (parts.length !== 5) throw new Error('Invalid Salla token ciphertext');

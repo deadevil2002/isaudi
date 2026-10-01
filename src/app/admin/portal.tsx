@@ -42,6 +42,10 @@ export default function AdminPortal({ mode }: { mode?: 'reset' | 'transfer' }) {
   const applyBootstrap = useCallback((state: BootstrapState) => { setStatus(state); setData(state.data); if (state.data && state.data.admin.role !== 'super_admin') setTab('settings'); }, []);
   const load = async () => { applyBootstrap(await api('bootstrap') as BootstrapState); };
   useLayoutEffect(() => { if (token) window.history.replaceState(null, '', window.location.pathname); }, [token]);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  }, [lang]);
   useEffect(() => { let active = true; void api('bootstrap').then(state => { if (active) applyBootstrap(state as BootstrapState); }).catch(() => active && setStatus({ authenticated: false, setupAvailable: false, data: null })); return () => { active = false; }; }, [applyBootstrap]);
   const language = <button onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')} className="min-h-10 rounded-xl border border-white/10 px-4 text-sm text-slate-300 hover:bg-white/5">{lang === 'ar' ? 'English' : 'العربية'}</button>;
   if (mode === 'reset') return <Shell title={t.reset} lang={lang} language={language}><FormBox button={t.save} lang={lang} onSubmit={async form => { await api('confirm-reset', { token, password: form.get('password') }); router.replace('/admin'); }}><Field label={t.newPassword} name="password" type="password" /></FormBox></Shell>;

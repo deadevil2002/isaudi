@@ -5,6 +5,7 @@
 - Repository SQL uses prepared statements for request-controlled values. The only generated SQL fragments are placeholder counts from fixed server constants and the Admin section query, whose select/search/order fragments come from `ADMIN_SECTIONS`; search, pagination, and offsets remain bound values.
 - Migration `0015_security_scalability_hardening.sql` adds indexes for hot session/token lookups, tenant-scoped product/order/report queries, order-item joins, snapshots, and bounded Admin ordering. Validate production plans after migration with `EXPLAIN QUERY PLAN` and D1 `meta.rows_read`; expected hot plans are `SEARCH ... USING INDEX`, not full tenant-table scans.
 - Schema creation was removed from Salla OAuth requests. Global cleanup deletes were removed from session validation and OTP/Admin/AI rate-limit requests. This OpenNext worker currently has cron declarations but no repository-owned scheduled handler, so adding cleanup there would require a new deployment wrapper. Expired ephemeral rows should be deleted by a future scheduled task in bounded batches (for example, at most 1,000 rows per table/run), never by normal requests.
+- The costs list is tenant-scoped and reads at most 501 recent product rows, returns at most 500 identities, and joins cost columns in the same query. It no longer performs a per-product request-path query. Legacy name-identity resolution is also capped at 501 rows.
 
 ## Dashboard operations
 
@@ -38,4 +39,12 @@ Do not enable it yet. Read-heavy candidates are public video metadata, Admin lis
 
 ## Observability and remaining work
 
-Workers Logs are enabled at 10% with query strings redacted; traces are sampled at 1%. Use invocation status/outcome to find Worker exceptions and 429s. Use D1 Analytics for query count/latency and per-query `meta.rows_read`/`rows_written`, with billing notifications on read/write growth. Remaining bottlenecks are exact global Admin aggregates, historical order scans for unsnapshotted analysis, and per-product cost resolution in weekly/insight generation; address those with authoritative snapshots or bulk joins after production metrics identify actual pressure.
+Workers Logs are enabled at 10% with query strings redacted; traces are sampled at 1%. Use invocation status/outcome to find Worker exceptions and 429s. Use D1 Analytics for query count/latency and per-query `meta.rows_read`/`rows_written`, with billing notifications on read/write growth. Remaining possible bottlenecks are historical order scans for unsnapshotted analysis and per-product cost resolution in weekly/insight generation; address those with authoritative snapshots or bulk joins only after production metrics identify pressure.
+
+## AI data boundary
+
+Report, store, product, CSV, and customer text is explicitly labeled untrusted data and is kept out of the system message. The system policy forbids treating embedded commands as instructions or claiming to execute SQL, payments, account changes, external requests, Admin actions, or secret access. Chat is capped at 2,000 input characters, 24 KB of report context, and 400 output tokens. Generation is capped at 600 output tokens and uses hourly, daily, and single-concurrency reservations that fail closed when quota storage fails.
+
+## Production reconciliation warning
+
+The production migration ledger is not aligned with the canonical filenames: it reports `0009`–`0016` pending even though the `0009`–`0013` objects mostly exist. Production `admin_audit_log` has legacy camelCase columns, while current Admin code and migration `0015` require snake_case columns. Applying the pending chain without reconciling that table will fail. Follow `docs/PRODUCTION_MIGRATION_RUNBOOK.md`; never run the generic production migration command until its rehearsal and approval gates pass.

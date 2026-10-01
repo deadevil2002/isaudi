@@ -11,6 +11,7 @@ import {
   requestTooLargeResponse,
 } from '@/lib/security/request-size';
 import { requestOpenAIChat } from '@/lib/ai/openai-chat';
+import { AI_UNTRUSTED_DATA_POLICY } from '@/lib/ai/chat-guard';
 import { getRuntimeString } from '@/lib/runtime/environment';
 import {
   AI_GENERATION_MAX_TOKENS,
@@ -284,7 +285,10 @@ export async function POST(req: NextRequest) {
       const content = await requestOpenAIChat({
           apiKey: openaiApiKey,
           messages: [
-            { role: 'system', content: 'محلل تجارة إلكترونية سعودي محترف. التزم بالبيانات المرفقة. أعد JSON صالح فقط.' },
+            {
+              role: 'system',
+              content: `أنت محلل تجارة إلكترونية سعودي محترف. ${AI_UNTRUSTED_DATA_POLICY} التزم بالبيانات المرفقة وأعد JSON صالحاً فقط.`,
+            },
             { role: 'user', content: JSON.stringify({
                 context: {
                   platform: connection?.platform || 'csv',

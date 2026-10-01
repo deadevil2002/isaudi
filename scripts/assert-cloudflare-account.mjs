@@ -3,8 +3,11 @@ import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
 const EXPECTED_ACCOUNT_ID = 'e8ae8afc6a6708283d6b0b4534f7c91f';
+const EXPECTED_PROFILE = 'isaudi';
 const EXPECTED_ZONE = 'isaudi.ai';
 const EXPECTED_STAGING_URL = 'https://isaudi-staging.isaudi-official.workers.dev';
+const EXPECTED_PRODUCTION_D1_ID = '9e19c212-0118-4660-aaeb-e46cc7f4470e';
+const EXPECTED_STAGING_D1_ID = '48ad8f80-6aae-4147-84e5-9f88161401eb';
 const MODES = new Set(['production', 'staging-create', 'staging-deploy', 'staging']);
 
 function fail(message) {
@@ -42,7 +45,7 @@ function getToken() {
   const environmentToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (environmentToken) return environmentToken;
 
-  const profile = process.env.CLOUDFLARE_PROFILE?.trim() || 'isaudi';
+  const profile = process.env.CLOUDFLARE_PROFILE?.trim() || EXPECTED_PROFILE;
   const raw = execFileSync(
     process.execPath,
     ['./node_modules/wrangler/bin/wrangler.js', 'auth', 'token', '--profile', profile, '--json'],
@@ -74,6 +77,8 @@ function exactlyOne(items, predicate, label) {
 async function main() {
   const mode = process.argv[2];
   if (!MODES.has(mode)) fail(`mode must be one of: ${[...MODES].join(', ')}`);
+  const profile = process.env.CLOUDFLARE_PROFILE?.trim() || EXPECTED_PROFILE;
+  if (profile !== EXPECTED_PROFILE) fail(`Wrangler profile is ${profile}, not ${EXPECTED_PROFILE}`);
   if (process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_ACCOUNT_ID !== EXPECTED_ACCOUNT_ID) {
     fail(`CLOUDFLARE_ACCOUNT_ID is ${process.env.CLOUDFLARE_ACCOUNT_ID}, not ${EXPECTED_ACCOUNT_ID}`);
   }
@@ -82,7 +87,7 @@ async function main() {
   const configPath = production ? './wrangler.toml' : './wrangler.staging.toml';
   const expectedWorker = production ? 'isaudi' : 'isaudi-staging';
   const expectedD1Name = production ? 'isaudi-db' : 'isaudi-staging-db';
-  const expectedD1Id = production ? '9e19c212-0118-4660-aaeb-e46cc7f4470e' : null;
+  const expectedD1Id = production ? EXPECTED_PRODUCTION_D1_ID : EXPECTED_STAGING_D1_ID;
   const config = loadConfig(configPath);
 
   if (config.accountId !== EXPECTED_ACCOUNT_ID) fail(`${configPath} account_id mismatch`);

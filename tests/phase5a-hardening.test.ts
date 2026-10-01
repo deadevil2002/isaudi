@@ -45,6 +45,19 @@ test('dashboard auth and aggregate work are request-efficient', async () => {
   assert.match(stats, /ON CONFLICT\(user_id\) DO NOTHING/);
 });
 
+test('cost listing is tenant-scoped, bounded, and avoids request N+1 reads', async () => {
+  const [service, route] = await Promise.all([
+    source('../src/lib/db/service.ts'),
+    source('../src/app/api/costs/route.ts'),
+  ]);
+  const listing = service.match(/listDistinctProductsForUser:[\s\S]*?getCostsByIdentity:/)?.[0] || '';
+  assert.match(listing, /WHERE p\.userId = \?/);
+  assert.match(listing, /LEFT JOIN product_costs/);
+  assert.match(listing, /LIMIT 501/);
+  assert.match(listing, /slice\(0, 500\)/);
+  assert.doesNotMatch(route, /getCostsByIdentity/);
+});
+
 test('Admin rows are allowlisted, lazy, paginated, and bounded', async () => {
   const route = await source('../src/app/admin/api/[action]/route.ts');
   assert.match(route, /const ADMIN_SECTIONS =/);

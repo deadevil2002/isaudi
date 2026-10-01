@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
 import { cookies } from 'next/headers';
-import { encrypt } from '@/lib/crypto';
 import { randomUUID } from 'crypto';
+import { encryptSallaToken } from '@/lib/salla/token-crypto';
 import { getSallaEnvironment } from '@/lib/salla/environment';
 import {
   consumeSallaOAuthState,
@@ -152,8 +152,8 @@ export async function GET(request: NextRequest) {
       status: 'connected',
       storeName: storeName,
       storeUrl: storeUrl,
-      accessTokenEncrypted: encrypt(tokenData.access_token),
-      refreshTokenEncrypted: typeof tokenData.refresh_token === 'string' ? encrypt(tokenData.refresh_token) : null,
+      accessTokenEncrypted: encryptSallaToken(tokenData.access_token),
+      refreshTokenEncrypted: typeof tokenData.refresh_token === 'string' ? encryptSallaToken(tokenData.refresh_token) : null,
       tokenExpiresAt: Date.now() + (tokenData.expires_in * 1000),
       createdAt: Date.now()
     });

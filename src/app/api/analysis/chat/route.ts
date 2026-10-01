@@ -16,6 +16,7 @@ import { getDb } from '@/lib/db/client';
 import {
   AI_CHAT_MAX_TOKENS,
   AI_CHAT_MESSAGE_MAX_LENGTH,
+  buildAiChatMessages,
   boundedReportContext,
   consumeAiChatQuota,
 } from '@/lib/ai/chat-guard';
@@ -73,17 +74,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prepare System Prompt with Context
-    const systemPrompt = `
-      You are a helpful Saudi ecommerce assistant.
-      You have access to the following analysis report of the user's store:
-      ${reportContext}
-      
-      Answer the user's questions based on this report.
-      Speak in professional but friendly Arabic.
-      Keep answers concise and actionable.
-    `;
-
     const apiKey = getRuntimeString('OPENAI_API_KEY');
     if (!apiKey) {
       console.error('[analysis/chat] OpenAI configuration missing');
@@ -111,10 +101,7 @@ export async function POST(req: NextRequest) {
       }
       const reply = await requestOpenAIChat({
         apiKey,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: normalizedMessage },
-        ],
+        messages: buildAiChatMessages(reportContext, normalizedMessage),
         temperature: 0.7,
         maxTokens: AI_CHAT_MAX_TOKENS,
       });

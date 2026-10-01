@@ -29,8 +29,8 @@ The approved visual language has been applied without replacing existing behavio
 5. Report generation, report details, comparison, and assistant
 6. CSV and Salla connection flows — complete in Phase 3
 7. Account, settings, and subscription status — complete in Phase 3
-8. Admin presentation — not started; only proceed as a separate phase after its
-   security model is explicitly preserved
+8. Admin presentation and managed “How It Works” video — complete; the separate
+   Admin authentication, authorization, audit, reset, and transfer boundaries remain
 
 ## Contracts that must not change
 
@@ -84,7 +84,4 @@ Do not copy preview simulation behavior into production:
 
 ## Exact stopping point
 
-Phases 1–3 are complete on `new-ui-migration`. Stop before Admin work, merging,
-or deployment. The future Admin requirement for managing the public “How It
-Works” video is documented but not implemented; prefer protected streaming and
-never claim that screen recording can be absolutely prevented.
+The approved design baseline is `a8906f2ceba795a32dd0313451503bb39cacae80` on `new-ui-migration`. Admin and protected Stream playback are implemented. Stop before production deployment, production D1 changes, or merging. Production migration history diverges from the canonical filenames and requires the dedicated reconciliation runbook before release.
