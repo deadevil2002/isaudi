@@ -18,6 +18,10 @@ export type DashboardReportRow = {
   reportViewJson: string;
 };
 
+export type DashboardReportRef = {
+  id: string;
+};
+
 export async function hasStoreConnection(userId: string): Promise<boolean> {
   const db = await getDb();
   const row = await db.prepare(
@@ -44,4 +48,24 @@ export async function getLatestDashboardReport(
     SELECT ${REPORT_VIEW_PROJECTION} FROM reports
     WHERE userId = ? ORDER BY createdAt DESC LIMIT 1
   `).get(userId) as DashboardReportRow | null;
+}
+
+export async function getDashboardReportRefForUser(
+  userId: string,
+  reportId: string
+): Promise<DashboardReportRef | null> {
+  const db = await getDb();
+  return await db.prepare(`
+    SELECT id FROM reports WHERE id = ? AND userId = ? LIMIT 1
+  `).get(reportId, userId) as DashboardReportRef | null;
+}
+
+export async function getLatestDashboardReportRef(
+  userId: string
+): Promise<DashboardReportRef | null> {
+  const db = await getDb();
+  return await db.prepare(`
+    SELECT id FROM reports
+    WHERE userId = ? ORDER BY createdAt DESC LIMIT 1
+  `).get(userId) as DashboardReportRef | null;
 }

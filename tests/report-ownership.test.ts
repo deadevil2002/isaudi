@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   resolveReportForUser,
@@ -111,4 +112,20 @@ test('an owner can still update and read their report', async () => {
 
   const ownerView = await reports.getReportForUser('user-a', 'report-a');
   assert.equal(ownerView?.reportJson, '{"updated":true}');
+});
+
+test('deferred dashboard report details remain authenticated, owner-scoped, and private', async () => {
+  const [route, dashboardData, dashboardClient] = await Promise.all([
+    readFile(new URL('../src/app/api/reports/detail/route.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/lib/dashboard/data.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/(authenticated)/dashboard/dashboard-client.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(route, /getCurrentUser\(\)/);
+  assert.match(route, /getDashboardReportForUser\(user\.id, reportId\)/);
+  assert.match(route, /private, no-store/);
+  assert.match(dashboardData, /WHERE id = \? AND userId = \?/);
+  assert.match(dashboardClient, /IntersectionObserver/);
+  assert.match(dashboardClient, /dynamic\(/);
+  assert.match(dashboardClient, /api\/reports\/detail\?reportId=/);
 });

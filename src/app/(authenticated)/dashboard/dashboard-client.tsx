@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StoreSetup } from '@/components/dashboard/store-setup';
 import { GenerateAnalysis } from '@/components/dashboard/generate-analysis';
-import { ReportView } from '@/components/dashboard/report-view';
 import { ChatPanel } from '@/components/dashboard/chat-panel';
 import { createTranslator } from "@/lib/i18n/translations";
 import { AnimatedNumber } from '@/components/dashboard/animated-number';
@@ -16,6 +16,28 @@ import { InsightCard } from '@/components/dashboard/insight-card';
 import { Skeleton } from '@/components/dashboard/skeleton';
 import { Lightbulb, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { parseReportViewData, type ReportViewData } from '@/lib/dashboard/report-view-data';
+
+function ReportDetailsSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden="true">
+      <Skeleton className="h-40 rounded-3xl" />
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <Skeleton className="h-28 rounded-3xl" />
+        <Skeleton className="h-28 rounded-3xl" />
+        <Skeleton className="h-28 rounded-3xl" />
+      </div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-64 rounded-3xl" />
+      </div>
+    </div>
+  );
+}
+
+const DeferredReportView = dynamic(
+  () => import('./deferred-report-view').then((module) => module.DeferredReportView),
+  { loading: () => <ReportDetailsSkeleton /> },
+);
 
 type DashboardUser = {
   id: string;
@@ -109,6 +131,12 @@ export function DashboardClient({
   const [insightsBlock, setInsightsBlock] = useState<InsightsBlock | null>(previewProps?.insightsBlock || null);
   const [loadingInsights, setLoadingInsights] = useState(previewProps?.loadingInsights || false);
   const [insightsError, setInsightsError] = useState<string | null>(previewProps?.insightsError || null);
+  const [requestedReportId, setRequestedReportId] = useState<string | null>(
+    latestReport?.data || latestReport?.reportJson ? latestReport.id : null,
+  );
+  const [reportLoadState, setReportLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [reportRequestAttempt, setReportRequestAttempt] = useState(0);
+  const reportDetailsRef = useRef<HTMLDivElement>(null);
   const parsedReport = useMemo(() => {
     if (report?.data) return report.data;
     return report?.reportJson ? parseReportViewData(report.reportJson) : null;
@@ -122,7 +150,12 @@ export function DashboardClient({
   const previewDataState = previewProps?.dataState;
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setReport(latestReport), 0);
+    const timeoutId = window.setTimeout(() => {
+      setReport((current) => {
+        const currentHasDetails = Boolean(current?.data || current?.reportJson);
+        return current?.id === latestReport?.id && currentHasDetails ? current : latestReport;
+      });
+    }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [latestReport]);
 
@@ -141,6 +174,11 @@ export function DashboardClient({
   }, [previewProps]);
 
   const t = createTranslator(lang);
+  const reportDateLocale = lang === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US';
+  const formatReportDate = (value: string) => new Date(value).toLocaleDateString(
+    reportDateLocale,
+    { timeZone: 'Asia/Riyadh' },
+  );
 
   const planName =
     user.plan === "free"
@@ -157,6 +195,73 @@ export function DashboardClient({
   const showSetup = !storeConnected;
   const showGenerate = storeConnected && !report;
   const showReport = !!report;
+
+  useEffect(() => {
+    const reportId = report?.id;
+    if (
+      previewProps ||
+      !reportId ||
+      parsedReport ||
+      requestedReportId === reportId
+    ) {
+      return;
+    }
+
+    const target = reportDetailsRef.current;
+    if (!target || typeof window.IntersectionObserver !== 'function') {
+      setRequestedReportId(reportId);
+      return;
+    }
+
+    const observer = new window.IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setRequestedReportId(reportId);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '240px 0px' },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [parsedReport, previewProps, report?.id, requestedReportId]);
+
+  useEffect(() => {
+    const reportId = report?.id;
+    if (
+      previewProps ||
+      !reportId ||
+      parsedReport ||
+      requestedReportId !== reportId
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    setReportLoadState('loading');
+    void fetch(`/api/reports/detail?reportId=${encodeURIComponent(reportId)}`, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unable to load report details');
+        return response.json() as Promise<{ report?: DashboardReport }>;
+      })
+      .then((payload) => {
+        if (!payload.report || payload.report.id !== reportId) {
+          throw new Error('Invalid report details');
+        }
+        setReport((current) => current?.id === reportId ? payload.report : current);
+        setReportLoadState('idle');
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setReportLoadState('error');
+      });
+
+    return () => controller.abort();
+  }, [parsedReport, previewProps, report?.id, reportRequestAttempt, requestedReportId]);
 
   useEffect(() => {
     if (previewProps) return;
@@ -443,7 +548,7 @@ export function DashboardClient({
                       {trend.slice(0, 4).map((w: TrendSnapshot) => (
                         <div key={w.id} className="p-4 rounded-2xl border border-[#ffffff1a] bg-[#0e1218] hover:border-white/10 transition-colors">
                           <div className="text-xs text-[#94a3b8] mb-1">
-                            {new Date(w.timeRangeStart).toLocaleDateString()} — {new Date(w.timeRangeEnd).toLocaleDateString()}
+                            {formatReportDate(w.timeRangeStart)} — {formatReportDate(w.timeRangeEnd)}
                           </div>
                           <div className="text-lg font-bold text-white mb-2">
                             <AnimatedNumber value={w.grossSales || 0} formatter={(v) => `${v.toLocaleString()} SAR`} />
@@ -658,8 +763,30 @@ export function DashboardClient({
               </div>
             </div>
           )}
-          <div className="lg:col-span-2">
-            <ReportView data={parsedReport ?? {}} />
+          <div
+            ref={reportDetailsRef}
+            className="min-h-[32rem] lg:col-span-2"
+            aria-busy={!parsedReport && reportLoadState !== 'error'}
+          >
+            {!parsedReport && reportLoadState !== 'error' && (
+              <span className="sr-only">{t("reports.loading")}</span>
+            )}
+            {parsedReport ? (
+              <DeferredReportView data={parsedReport} />
+            ) : reportLoadState === 'error' ? (
+              <div className="flex min-h-[32rem] flex-col items-center justify-center gap-4 rounded-3xl border border-[#ef4444]/30 bg-[#ef4444]/10 p-8 text-center">
+                <p className="text-sm font-medium text-[#ef4444]">{t("reports.error")}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => setReportRequestAttempt((attempt) => attempt + 1)}
+                  className="rounded-full border-white/20 text-white"
+                >
+                  {t("reports.retry")}
+                </Button>
+              </div>
+            ) : (
+              <ReportDetailsSkeleton />
+            )}
           </div>
           <div className="lg:col-span-1">
             <ChatPanel

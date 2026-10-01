@@ -34,14 +34,28 @@ test('dashboard initial data uses narrow parallel reads without full report rows
   ]);
   assert.match(page, /Promise\.all\(\[/);
   assert.match(page, /hasStoreConnection/);
-  assert.match(page, /getLatestDashboardReport/);
+  assert.match(page, /getLatestDashboardReportRef/);
+  assert.doesNotMatch(page, /parseReportViewData/);
   assert.doesNotMatch(page, /getLatestReport\(/);
   assert.match(dashboardData, /SELECT 1 AS connected FROM store_connections/);
+  assert.match(dashboardData, /SELECT id FROM reports/);
   const projection = dashboardData.match(/const REPORT_VIEW_PROJECTION[\s\S]*?export type DashboardReportRow/)?.[0] || '';
   assert.match(projection, /json_object\(/);
   assert.doesNotMatch(projection, /SELECT \*/);
   assert.doesNotMatch(auth, /SELECT \* FROM sessions/);
   assert.doesNotMatch(auth, /SELECT \*, free_reports_used/);
+});
+
+test('dashboard weekly dates use a deterministic Riyadh timezone during hydration', async () => {
+  const dashboardClient = await source('../src/app/(authenticated)/dashboard/dashboard-client.tsx');
+
+  assert.match(dashboardClient, /timeZone: 'Asia\/Riyadh'/);
+  assert.match(dashboardClient, /formatReportDate\(w\.timeRangeStart\)/);
+  assert.match(dashboardClient, /formatReportDate\(w\.timeRangeEnd\)/);
+  assert.doesNotMatch(
+    dashboardClient,
+    /new Date\(w\.timeRange(?:Start|End)\)\.toLocaleDateString\(\)/,
+  );
 });
 
 test('Admin initial bootstrap is one authenticated request with one overview payload', async () => {

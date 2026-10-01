@@ -2,11 +2,10 @@ import { redirect } from 'next/navigation';
 import { dbService } from '@/lib/db/service';
 import { getCurrentUser } from '@/lib/auth/utils';
 import {
-  getDashboardReportForUser,
-  getLatestDashboardReport,
+  getDashboardReportRefForUser,
+  getLatestDashboardReportRef,
   hasStoreConnection,
 } from '@/lib/dashboard/data';
-import { parseReportViewData } from '@/lib/dashboard/report-view-data';
 import { DashboardClient } from './dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -19,19 +18,16 @@ async function loadDashboardData(reportId?: string) {
     }
 
     const report = async () => {
-      if (!reportId) return getLatestDashboardReport(user.id);
-      return (await getDashboardReportForUser(user.id, reportId)) ||
-        getLatestDashboardReport(user.id);
+      if (!reportId) return getLatestDashboardReportRef(user.id);
+      return (await getDashboardReportRefForUser(user.id, reportId)) ||
+        getLatestDashboardReportRef(user.id);
     };
     const [stats, storeConnected, reportRow] = await Promise.all([
       dbService.getStoreStats(user.id),
       hasStoreConnection(user.id),
       report(),
     ]);
-    const latestReport = reportRow ? {
-      id: reportRow.id,
-      data: parseReportViewData(reportRow.reportViewJson),
-    } : null;
+    const latestReport = reportRow ? { id: reportRow.id } : null;
     const dashboardUser = {
       id: user.id,
       email: user.email,
