@@ -148,6 +148,9 @@ function inspectRemoteState() {
     'user_runtime_summaries',
     'runtime_admin_summary',
     'how_it_works_video',
+    'admin_ai_usage_daily',
+    'admin_observability_summary',
+    'admin_plan_summary',
   ]) columns[table] = tableColumns(table);
 
   const countSql = `SELECT ${COUNT_TABLES.map((table) => `(SELECT COUNT(*) FROM ${table}) AS ${table}`).join(',')},` +
@@ -162,6 +165,15 @@ function inspectRemoteState() {
     : 0;
   counts.admin_audit_log_legacy_20261001 = objects['table:admin_audit_log_legacy_20261001']
     ? Number(query('SELECT COUNT(*) AS count FROM admin_audit_log_legacy_20261001')[0].count)
+    : 0;
+  counts.admin_ai_usage_daily = objects['table:admin_ai_usage_daily']
+    ? Number(query('SELECT COUNT(*) AS count FROM admin_ai_usage_daily')[0].count)
+    : 0;
+  counts.admin_observability_summary = objects['table:admin_observability_summary']
+    ? Number(query('SELECT COUNT(*) AS count FROM admin_observability_summary')[0].count)
+    : 0;
+  counts.admin_plan_summary = objects['table:admin_plan_summary']
+    ? Number(query('SELECT COUNT(*) AS count FROM admin_plan_summary')[0].count)
     : 0;
 
   const runtimePresent = Boolean(objects['table:user_runtime_summaries'] && objects['table:runtime_admin_summary']);

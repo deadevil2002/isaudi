@@ -1,5 +1,12 @@
 export type AiOperation = 'chat' | 'generate';
 export type AiUsageStatus = 'succeeded' | 'failed';
+export type AiUsageFailureKind =
+  | 'timeout'
+  | 'network'
+  | 'provider'
+  | 'invalid_response'
+  | 'validation'
+  | 'internal';
 
 export type AiUsageMetering = {
   model: string;
@@ -59,8 +66,8 @@ export async function reserveAiUsage(input: {
   const row = await input.db
     .prepare(
       `INSERT INTO ai_usage_ledger
-         (id, user_id, operation, status, created_at, lease_expires_at)
-       SELECT ?, ?, ?, 'reserved', ?, ?
+         (id, user_id, operation, status, created_at, lease_expires_at, plan)
+       SELECT ?, ?, ?, 'reserved', ?, ?, ?
        WHERE
          (SELECT COUNT(*) FROM ai_usage_ledger
           WHERE user_id = ? AND operation = ? AND created_at >= ?) < ?
@@ -79,6 +86,7 @@ export async function reserveAiUsage(input: {
       input.operation,
       now,
       leaseExpiresAt,
+      input.plan,
       input.userId,
       input.operation,
       hourStart,
@@ -100,6 +108,9 @@ export async function finalizeAiUsage(input: {
   reservationId: string;
   status: AiUsageStatus;
   metering?: AiUsageMetering;
+  latencyMs?: number | null;
+  failureKind?: AiUsageFailureKind | null;
+  providerStatus?: number | null;
   now?: number;
 }): Promise<void> {
   const now = input.now ?? Date.now();
@@ -109,7 +120,8 @@ export async function finalizeAiUsage(input: {
        SET status = ?, finalized_at = ?, lease_expires_at = ?,
            model = ?, report_id = ?, source_hash = ?, input_tokens = ?,
            output_tokens = ?, total_tokens = ?, cached_input_tokens = ?,
-           cache_write_tokens = ?
+           cache_write_tokens = ?, latency_ms = ?, failure_kind = ?,
+           provider_status = ?
        WHERE id = ? AND status = 'reserved'
        RETURNING id`
     )
@@ -125,6 +137,9 @@ export async function finalizeAiUsage(input: {
       input.metering?.totalTokens ?? null,
       input.metering?.cachedInputTokens ?? null,
       input.metering?.cacheWriteTokens ?? null,
+      input.latencyMs == null ? null : Math.max(0, Math.trunc(input.latencyMs)),
+      input.failureKind ?? null,
+      input.providerStatus ?? null,
       input.reservationId
     );
   if (!row) throw new Error('AI usage reservation could not be finalized');
@@ -174,4 +189,33 @@ export async function runGenerationProvider<T>(input: {
     }
     return { kind: 'provider_failed' };
   }
+}
+
+export async function recordAiRateLimit(input: {
+  db: UsageDb;
+  userId: string;
+  operation: AiOperation;
+  plan: string;
+  now?: number;
+}): Promise<void> {
+  const now = input.now ?? Date.now();
+  const dayStart = Math.floor(now / 86_400_000) * 86_400_000;
+  await input.db
+    .prepare(
+      `INSERT INTO admin_ai_usage_daily (
+         scope_type, scope_id, day_start, operation, model,
+         rate_limit_count, updated_at
+       )
+       SELECT scope_type, scope_id, ?, ?, 'not-called', 1, ?
+       FROM (
+         SELECT 'global' AS scope_type, 'all' AS scope_id
+         UNION ALL SELECT 'plan', ?
+         UNION ALL SELECT 'user', ?
+       )
+       WHERE 1
+       ON CONFLICT(scope_type, scope_id, day_start, operation, model) DO UPDATE SET
+         rate_limit_count = rate_limit_count + 1,
+         updated_at = excluded.updated_at`
+    )
+    .run(dayStart, input.operation, now, input.plan, input.userId);
 }

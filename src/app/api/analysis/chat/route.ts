@@ -26,7 +26,9 @@ import {
 } from '@/lib/ai/contracts';
 import {
   finalizeAiUsage,
+  recordAiRateLimit,
   reserveAiUsage,
+  type AiUsageFailureKind,
   type AiUsageMetering,
 } from '@/lib/ai/usage-ledger';
 
@@ -147,20 +149,37 @@ export async function POST(req: NextRequest) {
       );
     }
     if (!reserved) {
+      try {
+        await recordAiRateLimit({
+          db,
+          userId: user.id,
+          operation: 'chat',
+          plan: user.plan,
+        });
+      } catch {
+        console.error('[analysis/chat] AI rate-limit event could not be recorded');
+      }
       return NextResponse.json(
         { error: 'تم بلوغ حد استخدام المساعد مؤقتاً. يرجى المحاولة لاحقاً.' },
         { status: 429, headers: { 'Retry-After': '60' } }
       );
     }
     let aiUsageMetering: AiUsageMetering | undefined;
+    let aiLatencyMs: number | null = null;
+    let aiFailureKind: AiUsageFailureKind | null = null;
+    let aiProviderStatus: number | null = null;
     releaseAiReservation = () =>
       finalizeAiUsage({
         db,
         reservationId,
         status: 'failed',
         metering: aiUsageMetering,
+        latencyMs: aiLatencyMs,
+        failureKind: aiFailureKind ?? 'internal',
+        providerStatus: aiProviderStatus,
       });
 
+    const providerStartedAt = Date.now();
     try {
       const result = await requestOpenAIChat({
         apiKey,
@@ -179,12 +198,16 @@ export async function POST(req: NextRequest) {
         sourceHash: sourceHashFromReport(report.reportJson),
         ...result.usage,
       };
+      aiLatencyMs = Date.now() - providerStartedAt;
+      aiProviderStatus = 200;
       const response = parseAiChatResponse(result.content);
       await finalizeAiUsage({
         db,
         reservationId,
         status: 'succeeded',
         metering: aiUsageMetering,
+        latencyMs: aiLatencyMs,
+        providerStatus: aiProviderStatus,
       });
       releaseAiReservation = null;
       return NextResponse.json({
@@ -194,6 +217,13 @@ export async function POST(req: NextRequest) {
         providerUsed: true,
       });
     } catch (error) {
+      aiLatencyMs = Date.now() - providerStartedAt;
+      if (error instanceof OpenAIChatError) {
+        aiFailureKind = error.kind;
+        aiProviderStatus = error.status;
+      } else {
+        aiFailureKind = 'validation';
+      }
       try {
         const release = releaseAiReservation;
         if (!release) throw new Error('Missing AI usage reservation');

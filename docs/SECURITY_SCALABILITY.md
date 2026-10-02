@@ -16,6 +16,7 @@
 
 - Initial Admin data now returns only the four exact overview aggregates. Users, subscriptions, payments, connections, reports, and audit rows load only when their tab is opened.
 - Each section uses indexed exact email/action search and pages of 25 rows (hard maximum 50, maximum page 200). SQL identifiers and order fields are fixed server allowlists. The exact revenue aggregate remains uncached; at very high Admin concurrency, a maintained financial aggregate is the next step rather than serving an approximate total.
+- Migration `0019_admin_observability.sql` adds write-time daily AI rollups plus singleton database and per-plan counters. The Admin observability summary therefore reads bounded daily buckets and O(1) counters instead of scanning the AI ledger, business tables, or all customers. Customer economics loads separately in pages of at most 25 and returns pseudonymous identifiers only. Latency percentiles are explicitly approximate histogram bounds; Cloudflare telemetry and provider delivery/account balances remain `Unknown` when the application has no authenticated evidence source.
 
 ## Endpoint and rate-limit review
 

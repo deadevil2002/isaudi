@@ -39,9 +39,11 @@ test('AI usage finalization records model and all provider token counters in one
   assert.match(sql, /input_tokens = \?/);
   assert.match(sql, /cached_input_tokens = \?/);
   assert.match(sql, /cache_write_tokens = \?/);
+  assert.match(sql, /latency_ms = \?/);
+  assert.match(sql, /failure_kind = \?/);
   assert.deepEqual(params, [
     'succeeded', 1234, 1234, 'gpt-4o-mini', 'report-1', 'source-hash',
-    200, 80, 280, 128, 64, 'usage-1',
+    200, 80, 280, 128, 64, null, null, null, 'usage-1',
   ]);
 });
 

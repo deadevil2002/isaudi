@@ -10,7 +10,7 @@ import {
   readJsonWithLimit,
   requestTooLargeResponse,
 } from '@/lib/security/request-size';
-import { requestOpenAIChat } from '@/lib/ai/openai-chat';
+import { OpenAIChatError, requestOpenAIChat } from '@/lib/ai/openai-chat';
 import {
   AI_ANALYSIS_RESPONSE_FORMAT,
   insufficientAnalysisNarrative,
@@ -25,7 +25,9 @@ import { getRuntimeString } from '@/lib/runtime/environment';
 import {
   AI_GENERATION_MAX_TOKENS,
   finalizeAiUsage,
+  recordAiRateLimit,
   reserveAiUsage,
+  type AiUsageFailureKind,
   type AiUsageMetering,
   type AiUsageStatus,
 } from '@/lib/ai/usage-ledger';
@@ -392,6 +394,17 @@ export async function POST(req: NextRequest) {
       );
     }
     if (!reserved) {
+      try {
+        await recordAiRateLimit({
+          db,
+          userId: user.id,
+          operation: 'generate',
+          plan: user.plan,
+          now: nowMs,
+        });
+      } catch {
+        console.error('[analysis/generate] AI rate-limit event could not be recorded');
+      }
       return NextResponse.json(
         { error: 'تم بلوغ حد إنشاء التحليلات مؤقتاً. يرجى المحاولة لاحقاً.' },
         { status: 429 }
@@ -399,15 +412,22 @@ export async function POST(req: NextRequest) {
     }
     let aiUsageFinalStatus: AiUsageStatus = 'succeeded';
     let aiUsageMetering: AiUsageMetering | undefined;
+    let aiLatencyMs: number | null = null;
+    let aiFailureKind: AiUsageFailureKind | null = null;
+    let aiProviderStatus: number | null = null;
     releaseAiReservation = () =>
       finalizeAiUsage({
         db,
         reservationId,
         status: 'failed',
         metering: aiUsageMetering,
+        latencyMs: aiLatencyMs,
+        failureKind: aiFailureKind ?? 'internal',
+        providerStatus: aiProviderStatus,
       });
     let narrative: AiAnalysisNarrative;
 
+    const providerStartedAt = Date.now();
     try {
       const result = await requestOpenAIChat({
         apiKey: openaiApiKey,
@@ -422,8 +442,17 @@ export async function POST(req: NextRequest) {
         sourceHash,
         ...result.usage,
       };
+      aiLatencyMs = Date.now() - providerStartedAt;
+      aiProviderStatus = 200;
       narrative = parseAiAnalysisNarrative(result.content);
-    } catch {
+    } catch (error) {
+      aiLatencyMs = Date.now() - providerStartedAt;
+      if (error instanceof OpenAIChatError) {
+        aiFailureKind = error.kind;
+        aiProviderStatus = error.status;
+      } else {
+        aiFailureKind = 'validation';
+      }
       console.error('[analysis/generate] Structured narrative generation failed');
       aiUsageFinalStatus = 'failed';
       narrative = insufficientAnalysisNarrative(
@@ -487,6 +516,9 @@ export async function POST(req: NextRequest) {
         reservationId,
         status: aiUsageFinalStatus,
         metering: aiUsageMetering,
+        latencyMs: aiLatencyMs,
+        failureKind: aiFailureKind,
+        providerStatus: aiProviderStatus,
       });
       releaseAiReservation = null;
     }

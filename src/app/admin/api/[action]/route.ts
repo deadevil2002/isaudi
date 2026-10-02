@@ -15,6 +15,10 @@ import {
 } from '@/lib/security/request-size';
 import { getRuntimeString } from '@/lib/runtime/environment';
 import { parseYouTubeVideoUrl, youtubeEmbedUrl, YOUTUBE_VIDEO_ID_PATTERN } from '@/lib/video/youtube';
+import {
+  readAdminObservability,
+  readAdminObservabilityCustomers,
+} from '@/lib/admin/observability';
 
 type Context = { params: Promise<{ action: string }> };
 type PasswordRecord = {
@@ -204,6 +208,18 @@ async function adminSection(admin: { role: string }, request: NextRequest) {
     ? await statement.bind(search, pageSize + 1, offset).all()
     : await statement.bind(pageSize + 1, offset).all();
   return json({ rows: result.results.slice(0, pageSize), page, pageSize, hasMore: result.results.length > pageSize });
+}
+
+async function observability(admin: { role: string }) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  return json(await readAdminObservability(adminDb()));
+}
+
+async function observabilityCustomers(admin: { role: string }, request: NextRequest) {
+  if (admin.role !== 'super_admin') return json({ error: 'غير مصرح' }, 403);
+  const page = Number.parseInt(request.nextUrl.searchParams.get('page') || '1', 10) || 1;
+  const pageSize = Number.parseInt(request.nextUrl.searchParams.get('pageSize') || '10', 10) || 10;
+  return json(await readAdminObservabilityCustomers(adminDb(), { page, pageSize }));
 }
 
 async function readVideoRecord() {
@@ -513,6 +529,8 @@ export async function GET(request: NextRequest, context: Context) {
     }
     if (!admin) return json({ error: 'غير مصرح' }, 401);
     if (action === 'data') return json(await portalData(admin));
+    if (action === 'observability') return observability(admin);
+    if (action === 'observability-customers') return observabilityCustomers(admin, request);
     if (action === 'section') return adminSection(admin, request);
     if (action === 'video') return videoStatus(admin);
     return json({ error: 'غير موجود' }, 404);

@@ -24,7 +24,9 @@ const plans: Record<PlanId, Plan> = {
     id: PLAN_IDS.FREE,
     limits: {
       maxStores: 0,
-      maxReportsPerMonth: 0,
+      // The customer auth/report gates already grant two one-time free reports.
+      // Keep the entitlement catalog aligned with that existing allowance.
+      maxReportsPerMonth: 2,
       aiInsights: false,
       apiAccess: false,
     },

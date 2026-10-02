@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  AI_OBSERVABILITY_COLUMNS,
   AI_METERING_COLUMNS,
   APPROVED_EXPECTED_WRITES,
   EXECUTION_APPROVAL,
@@ -40,6 +41,7 @@ test('release plan is exact, ledger-safe, and explicitly skips historical 0014',
     assert.doesNotMatch(skipped.sql, /CREATE\s+TABLE/i);
     assert.equal(plan.workerDeploymentIncluded, false);
     assert.equal(plan.writeBudget.total, APPROVED_EXPECTED_WRITES);
+    assert.equal(plan.steps.at(-1)?.name, '0019_admin_observability.sql');
   });
 });
 
@@ -108,7 +110,11 @@ test('complete local release preserves rows and verifies bridge, aggregates, You
     assert.deepEqual(columns.how_it_works_video.map((column) => column.name), [
       'id', 'youtube_video_id', 'youtube_url', 'enabled', 'updated_by', 'created_at', 'updated_at',
     ]);
-    assert.deepEqual(columns.ai_usage_ledger.map((column) => column.name), AI_METERING_COLUMNS);
+    assert.deepEqual(columns.ai_usage_ledger.map((column) => column.name), AI_OBSERVABILITY_COLUMNS);
+    assert.equal(after.counts.admin_observability_summary, 1);
+    assert.equal(after.counts.admin_plan_summary, 5);
+    assert.equal(Object.keys(after.objects).filter((key) => key === 'trigger:admin_ai_usage_finalize' || key.startsWith('trigger:admin_obs_')).length, 27);
+    assert.ok(AI_METERING_COLUMNS.every((name) => AI_OBSERVABILITY_COLUMNS.includes(name)));
     assert.equal(after.objects['table:how_it_works_video']?.sql.includes('stream_uid'), false);
 
     const second = buildReleasePlan(after);

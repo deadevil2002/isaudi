@@ -12,8 +12,8 @@ export const RELEASE_IDENTITY = Object.freeze({
 });
 
 export const EXECUTION_APPROVAL = 'APPLY_ISAUDI_PRODUCTION_D1_RELEASE';
-export const APPROVED_EXPECTED_WRITES = 8_582;
-export const APPROVED_MAX_WRITES = 9_000;
+export const APPROVED_EXPECTED_WRITES = 11_162;
+export const APPROVED_MAX_WRITES = 12_000;
 export const BOOKMARK_MAX_AGE_MS = 10 * 60 * 1_000;
 
 export const BASE_LEDGER_NAMES = Object.freeze([
@@ -63,6 +63,7 @@ export const RELEASE_NAMES = Object.freeze([
   '0016_runtime_aggregates.sql',
   '0017_youtube_how_it_works_video.sql',
   '0018_ai_usage_metering.sql',
+  '0019_admin_observability.sql',
 ]);
 
 const ROOT = process.cwd();
@@ -173,6 +174,14 @@ export const AI_METERING_COLUMNS = Object.freeze([
   'cache_write_tokens',
 ]);
 
+export const AI_OBSERVABILITY_COLUMNS = Object.freeze([
+  ...AI_METERING_COLUMNS,
+  'plan',
+  'latency_ms',
+  'failure_kind',
+  'provider_status',
+]);
+
 const BASE_AI_COLUMNS = Object.freeze(AI_METERING_COLUMNS.slice(0, 7));
 
 function fail(message) {
@@ -260,6 +269,9 @@ export function inspectLocalDatabase(db) {
     'user_runtime_summaries',
     'runtime_admin_summary',
     'how_it_works_video',
+    'admin_ai_usage_daily',
+    'admin_observability_summary',
+    'admin_plan_summary',
   ]) columns[table] = tableColumns(db, table);
 
   const counts = Object.fromEntries(WATCHED_TABLES.map((table) => [table, tableCount(db, table)]));
@@ -274,6 +286,15 @@ export function inspectLocalDatabase(db) {
     : 0;
   counts.admin_audit_log_legacy_20261001 = objects['table:admin_audit_log_legacy_20261001']
     ? tableCount(db, 'admin_audit_log_legacy_20261001')
+    : 0;
+  counts.admin_ai_usage_daily = objects['table:admin_ai_usage_daily']
+    ? tableCount(db, 'admin_ai_usage_daily')
+    : 0;
+  counts.admin_observability_summary = objects['table:admin_observability_summary']
+    ? tableCount(db, 'admin_observability_summary')
+    : 0;
+  counts.admin_plan_summary = objects['table:admin_plan_summary']
+    ? tableCount(db, 'admin_plan_summary')
     : 0;
 
   const runtimePresent = Boolean(objects['table:user_runtime_summaries'] && objects['table:runtime_admin_summary']);
@@ -368,7 +389,13 @@ function createProductionSchema(db) {
       planId TEXT,
       interval TEXT,
       status TEXT NOT NULL,
-      createdAt INTEGER NOT NULL
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER,
+      processedAt INTEGER,
+      integrityError TEXT,
+      processingToken TEXT,
+      receiptClaimedAt INTEGER,
+      receiptLeaseToken TEXT
     );
     CREATE TABLE store_connections (
       id TEXT PRIMARY KEY,
@@ -488,7 +515,9 @@ function seedProductionCardinality(db, auditRows = 0) {
   for (let index = 0; index < 6; index += 1) snapshot.run(`snapshot-${index}`, `user-${index}`, 1_700_000_000 + index, `hash-${index}`, 1, 2, `report-${index}`, '{}');
   db.prepare('INSERT INTO subscriptions VALUES (?,?,?,?,?,?,?,?)').run('subscription-1', 'user-0', 'growth', 'monthly', 'active', 1, 2, 1);
   db.prepare('INSERT INTO subscriptions VALUES (?,?,?,?,?,?,?,?)').run('subscription-2', 'user-1', 'growth', 'monthly', 'expired', 1, 2, 1);
-  db.prepare('INSERT INTO payments VALUES (?,?,?,?,?,?,?,?,?,?)').run('payment-1', 'user-0', 'tap', 'tap-1', 10_000, 'SAR', 'growth', 'monthly', 'captured', 1);
+  db.prepare(`INSERT INTO payments
+    (id,userId,provider,providerPaymentId,amountHalala,currency,planId,interval,status,createdAt)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run('payment-1', 'user-0', 'tap', 'tap-1', 10_000, 'SAR', 'growth', 'monthly', 'captured', 1);
   db.prepare(`INSERT INTO salla_connections
     (merchantId,userId,status,updatedAt,lastEventAt,lastEventPriority,tokenVersion,refreshState)
     VALUES (?,?, 'active', ?, 0, 0, 0, 'idle')`).run('merchant-1', 'user-0', 1_700_000_000);
@@ -529,10 +558,9 @@ function expectedStates() {
     const baseline = inspectLocalDatabase(baselineDb);
     applyMigrationAndLedger(finalDb, RELEASE_NAMES[0], migration('production-reconciliation/0008b_reconcile_legacy_admin_audit.sql'));
     for (const name of RELEASE_NAMES.slice(1, 7)) applyMigrationAndLedger(finalDb, name, 'SELECT 1;');
-    applyMigrationAndLedger(finalDb, RELEASE_NAMES[7], migration(RELEASE_NAMES[7]));
-    applyMigrationAndLedger(finalDb, RELEASE_NAMES[8], migration(RELEASE_NAMES[8]));
-    applyMigrationAndLedger(finalDb, RELEASE_NAMES[9], migration(RELEASE_NAMES[9]));
-    applyMigrationAndLedger(finalDb, RELEASE_NAMES[10], migration(RELEASE_NAMES[10]));
+    for (const name of RELEASE_NAMES.slice(7)) {
+      applyMigrationAndLedger(finalDb, name, migration(name));
+    }
     return { baseline, final: inspectLocalDatabase(finalDb) };
   } finally {
     baselineDb.close();
@@ -600,6 +628,7 @@ function assertSchemaForProgress(state, prefixLength) {
   assertObjectSet(state.objects, expected.baseline.objects, PREEXISTING_RELEASE_OBJECTS);
 
   const meteringApplied = prefixLength >= 11;
+  const observabilityApplied = prefixLength >= 12;
   assertSameObject(
     state.objects,
     meteringApplied ? expected.final.objects : expected.baseline.objects,
@@ -631,8 +660,37 @@ function assertSchemaForProgress(state, prefixLength) {
   else if (state.objects['table:how_it_works_video']) fail('historical 0014 video table must remain absent before 0017');
 
   const meteringColumns = columnNames(state.columns, 'ai_usage_ledger');
-  const expectedColumns = meteringApplied ? AI_METERING_COLUMNS : BASE_AI_COLUMNS;
+  const expectedColumns = observabilityApplied
+    ? AI_OBSERVABILITY_COLUMNS
+    : meteringApplied
+      ? AI_METERING_COLUMNS
+      : BASE_AI_COLUMNS;
   if (JSON.stringify(meteringColumns) !== JSON.stringify(expectedColumns)) fail('AI usage metering columns do not match the release ledger state');
+
+  const observabilityKeys = Object.keys(expected.final.objects).filter((key) =>
+    key === 'table:admin_ai_usage_daily' ||
+    key === 'table:admin_observability_summary' ||
+    key === 'table:admin_plan_summary' ||
+    key === 'trigger:admin_ai_usage_finalize' ||
+    key.startsWith('trigger:admin_obs_') ||
+    key === 'index:idx_admin_ai_usage_daily_range' ||
+    key === 'index:idx_sessions_created_at' ||
+    key === 'index:idx_salla_connections_updated_at' ||
+    key === 'index:idx_products_platform_updated_at' ||
+    key === 'index:idx_orders_platform_created_at'
+  );
+  const observabilityPresent = observabilityKeys.filter((key) => state.objects[key]);
+  if (!observabilityApplied && observabilityPresent.length !== 0) {
+    fail('Admin observability schema is partially present without 0019 ledger state');
+  }
+  if (observabilityApplied) {
+    assertObjectSet(state.objects, expected.final.objects, observabilityKeys);
+    for (const table of ['admin_ai_usage_daily', 'admin_observability_summary', 'admin_plan_summary']) {
+      if (JSON.stringify(columnNames(state.columns, table)) !== JSON.stringify(columnNames(expected.final.columns, table))) {
+        fail(`${table} columns differ from the verified 0019 definition`);
+      }
+    }
+  }
 }
 
 export function assertReleaseState(state) {
@@ -683,6 +741,18 @@ export function calculateWriteBudget(state, steps) {
   const auditBridge = auditRows * 8;
   const indexes = missingIndexes.reduce((sum, name) => sum + indexWriteRows(name, state.counts), 0);
   const aggregates = names.has('0016_runtime_aggregates.sql') ? Number(state.counts.users ?? 0) + 1 : 0;
+  const observabilityIndexes = names.has('0019_admin_observability.sql')
+    ? [
+        ['idx_sessions_created_at', 'sessions'],
+        ['idx_salla_connections_updated_at', 'salla_connections'],
+        ['idx_products_platform_updated_at', 'products'],
+        ['idx_orders_platform_created_at', 'orders'],
+      ].reduce((sum, [index, table]) => sum + (state.objects[`index:${index}`] ? 0 : Number(state.counts[table] ?? 0)), 0)
+    : 0;
+  const observabilityRows = names.has('0019_admin_observability.sql') ? 6 : 0;
+  const aiObservabilityBackfillUpperBound = names.has('0019_admin_observability.sql')
+    ? Number(state.counts.ai_usage_ledger ?? 0) * 3
+    : 0;
   const ledger = steps.length;
   const result = {
     auditBridge,
@@ -691,6 +761,9 @@ export function calculateWriteBudget(state, steps) {
     migrationLedger: ledger,
     videoTable: 0,
     aiMetering: 0,
+    adminObservabilityIndexes: observabilityIndexes,
+    adminObservabilityRows: observabilityRows,
+    aiObservabilityBackfillUpperBound,
     otherDdlDataAccounting: 0,
   };
   const total = Object.values(result).reduce((sum, value) => sum + value, 0);
@@ -752,6 +825,8 @@ export function verifyFinalReleaseState(state) {
     fail('runtime user summary count does not match users');
   }
   if (Number(state.counts.runtime_admin_summary) !== 1) fail('runtime Admin summary singleton is missing');
+  if (Number(state.counts.admin_observability_summary) !== 1) fail('Admin observability summary singleton is missing');
+  if (Number(state.counts.admin_plan_summary) !== 5) fail('Admin plan summary does not contain the five reviewed plan buckets');
   if (Number(state.counts.admin_audit_log_legacy_20261001) !== Number(state.counts.admin_audit_log)) {
     fail('audit backup count does not match the compatibility table');
   }
