@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db/client';
 import { activateTapPaymentAtomically, validateTapPayment } from '@/lib/billing/tap';
+import { resolveTapRuntimeConfig } from '@/lib/billing/tap-environment';
 import { sendTapReceiptOnce } from '@/lib/billing/receipt';
 import {
   REQUEST_BODY_LIMITS,
@@ -116,9 +117,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
 
+  const tapConfig = resolveTapRuntimeConfig();
   const validation = validateTapPayment({
     providerId: id,
     providerStatus: status,
+    providerLiveMode: body.live_mode,
+    expectedLiveMode: tapConfig.expectedLiveMode,
     providerAmount: body.amount,
     providerCurrency: currency,
     metadata: body.metadata,

@@ -80,11 +80,31 @@ test('read client uses the documented first-page URLs and safe fetch options', a
   );
   assert.equal(calls[0].init?.method, 'GET');
   assert.equal(calls[0].init?.cache, 'no-store');
-  assert.equal(calls[0].init?.redirect, 'error');
+  assert.equal(calls[0].init?.redirect, 'manual');
   assert.equal(
     new Headers(calls[0].init?.headers).get('Authorization'),
     'Bearer access-token'
   );
+});
+
+test('read client never follows provider redirects', async () => {
+  let calls = 0;
+  await assert.rejects(
+    listProducts('owner-1', {
+      resolveAccessToken,
+      fetcher: async (_input, init) => {
+        calls += 1;
+        assert.equal(init?.redirect, 'manual');
+        return new Response(null, {
+          status: 302,
+          headers: { Location: 'https://untrusted.example/collect' },
+        });
+      },
+    }),
+    (error: unknown) =>
+      error instanceof SallaReadError && error.category === 'provider_error'
+  );
+  assert.equal(calls, 1);
 });
 
 test('multi-store reads carry the explicit merchant selector through token resolution', async () => {

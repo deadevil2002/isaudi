@@ -42,6 +42,23 @@ export class SallaReadError extends Error {
   }
 }
 
+function logReadFailure(
+  operation: SallaReadOperation,
+  category: SallaReadErrorCategory,
+  status?: number,
+  cause?: unknown
+): void {
+  const safeCause = cause instanceof Error
+    ? { causeName: cause.name, causeMessage: cause.message }
+    : {};
+  console.warn('[salla-read] request failed', {
+    operation,
+    category,
+    ...(status === undefined ? {} : { status }),
+    ...safeCause,
+  });
+}
+
 export interface ReadClientOptions {
   fetcher?: typeof fetch;
   now?: number;
@@ -151,7 +168,10 @@ async function requestPage(
         Authorization: `Bearer ${accessToken}`,
       },
       cache: 'no-store',
-      redirect: 'error',
+      // Workers does not implement `redirect: "error"`. Manual mode preserves
+      // the same fail-closed behavior because every 3xx remains a non-OK
+      // response and is rejected below without following the destination.
+      redirect: 'manual',
       signal: controller.signal,
     });
     const rawBody = await readBodyWithinLimit(response);
@@ -164,6 +184,7 @@ async function requestPage(
     }
   } catch (error) {
     if (error instanceof SallaReadError) throw error;
+    logReadFailure(operation, 'provider_error', undefined, error);
     throw new SallaReadError('provider_error');
   } finally {
     clearTimeout(timeout);
@@ -176,6 +197,7 @@ async function requestPage(
         details.code === 'Unauthorized' &&
         details.message === 'The access token is invalid'
       ) {
+        logReadFailure(operation, 'auth_rejected', response.status);
         throw new SallaReadError('auth_rejected');
       }
       if (
@@ -184,9 +206,11 @@ async function requestPage(
           'The access token should have access to one of those scopes:'
         )
       ) {
+        logReadFailure(operation, 'scope_denied', response.status);
         throw new SallaReadError('scope_denied');
       }
     }
+    logReadFailure(operation, 'provider_error', response.status);
     throw new SallaReadError('provider_error');
   }
 
@@ -201,9 +225,11 @@ async function requestPage(
       typeof payload.status !== 'number' &&
       typeof payload.status !== 'string')
   ) {
+    logReadFailure(operation, 'invalid_response', response.status);
     throw new SallaReadError('invalid_response');
   }
   if (!Array.isArray(payload.data)) {
+    logReadFailure(operation, 'invalid_response', response.status);
     throw new SallaReadError('invalid_response');
   }
 

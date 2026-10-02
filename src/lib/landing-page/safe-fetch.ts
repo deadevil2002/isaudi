@@ -1,4 +1,5 @@
 import { promises as dnsPromises } from 'node:dns';
+import { isIP } from 'node:net';
 import {
   assertPublicStorefrontResolution,
   normalizeTrustedStorefrontOrigin,
@@ -27,7 +28,23 @@ export type StorefrontResolver = (
 export type WorkersDnsPromises = {
   resolve4(hostname: string): Promise<string[]>;
   resolve6(hostname: string): Promise<string[]>;
+  resolveCname?(hostname: string): Promise<string[]>;
 };
+
+const MAX_CNAME_HOPS = 5;
+
+function normalizeDnsAlias(value: string): string {
+  const origin = normalizeTrustedStorefrontOrigin(
+    `https://${value.replace(/\.$/, '')}`
+  );
+  if (!origin) {
+    throw new LandingPageFetchError(
+      'dns_no_public_address',
+      'Storefront DNS alias was not a public hostname'
+    );
+  }
+  return new URL(origin).hostname;
+}
 
 type DnsFailure = { code: string; message: string };
 
@@ -75,19 +92,63 @@ function dnsError(
 export function createStorefrontResolver(
   dns: WorkersDnsPromises = dnsPromises
 ): StorefrontResolver {
-  return async (hostname) => {
+  const resolveHostname = async (
+    hostname: string,
+    visited: Set<string>,
+    depth: number
+  ): Promise<string[]> => {
+    const normalizedOrigin = normalizeTrustedStorefrontOrigin(`https://${hostname}`);
+    if (!normalizedOrigin) {
+      throw new LandingPageFetchError(
+        'dns_no_public_address',
+        'Storefront DNS alias was not a public hostname'
+      );
+    }
+    const normalizedHostname = new URL(normalizedOrigin).hostname;
+    if (visited.has(normalizedHostname) || depth > MAX_CNAME_HOPS) {
+      throw new LandingPageFetchError(
+        'dns_resolution_error',
+        'Storefront DNS alias chain was invalid'
+      );
+    }
+    visited.add(normalizedHostname);
+
     const results = await Promise.all([
-      dns.resolve4(hostname).then(
+      dns.resolve4(normalizedHostname).then(
         (addresses) => ({ addresses, failure: null }),
         (error: unknown) => ({ addresses: [] as string[], failure: dnsFailure(error) })
       ),
-      dns.resolve6(hostname).then(
+      dns.resolve6(normalizedHostname).then(
         (addresses) => ({ addresses, failure: null }),
         (error: unknown) => ({ addresses: [] as string[], failure: dnsFailure(error) })
       ),
     ]);
-    const addresses = [...new Set(results.flatMap((result) => result.addresses))];
+    const records = [
+      ...new Set(
+        results.flatMap((result) => result.addresses)
+          .map((record) => String(record).trim())
+      ),
+    ];
+    const addresses = records.filter((record) => isIP(record) !== 0);
+    const inlineAliases = records
+      .filter((record) => isIP(record) === 0)
+      .map(normalizeDnsAlias);
     if (addresses.length > 0) return addresses;
+
+    let aliases: string[] = [];
+    if (dns.resolveCname && depth < MAX_CNAME_HOPS) {
+      aliases = await dns.resolveCname(normalizedHostname).catch(() => [] as string[]);
+      const normalizedAliases = [
+        ...new Set([...inlineAliases, ...aliases.map(normalizeDnsAlias)]),
+      ];
+      if (normalizedAliases.length > 0) {
+        const resolved = await Promise.all(normalizedAliases.map((alias) =>
+          resolveHostname(alias, new Set(visited), depth + 1)
+        ));
+        return [...new Set(resolved.flat())];
+      }
+    }
+
     const failures = results.flatMap((result) => result.failure ? [result.failure] : []);
     if (failures.length === 0) {
       throw new LandingPageFetchError(
@@ -97,6 +158,8 @@ export function createStorefrontResolver(
     }
     throw dnsError(failures);
   };
+
+  return (hostname) => resolveHostname(hostname, new Set(), 0);
 }
 
 /**

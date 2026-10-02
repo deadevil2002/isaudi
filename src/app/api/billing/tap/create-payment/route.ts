@@ -3,6 +3,10 @@ import { getCurrentUser } from '@/lib/auth/utils';
 import { getDb } from '@/lib/db/client';
 import { resolveTapPlan } from '@/lib/billing/tap';
 import {
+  isExpectedTapMode,
+  resolveTapRuntimeConfig,
+} from '@/lib/billing/tap-environment';
+import {
   REQUEST_BODY_LIMITS,
   RequestBodyTooLargeError,
   readJsonWithLimit,
@@ -45,8 +49,7 @@ export async function POST(req: NextRequest) {
     const { checkoutPlanId: planId, interval, currency, amountHalala } = plan;
     const amount = amountHalala / 100;
 
-    const redirectUrl = 'https://isaudi.ai/billing?status=processed';
-    const postUrl = 'https://isaudi.ai/api/billing/tap/webhook';
+    const tapConfig = resolveTapRuntimeConfig();
 
     const tapSecret = process.env.TAP_SECRET_KEY || process.env.TAP_API_KEY || '';
     if (!tapSecret) {
@@ -84,8 +87,8 @@ export async function POST(req: NextRequest) {
         source: {
           id: 'src_all',
         },
-        post: { url: postUrl },
-        redirect: { url: redirectUrl },
+        post: { url: tapConfig.webhookUrl },
+        redirect: { url: tapConfig.redirectUrl },
       }),
     });
 
@@ -116,6 +119,17 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { error: 'Invalid response from Tap', requestId },
+        { status: 502 }
+      );
+    }
+
+    if (!isExpectedTapMode(tapJson.live_mode, tapConfig.expectedLiveMode)) {
+      console.error(`[tap-create-payment] [${requestId}] provider mode mismatch`, {
+        provider: 'tap',
+        environment: tapConfig.environment,
+      });
+      return NextResponse.json(
+        { error: 'Payment provider mode mismatch', requestId },
         { status: 502 }
       );
     }

@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+// @ts-expect-error Node 22 provides node:sqlite; the project intentionally retains Node 20 type declarations.
+import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import {
   activateTapPaymentAtomically,
   resolveTapPlan,
   validateTapPayment,
 } from '../src/lib/billing/tap';
+import { resolveTapRuntimeConfig } from '../src/lib/billing/tap-environment';
+import { getPlanLimits } from '../src/lib/subscription/plans';
 
 const payment = {
   providerPaymentId: 'chg_123',
@@ -17,6 +22,8 @@ const payment = {
 const provider = {
   providerId: 'chg_123',
   providerStatus: 'CAPTURED',
+  providerLiveMode: true,
+  expectedLiveMode: true,
   providerAmount: 8999,
   providerCurrency: 'SAR',
   metadata: { userId: 'user_1', plan: 'enterprise', interval: 'year' },
@@ -114,4 +121,102 @@ test('a charge cannot activate a different subscription', async () => {
   });
   assert.equal(result, 'duplicate');
   assert.equal(calls, 1);
+});
+
+test('Tap callbacks and expected modes are pinned per environment', () => {
+  assert.deepEqual(
+    resolveTapRuntimeConfig({ appEnv: 'staging', appUrl: 'https://isaudi-staging.isaudi-official.workers.dev' }),
+    {
+      environment: 'staging',
+      expectedLiveMode: false,
+      redirectUrl: 'https://isaudi-staging.isaudi-official.workers.dev/billing?status=processed',
+      webhookUrl: 'https://isaudi-staging.isaudi-official.workers.dev/api/billing/tap/webhook',
+    }
+  );
+  assert.deepEqual(resolveTapRuntimeConfig({ appEnv: 'production', appUrl: 'https://isaudi.ai' }), {
+    environment: 'production',
+    expectedLiveMode: true,
+    redirectUrl: 'https://isaudi.ai/billing?status=processed',
+    webhookUrl: 'https://isaudi.ai/api/billing/tap/webhook',
+  });
+  assert.throws(() =>
+    resolveTapRuntimeConfig({ appEnv: 'staging', appUrl: 'https://isaudi.ai' })
+  );
+  assert.throws(() =>
+    resolveTapRuntimeConfig({
+      appEnv: 'production',
+      appUrl: 'https://isaudi-staging.isaudi-official.workers.dev',
+    })
+  );
+});
+
+test('sandbox and live charges cannot cross environments', () => {
+  assert.equal(
+    validateTapPayment({
+      ...provider,
+      providerLiveMode: false,
+      expectedLiveMode: false,
+      payment,
+    }).ok,
+    true
+  );
+  assert.deepEqual(
+    validateTapPayment({ ...provider, providerLiveMode: false, payment }),
+    { ok: false, reason: 'mode' }
+  );
+  assert.deepEqual(
+    validateTapPayment({ ...provider, expectedLiveMode: false, payment }),
+    { ok: false, reason: 'mode' }
+  );
+});
+
+test('verified Starter payment preserves the real entitlement limits', () => {
+  const starterPayment = {
+    ...payment,
+    planId: 'starter',
+    interval: 'month',
+    amountHalala: 19_900,
+  };
+  const validation = validateTapPayment({
+    providerId: 'chg_123',
+    providerStatus: 'CAPTURED',
+    providerLiveMode: false,
+    expectedLiveMode: false,
+    providerAmount: 199,
+    providerCurrency: 'SAR',
+    metadata: { userId: 'user_1', plan: 'starter', interval: 'month' },
+    payment: starterPayment,
+    expectedUserId: 'user_1',
+  });
+  assert.equal(validation.ok, true);
+  assert.equal(validation.ok && validation.plan.entitlementPlanId, 'starter');
+  assert.equal(getPlanLimits('starter').maxStores, 1);
+  assert.equal(getPlanLimits('free').maxStores, 0);
+});
+
+test('staging billing compatibility adds only the legacy production billing columns', async () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE subscriptions (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    planId TEXT NOT NULL,
+    interval TEXT NOT NULL,
+    status TEXT NOT NULL,
+    startedAt INTEGER NOT NULL,
+    expiresAt INTEGER NOT NULL,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER
+  )`);
+  const sql = await readFile(
+    new URL('../migrations/staging/0001_subscription_billing_compat.sql', import.meta.url),
+    'utf8'
+  );
+  db.exec(sql);
+  const columns = db.prepare('PRAGMA table_info(subscriptions)').all() as Array<{ name: string }>;
+  assert.deepEqual(columns.slice(-3).map(({ name }) => name), [
+    'tapChargeId',
+    'amount',
+    'currency',
+  ]);
+  db.close();
 });

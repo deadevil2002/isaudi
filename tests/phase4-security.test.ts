@@ -41,6 +41,10 @@ test('CSV formula cells are neutralized and records have no prototype', () => {
 
 test('Tap and Salla callback origins are pinned in production', async () => {
   const tap = await readFile(
+    new URL('../src/lib/billing/tap-environment.ts', import.meta.url),
+    'utf8'
+  );
+  const tapCreate = await readFile(
     new URL('../src/app/api/billing/tap/create-payment/route.ts', import.meta.url),
     'utf8'
   );
@@ -48,9 +52,32 @@ test('Tap and Salla callback origins are pinned in production', async () => {
     new URL('../src/app/api/connect/salla/callback/route.ts', import.meta.url),
     'utf8'
   );
-  assert.match(tap, /https:\/\/isaudi\.ai\/billing\?status=processed/);
-  assert.doesNotMatch(tap, /x-forwarded-host|headers\.get\('host'\)/);
+  assert.match(tap, /production: 'https:\/\/isaudi\.ai'/);
+  assert.match(tap, /redirectUrl: `\$\{origin\}\/billing\?status=processed`/);
+  assert.match(tap, /https:\/\/isaudi-staging\.isaudi-official\.workers\.dev/);
+  assert.doesNotMatch(tap + tapCreate, /x-forwarded-host|headers\.get\('host'\)/);
+  assert.match(tapCreate, /resolveTapRuntimeConfig\(\)/);
   assert.match(salla, /process\.env\.NODE_ENV === 'production'[\s\S]*https:\/\/isaudi\.ai/);
+});
+
+test('Tap activation requires provider verification rather than a browser redirect', async () => {
+  const client = await readFile(
+    new URL('../src/app/(authenticated)/billing/billing-client.tsx', import.meta.url),
+    'utf8'
+  );
+  const verify = await readFile(
+    new URL('../src/app/api/billing/verify/route.ts', import.meta.url),
+    'utf8'
+  );
+  const webhook = await readFile(
+    new URL('../src/app/api/billing/tap/webhook/route.ts', import.meta.url),
+    'utf8'
+  );
+  assert.match(client, /\/api\/billing\/verify/);
+  assert.match(verify, /api\.tap\.company\/v2\/charges/);
+  assert.match(verify, /validateTapPayment/);
+  assert.match(webhook, /safeEqualHex\(expected, hashString\)/);
+  assert.match(webhook, /validateTapPayment/);
 });
 
 test('sensitive routes are no-store and forwarded headers are not trusted', async () => {

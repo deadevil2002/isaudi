@@ -107,6 +107,48 @@ test('Workers DNS resolver uses resolve4/resolve6 only and classifies failures',
     'resolve4:shop.example.com', 'resolve6:shop.example.com',
   ]);
 
+  const cnameCalls: string[] = [];
+  const cnameResolver = createStorefrontResolver({
+    resolve4: async (hostname) => {
+      cnameCalls.push(`resolve4:${hostname}`);
+      return hostname === 'app.salla.cloud' ? ['172.66.3.23'] : [];
+    },
+    resolve6: async (hostname) => {
+      cnameCalls.push(`resolve6:${hostname}`);
+      return [];
+    },
+    resolveCname: async (hostname) => {
+      cnameCalls.push(`resolveCname:${hostname}`);
+      return hostname === 'demostore.salla.sa' ? ['app.salla.cloud.'] : [];
+    },
+  });
+  assert.deepEqual(await cnameResolver('demostore.salla.sa'), ['172.66.3.23']);
+  assert.deepEqual(cnameCalls, [
+    'resolve4:demostore.salla.sa',
+    'resolve6:demostore.salla.sa',
+    'resolveCname:demostore.salla.sa',
+    'resolve4:app.salla.cloud',
+    'resolve6:app.salla.cloud',
+  ]);
+
+  assert.deepEqual(
+    await createStorefrontResolver({
+      resolve4: async () => ['app.salla.cloud.', '162.159.143.27', '172.66.3.23'],
+      resolve6: async () => ['app.salla.cloud.', '2606:4700:7::30b'],
+    })('demostore.salla.sa'),
+    ['162.159.143.27', '172.66.3.23', '2606:4700:7::30b']
+  );
+
+  await assert.rejects(
+    createStorefrontResolver({
+      resolve4: async () => [],
+      resolve6: async () => [],
+      resolveCname: async () => ['metadata.google.internal'],
+    })('shop.example.com'),
+    (caught: unknown) => caught instanceof LandingPageFetchError &&
+      caught.reason === 'dns_no_public_address'
+  );
+
   const error = (code: string, message = code) => Object.assign(new Error(message), { code });
   const cases: Array<[
     string,

@@ -49,6 +49,8 @@ export function amountToHalala(value: unknown): number | null {
 export function validateTapPayment(input: {
   providerId: unknown;
   providerStatus: unknown;
+  providerLiveMode: unknown;
+  expectedLiveMode: boolean;
   providerAmount: unknown;
   providerCurrency: unknown;
   metadata: unknown;
@@ -87,6 +89,12 @@ export function validateTapPayment(input: {
   const amountHalala = amountToHalala(input.providerAmount);
 
   if (!providerId || providerId !== storedProviderId) return { ok: false, reason: 'payment_id' };
+  if (
+    typeof input.providerLiveMode !== 'boolean' ||
+    input.providerLiveMode !== input.expectedLiveMode
+  ) {
+    return { ok: false, reason: 'mode' };
+  }
   if (status !== 'CAPTURED' && status !== 'SUCCESS') return { ok: false, reason: 'status' };
   if (input.providerCurrency !== plan.currency || payment.currency !== plan.currency) {
     return { ok: false, reason: 'currency' };

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { getDb } from '@/lib/db/client';
 import { activateTapPaymentAtomically, validateTapPayment } from '@/lib/billing/tap';
+import { resolveTapRuntimeConfig } from '@/lib/billing/tap-environment';
 import { sendTapReceiptOnce } from '@/lib/billing/receipt';
 import {
   REQUEST_BODY_LIMITS,
@@ -76,9 +77,12 @@ export async function POST(req: NextRequest) {
   }
 
   const provider = record(payload)!;
+  const tapConfig = resolveTapRuntimeConfig();
   const validation = validateTapPayment({
     providerId: provider.id,
     providerStatus: provider.status,
+    providerLiveMode: provider.live_mode,
+    expectedLiveMode: tapConfig.expectedLiveMode,
     providerAmount: provider.amount,
     providerCurrency: provider.currency,
     metadata: provider.metadata,
