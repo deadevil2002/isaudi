@@ -127,14 +127,17 @@ export interface LandingPageAnalysisResult {
 export type LandingAnalysisFailureReason =
   | 'verified_storefront_unavailable'
   | 'invalid_verified_origin'
-  | 'dns_unavailable'
-  | 'dns_blocked'
-  | 'redirect_blocked'
+  | 'dns_nxdomain'
+  | 'dns_no_public_address'
+  | 'dns_timeout'
+  | 'dns_resolution_error'
+  | 'dns_unsupported_runtime'
+  | 'redirect_rejected'
   | 'too_many_redirects'
-  | 'timeout'
-  | 'network_error'
-  | 'http_status'
-  | 'invalid_content_type'
+  | 'fetch_timeout'
+  | 'fetch_network_error'
+  | 'http_error'
+  | 'content_type_rejected'
   | 'response_too_large';
 
 export class LandingPageFetchError extends Error {

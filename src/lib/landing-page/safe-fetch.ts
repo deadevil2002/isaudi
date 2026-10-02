@@ -1,3 +1,4 @@
+import { promises as dnsPromises } from 'node:dns';
 import {
   assertPublicStorefrontResolution,
   normalizeTrustedStorefrontOrigin,
@@ -23,54 +24,93 @@ export type StorefrontResolver = (
   options?: { signal?: AbortSignal }
 ) => Promise<string[]>;
 
-type DnsJsonAnswer = { type?: unknown; data?: unknown };
-type DnsJsonResponse = { Status?: unknown; Answer?: unknown };
+export type WorkersDnsPromises = {
+  resolve4(hostname: string): Promise<string[]>;
+  resolve6(hostname: string): Promise<string[]>;
+};
 
-async function queryDnsJson(
-  hostname: string,
-  type: 'A' | 'AAAA',
-  signal?: AbortSignal
-): Promise<DnsJsonResponse> {
-  const url = new URL('https://cloudflare-dns.com/dns-query');
-  url.searchParams.set('name', hostname);
-  url.searchParams.set('type', type);
-  const response = await fetch(url, {
-    headers: { Accept: 'application/dns-json' },
-    redirect: 'error',
-    cache: 'no-store',
-    signal,
-  });
-  if (!response.ok) throw new Error('DNS lookup failed');
-  return response.json() as Promise<DnsJsonResponse>;
+type DnsFailure = { code: string; message: string };
+
+function dnsFailure(error: unknown): DnsFailure {
+  if (!error || typeof error !== 'object') {
+    return { code: '', message: String(error) };
+  }
+  const value = error as { code?: unknown; message?: unknown };
+  return {
+    code: typeof value.code === 'string' ? value.code.toUpperCase() : '',
+    message: typeof value.message === 'string' ? value.message : '',
+  };
+}
+
+function dnsError(
+  failures: DnsFailure[]
+): LandingPageFetchError {
+  if (failures.some(({ code, message }) =>
+    code === 'ERR_NOT_IMPLEMENTED' || code === 'ENOSYS' || /not implemented/i.test(message)
+  )) {
+    return new LandingPageFetchError(
+      'dns_unsupported_runtime',
+      'The Worker runtime does not support the selected DNS resolver'
+    );
+  }
+  if (failures.some(({ code }) =>
+    code === 'ETIMEOUT' || code === 'EAI_AGAIN' || code === 'ESERVFAIL'
+  )) {
+    return new LandingPageFetchError('dns_timeout', 'Storefront DNS lookup timed out');
+  }
+  if (failures.length > 0 && failures.every(({ code }) => code === 'ENOTFOUND')) {
+    return new LandingPageFetchError('dns_nxdomain', 'Storefront hostname does not exist');
+  }
+  if (failures.length > 0 && failures.every(({ code }) =>
+    code === 'ENODATA' || code === 'ENOTFOUND'
+  )) {
+    return new LandingPageFetchError(
+      'dns_no_public_address',
+      'Storefront hostname has no A or AAAA records'
+    );
+  }
+  return new LandingPageFetchError('dns_resolution_error', 'Storefront DNS lookup failed');
+}
+
+export function createStorefrontResolver(
+  dns: WorkersDnsPromises = dnsPromises
+): StorefrontResolver {
+  return async (hostname) => {
+    const results = await Promise.all([
+      dns.resolve4(hostname).then(
+        (addresses) => ({ addresses, failure: null }),
+        (error: unknown) => ({ addresses: [] as string[], failure: dnsFailure(error) })
+      ),
+      dns.resolve6(hostname).then(
+        (addresses) => ({ addresses, failure: null }),
+        (error: unknown) => ({ addresses: [] as string[], failure: dnsFailure(error) })
+      ),
+    ]);
+    const addresses = [...new Set(results.flatMap((result) => result.addresses))];
+    if (addresses.length > 0) return addresses;
+    const failures = results.flatMap((result) => result.failure ? [result.failure] : []);
+    if (failures.length === 0) {
+      throw new LandingPageFetchError(
+        'dns_no_public_address',
+        'Storefront hostname has no A or AAAA records'
+      );
+    }
+    throw dnsError(failures);
+  };
 }
 
 /**
- * Resolve through a fixed public DoH service before every storefront fetch.
- * The Worker compatibility flag `global_fetch_strictly_public` remains the
- * final resolver-level guard against DNS rebinding between this check and
- * the outbound request.
+ * Resolve through the Workers-supported node:dns resolve4/resolve6 APIs.
+ * This rejects every non-public answer, including mixed public/private sets.
+ * Workers does not expose destination-IP pinning for fetch(), so the lookup
+ * and request cannot be cryptographically bound. `global_fetch_strictly_public`
+ * is therefore retained as the runtime-level backstop against private origins;
+ * it does not replace URL, DNS answer, or redirect validation.
  */
 export async function resolveStorefrontAddresses(
-  hostname: string,
-  options: { signal?: AbortSignal } = {}
+  hostname: string
 ): Promise<string[]> {
-  const responses = await Promise.all([
-    queryDnsJson(hostname, 'A', options.signal),
-    queryDnsJson(hostname, 'AAAA', options.signal),
-  ]);
-  const addresses: string[] = [];
-  for (const response of responses) {
-    if (response.Status !== 0 && response.Status !== 3) {
-      throw new Error('DNS lookup failed');
-    }
-    if (!Array.isArray(response.Answer)) continue;
-    for (const answer of response.Answer as DnsJsonAnswer[]) {
-      if ((answer.type === 1 || answer.type === 28) && typeof answer.data === 'string') {
-        addresses.push(answer.data.trim());
-      }
-    }
-  }
-  return [...new Set(addresses)];
+  return createStorefrontResolver()(hostname);
 }
 
 function redirectStatus(status: number): boolean {
@@ -78,10 +118,14 @@ function redirectStatus(status: number): boolean {
     status === 307 || status === 308;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutError = new LandingPageFetchError('fetch_timeout', 'Storefront request timed out')
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new LandingPageFetchError('timeout', 'Storefront request timed out')),
+      () => reject(timeoutError),
       ms
     );
     promise.then(
@@ -177,26 +221,28 @@ export async function fetchVerifiedStorefront(
     let addresses: string[] = [];
     const dnsRemainingMs = deadline - now();
     if (dnsRemainingMs <= 0) {
-      throw new LandingPageFetchError('timeout', 'Storefront request timed out');
+      throw new LandingPageFetchError('dns_timeout', 'Storefront DNS lookup timed out');
     }
     const dnsController = new AbortController();
     try {
       addresses = await withTimeout(
         resolver(current.hostname, { signal: dnsController.signal }),
-        dnsRemainingMs
+        dnsRemainingMs,
+        new LandingPageFetchError('dns_timeout', 'Storefront DNS lookup timed out')
       );
       assertPublicStorefrontResolution(current.hostname, addresses);
     } catch (error) {
       dnsController.abort();
       if (error instanceof LandingPageFetchError) throw error;
-      const reason = addresses.length > 0
-        ? 'dns_blocked' : 'dns_unavailable';
-      throw new LandingPageFetchError(reason, 'Storefront DNS validation failed');
+      throw new LandingPageFetchError(
+        addresses.length > 0 ? 'dns_no_public_address' : 'dns_resolution_error',
+        'Storefront DNS validation failed'
+      );
     }
 
     const remainingMs = deadline - now();
     if (remainingMs <= 0) {
-      throw new LandingPageFetchError('timeout', 'Storefront request timed out');
+      throw new LandingPageFetchError('fetch_timeout', 'Storefront request timed out');
     }
     const controller = new AbortController();
     let response: Response;
@@ -217,13 +263,13 @@ export async function fetchVerifiedStorefront(
     } catch (error) {
       controller.abort();
       if (error instanceof LandingPageFetchError) throw error;
-      throw new LandingPageFetchError('network_error', 'Storefront request failed');
+      throw new LandingPageFetchError('fetch_network_error', 'Storefront request failed');
     }
 
     if (redirectStatus(response.status)) {
       const location = response.headers.get('location');
       if (!location) {
-        throw new LandingPageFetchError('redirect_blocked', 'Storefront redirect was incomplete');
+        throw new LandingPageFetchError('redirect_rejected', 'Storefront redirect was incomplete');
       }
       if (redirectCount >= STOREFRONT_FETCH_POLICY.maxRedirects) {
         throw new LandingPageFetchError('too_many_redirects', 'Storefront redirect limit exceeded');
@@ -231,26 +277,26 @@ export async function fetchVerifiedStorefront(
       try {
         currentUrl = validateStorefrontRedirect(origin, currentUrl, location);
       } catch {
-        throw new LandingPageFetchError('redirect_blocked', 'Storefront redirect left the verified origin');
+        throw new LandingPageFetchError('redirect_rejected', 'Storefront redirect left the verified origin');
       }
       redirectCount += 1;
       continue;
     }
 
     if (!response.ok) {
-      throw new LandingPageFetchError('http_status', 'Storefront returned an unsuccessful status', response.status);
+      throw new LandingPageFetchError('http_error', 'Storefront returned an unsuccessful status', response.status);
     }
     const contentType = (response.headers.get('content-type') ?? '')
       .split(';', 1)[0]
       .trim()
       .toLowerCase();
     if (!(STOREFRONT_FETCH_POLICY.contentTypes as readonly string[]).includes(contentType)) {
-      throw new LandingPageFetchError('invalid_content_type', 'Storefront response was not HTML', response.status);
+      throw new LandingPageFetchError('content_type_rejected', 'Storefront response was not HTML', response.status);
     }
 
     const bodyRemainingMs = deadline - now();
     if (bodyRemainingMs <= 0) {
-      throw new LandingPageFetchError('timeout', 'Storefront request timed out');
+      throw new LandingPageFetchError('fetch_timeout', 'Storefront request timed out');
     }
     const bytes = await boundedBody(response, bodyRemainingMs, controller);
     const html = new TextDecoder('utf-8', { fatal: false }).decode(bytes);

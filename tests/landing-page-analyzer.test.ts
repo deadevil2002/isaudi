@@ -6,7 +6,10 @@ import { DatabaseSync } from 'node:sqlite';
 import { createLandingPageAnalysisHandler } from '../src/lib/landing-page/handler';
 import { analyzeStorefrontHtml } from '../src/lib/landing-page/html-analyzer';
 import { createLandingAnalysisRepository } from '../src/lib/landing-page/repository';
-import { fetchVerifiedStorefront } from '../src/lib/landing-page/safe-fetch';
+import {
+  createStorefrontResolver,
+  fetchVerifiedStorefront,
+} from '../src/lib/landing-page/safe-fetch';
 import {
   analyzeVerifiedLandingPage,
   LandingPageAnalysisUnavailableError,
@@ -65,7 +68,8 @@ test('safe fetch rejects private DNS answers, private redirects, and cross-origi
       resolver: async () => ['127.0.0.1'],
       fetcher: async () => new Response(page()),
     }),
-    (error: unknown) => error instanceof LandingPageFetchError && error.reason === 'dns_blocked'
+    (error: unknown) => error instanceof LandingPageFetchError &&
+      error.reason === 'dns_no_public_address'
   );
   for (const location of ['https://127.0.0.1/admin', 'https://attacker.example/']) {
     await assert.rejects(
@@ -73,7 +77,92 @@ test('safe fetch rejects private DNS answers, private redirects, and cross-origi
         resolver: PUBLIC_DNS,
         fetcher: async () => new Response(null, { status: 302, headers: { Location: location } }),
       }),
-      (error: unknown) => error instanceof LandingPageFetchError && error.reason === 'redirect_blocked'
+      (error: unknown) => error instanceof LandingPageFetchError &&
+        error.reason === 'redirect_rejected'
+    );
+  }
+});
+
+test('Workers DNS resolver uses resolve4/resolve6 only and classifies failures', async () => {
+  const calls: string[] = [];
+  const resolver = createStorefrontResolver({
+    resolve4: async (hostname) => {
+      calls.push(`resolve4:${hostname}`);
+      return ['203.0.114.10'];
+    },
+    resolve6: async (hostname) => {
+      calls.push(`resolve6:${hostname}`);
+      return ['2001:4860:4860::8888'];
+    },
+    lookup: async () => {
+      throw new Error('lookup must never be used');
+    },
+  } as Parameters<typeof createStorefrontResolver>[0] & {
+    lookup: () => Promise<never>;
+  });
+  assert.deepEqual(await resolver('shop.example.com'), [
+    '203.0.114.10', '2001:4860:4860::8888',
+  ]);
+  assert.deepEqual(calls, [
+    'resolve4:shop.example.com', 'resolve6:shop.example.com',
+  ]);
+
+  const error = (code: string, message = code) => Object.assign(new Error(message), { code });
+  const cases: Array<[
+    string,
+    () => Promise<string[]>,
+    () => Promise<string[]>,
+    string,
+  ]> = [
+    ['NXDOMAIN', async () => { throw error('ENOTFOUND'); }, async () => { throw error('ENOTFOUND'); }, 'dns_nxdomain'],
+    ['no A/AAAA', async () => { throw error('ENODATA'); }, async () => { throw error('ENODATA'); }, 'dns_no_public_address'],
+    ['empty records', async () => [], async () => [], 'dns_no_public_address'],
+    ['timeout', async () => { throw error('ETIMEOUT'); }, async () => { throw error('ENODATA'); }, 'dns_timeout'],
+    ['unsupported runtime', async () => { throw error('ERR_NOT_IMPLEMENTED', 'Not implemented'); }, async () => { throw error('ENODATA'); }, 'dns_unsupported_runtime'],
+    ['resolver error', async () => { throw error('EREFUSED'); }, async () => { throw error('ENODATA'); }, 'dns_resolution_error'],
+  ];
+  for (const [name, resolve4, resolve6, reason] of cases) {
+    await assert.rejects(
+      createStorefrontResolver({ resolve4, resolve6 })('shop.example.com'),
+      (caught: unknown) => caught instanceof LandingPageFetchError && caught.reason === reason,
+      name
+    );
+  }
+});
+
+test('safe fetch accepts public IPv4/IPv6 and rejects every non-public or mixed answer', async () => {
+  for (const addresses of [
+    ['8.8.8.8'],
+    ['2001:4860:4860::8888'],
+    ['8.8.8.8', '2001:4860:4860::8888'],
+  ]) {
+    const result = await fetchVerifiedStorefront('https://shop.example.com', {
+      resolver: async () => addresses,
+      fetcher: async () => new Response(page(), {
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    });
+    assert.equal(result.httpStatus, 200);
+  }
+  for (const addresses of [
+    ['10.0.0.1'],
+    ['127.0.0.1'],
+    ['169.254.169.254'],
+    ['::1'],
+    ['fc00::1'],
+    ['fe80::1'],
+    ['ff02::1'],
+    ['2001:db8::1'],
+    ['8.8.8.8', '127.0.0.1'],
+  ]) {
+    await assert.rejects(
+      fetchVerifiedStorefront('https://shop.example.com', {
+        resolver: async () => addresses,
+        fetcher: async () => new Response(page()),
+      }),
+      (error: unknown) => error instanceof LandingPageFetchError &&
+        error.reason === 'dns_no_public_address',
+      addresses.join(',')
     );
   }
 });
@@ -82,12 +171,14 @@ test('analyzer target rejects unsupported schemes, credentials, and internal add
   for (const target of [
     'http://shop.example.com',
     'https://user:pass@shop.example.com',
+    'https://shop.example.com:8443',
     'https://localhost',
     'https://metadata.google.internal',
     'https://10.0.0.1',
     'https://169.254.169.254',
     'https://[fc00::1]',
     'file:///etc/passwd',
+    'ftp://shop.example.com',
   ]) {
     await assert.rejects(
       fetchVerifiedStorefront(target, {
@@ -102,6 +193,15 @@ test('analyzer target rejects unsupported schemes, credentials, and internal add
 });
 
 test('safe fetch validates every redirect and bounds chains, response bytes, timeout, and content type', async () => {
+  let sameOriginStep = 0;
+  const sameOrigin = await fetchVerifiedStorefront('https://shop.example.com', {
+    resolver: PUBLIC_DNS,
+    fetcher: async () => sameOriginStep++ === 0
+      ? new Response(null, { status: 302, headers: { Location: '/products' } })
+      : new Response(page(), { headers: { 'Content-Type': 'text/html' } }),
+  });
+  assert.equal(sameOrigin.finalUrl, 'https://shop.example.com/products');
+  assert.equal(sameOrigin.redirectCount, 1);
   let redirects = 0;
   await assert.rejects(
     fetchVerifiedStorefront('https://shop.example.com', {
@@ -127,7 +227,8 @@ test('safe fetch validates every redirect and bounds chains, response bytes, tim
       resolver: PUBLIC_DNS,
       fetcher: async () => new Response('{}', { headers: { 'Content-Type': 'application/json' } }),
     }),
-    (error: unknown) => error instanceof LandingPageFetchError && error.reason === 'invalid_content_type'
+    (error: unknown) => error instanceof LandingPageFetchError &&
+      error.reason === 'content_type_rejected'
   );
   let nowCalls = 0;
   await assert.rejects(
@@ -136,7 +237,8 @@ test('safe fetch validates every redirect and bounds chains, response bytes, tim
       now: () => nowCalls++ === 0 ? 0 : 9_999,
       fetcher: async () => new Promise<Response>(() => undefined),
     }),
-    (error: unknown) => error instanceof LandingPageFetchError && error.reason === 'timeout'
+    (error: unknown) => error instanceof LandingPageFetchError &&
+      error.reason === 'fetch_timeout'
   );
 });
 
@@ -277,7 +379,7 @@ test('fetch failures are stored without findings, HTML, screenshots, or secrets'
   const row = db.prepare(`SELECT status, failure_reason, evidence_json, findings_json
     FROM landing_page_analyses WHERE id='failed-1'`).get() as Record<string, unknown>;
   assert.deepEqual({ ...row }, {
-    status: 'failed', failure_reason: 'dns_blocked', evidence_json: null, findings_json: null,
+    status: 'failed', failure_reason: 'dns_no_public_address', evidence_json: null, findings_json: null,
   });
   db.close();
 });

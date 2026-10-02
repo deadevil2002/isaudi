@@ -54,7 +54,7 @@ export async function analyzeVerifiedLandingPage(input: {
   } catch (error) {
     const fetchError = error instanceof LandingPageFetchError
       ? error
-      : new LandingPageFetchError('network_error', 'Storefront request failed');
+      : new LandingPageFetchError('fetch_network_error', 'Storefront request failed');
     try {
       await repository.recordFailure({
         id: createId(),
