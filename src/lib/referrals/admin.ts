@@ -5,6 +5,7 @@ import type { ReferralDb } from './repository';
 import {
   boundedText,
   normalizePartnerUrl,
+  parseCommissionBasis,
   parseCommission,
   parsePlatforms,
   parseQualityStatus,
@@ -124,6 +125,7 @@ export async function savePartnerOffer(input: {
     ? safeValidation(() => boundedText(input.data.id, 128))
     : input.createId ? input.createId() : crypto.randomUUID();
   const commission = safeValidation(() => parseCommission(input.data));
+  const commissionBasis = safeValidation(() => parseCommissionBasis(input.data.commissionBasis));
   const status = safeValidation(() => parseStatus(input.data.status));
   const qualityStatus = safeValidation(() => parseQualityStatus(input.data.qualityStatus));
   if (status === 'active' && qualityStatus !== 'approved') {
@@ -150,7 +152,7 @@ export async function savePartnerOffer(input: {
     values.descriptionAr, values.descriptionEn,
     JSON.stringify(values.supportedPlatforms), commission.commissionType,
     commission.commissionRateBps, commission.fixedAmountHalala,
-    commission.commissionCurrency, status, values.displayPriority,
+    commission.commissionCurrency, commissionBasis, status, values.displayPriority,
     qualityStatus, now,
   ];
   if (input.data.id) {
@@ -161,16 +163,16 @@ export async function savePartnerOffer(input: {
       service_category_id=?, partner_name=?, partner_url=?, service_title_ar=?,
       service_title_en=?, description_ar=?, description_en=?,
       supported_platforms_json=?, commission_type=?, commission_rate_bps=?,
-      fixed_amount_halala=?, commission_currency=?, status=?, display_priority=?,
+      fixed_amount_halala=?, commission_currency=?, commission_basis=?, status=?, display_priority=?,
       quality_status=?, updated_at=? WHERE id=?`).run(...params, id);
   } else {
     await db.prepare(`INSERT INTO partner_offers (
       id, service_category_id, partner_name, partner_url, service_title_ar,
       service_title_en, description_ar, description_en, supported_platforms_json,
       commission_type, commission_rate_bps, fixed_amount_halala,
-      commission_currency, status, display_priority, quality_status,
+      commission_currency, commission_basis, status, display_priority, quality_status,
       created_by_admin_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, ...params.slice(0, -1), input.admin.id, now, now);
   }
   return { id };
@@ -207,7 +209,8 @@ export async function readReferralAdminDashboard(input: {
   const now = (input.now ?? Date.now)();
   const today = startOfUtcDay(now);
   const month = startOfUtcMonth(now);
-  const [categories, offers, todayMetrics, monthMetrics, breakdown, referrals, clicks] = await Promise.all([
+  const [categories, offers, todayMetrics, monthMetrics, breakdown, referrals, clicks,
+    conversions, conversionMetrics, commissionMetrics, conversionBreakdown] = await Promise.all([
     db.prepare(`SELECT id, slug, name_ar, name_en, description_ar, description_en,
       active, minimum_confidence, minimum_severity, max_referrals_per_analysis,
       created_at, updated_at FROM service_categories ORDER BY created_at ASC LIMIT 100`).all(),
@@ -215,7 +218,7 @@ export async function readReferralAdminDashboard(input: {
       o.partner_name, o.partner_url, o.service_title_ar, o.service_title_en,
       o.description_ar, o.description_en, o.supported_platforms_json,
       o.commission_type, o.commission_rate_bps, o.fixed_amount_halala,
-      o.commission_currency, o.status, o.display_priority, o.quality_status,
+      o.commission_currency, o.commission_basis, o.status, o.display_priority, o.quality_status,
       o.created_at, o.updated_at FROM partner_offers o
       JOIN service_categories c ON c.id=o.service_category_id
       ORDER BY o.display_priority ASC, o.created_at DESC LIMIT 100`).all(),
@@ -272,6 +275,35 @@ export async function readReferralAdminDashboard(input: {
       JOIN service_categories c ON c.id=e.service_category_id
       JOIN partner_offers o ON o.id=e.partner_offer_id
       ORDER BY e.created_at DESC LIMIT 25`).all(),
+    db.prepare(`SELECT x.id, x.referral_id, x.status, x.source, x.external_reference,
+      x.converted_at, x.submitted_at, x.verified_at, x.amount_halala, x.currency,
+      x.plan_snapshot, x.created_at, x.user_id, c.slug AS category_slug,
+      o.partner_name, o.commission_basis,
+      cm.status AS commission_status, cm.commission_amount_halala
+      FROM referral_conversions x
+      JOIN service_categories c ON c.id=x.service_category_id
+      JOIN partner_offers o ON o.id=x.partner_offer_id
+      LEFT JOIN referral_commissions cm ON cm.conversion_id=x.id
+      ORDER BY x.created_at DESC LIMIT 50`).all(),
+    db.prepare(`SELECT SUM(conversions_count) total,
+      SUM(pending_count) pending, SUM(verified_count) verified,
+      SUM(rejected_count) rejected, SUM(cancelled_count) cancelled
+      FROM referral_conversion_daily_metrics WHERE day_start>=?`).get(month),
+    db.prepare(`SELECT currency, SUM(earned_halala) earned_halala,
+      SUM(approved_halala) approved_halala, SUM(paid_halala) paid_halala
+      FROM referral_commission_daily_metrics WHERE day_start>=?
+      GROUP BY currency ORDER BY currency ASC LIMIT 20`).all(month),
+    db.prepare(`SELECT m.service_category_id, c.slug AS category_slug,
+      m.partner_offer_id, o.partner_name, m.plan_snapshot, m.merchant_id,
+      SUM(m.conversions_count) total, SUM(m.pending_count) pending,
+      SUM(m.verified_count) verified, SUM(m.rejected_count) rejected,
+      SUM(m.cancelled_count) cancelled
+      FROM referral_conversion_daily_metrics m
+      JOIN service_categories c ON c.id=m.service_category_id
+      JOIN partner_offers o ON o.id=m.partner_offer_id
+      WHERE m.day_start>=?
+      GROUP BY m.service_category_id, m.partner_offer_id, m.plan_snapshot, m.merchant_id
+      ORDER BY verified DESC, total DESC LIMIT 100`).all(month),
   ]);
   const pseudonymize = async (rows: Record<string, unknown>[]) => Promise.all(rows.map(async (row) => {
     const { user_id, ...publicRow } = row;
@@ -287,10 +319,27 @@ export async function readReferralAdminDashboard(input: {
     offers,
     referrals: await pseudonymize(referrals),
     clicks: await pseudonymize(clicks),
+    conversions: await pseudonymize(conversions),
+    conversionBreakdown: await Promise.all(conversionBreakdown.map(async (row) => {
+      const { merchant_id, ...publicRow } = row;
+      return {
+        ...publicRow,
+        store_identifier: `store_${(await hmacPseudonym(`merchant:${String(merchant_id)}`)).slice(0, 12)}`,
+      };
+    })),
+    attributionWindow: null,
     commissions: {
-      earnedHalala: 0,
-      verifiedConversions: 0,
-      foundationOnly: true,
+      totalConversions: Number(conversionMetrics?.total ?? 0),
+      pendingConversions: Number(conversionMetrics?.pending ?? 0),
+      verifiedConversions: Number(conversionMetrics?.verified ?? 0),
+      rejectedConversions: Number(conversionMetrics?.rejected ?? 0),
+      cancelledConversions: Number(conversionMetrics?.cancelled ?? 0),
+      byCurrency: commissionMetrics.map((row) => ({
+        currency: String(row.currency),
+        earnedHalala: Number(row.earned_halala ?? 0),
+        approvedHalala: Number(row.approved_halala ?? 0),
+        paidHalala: Number(row.paid_halala ?? 0),
+      })),
     },
   };
 }

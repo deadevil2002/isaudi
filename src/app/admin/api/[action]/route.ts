@@ -25,6 +25,11 @@ import {
   savePartnerOffer,
   saveServiceCategory,
 } from '@/lib/referrals/admin';
+import {
+  closeManualConversion,
+  submitManualConversion,
+  verifyManualConversion,
+} from '@/lib/referrals/conversions';
 
 type Context = { params: Promise<{ action: string }> };
 type PasswordRecord = {
@@ -254,6 +259,34 @@ async function saveReferralOffer(
     'partner_offer', result.id
   );
   return json({ success: true, id: result.id });
+}
+
+async function submitReferralConversion(
+  request: NextRequest,
+  admin: { id: string; role: string }
+) {
+  const result = await submitManualConversion({
+    admin,
+    data: await body(request),
+    ipHash: await requestIpHash(request),
+  });
+  return json({ success: true, ...result });
+}
+
+async function updateReferralConversion(
+  request: NextRequest,
+  admin: { id: string; role: string },
+  mode: 'verify' | 'reject' | 'cancel'
+) {
+  const data = await body(request);
+  const conversionId = typeof data.conversionId === 'string' ? data.conversionId : '';
+  const ipHash = await requestIpHash(request);
+  const result = mode === 'verify'
+    ? await verifyManualConversion({ admin, conversionId, ipHash })
+    : await closeManualConversion({
+      admin, conversionId, ipHash, status: mode === 'reject' ? 'rejected' : 'cancelled',
+    });
+  return json({ success: true, ...result });
 }
 
 async function readVideoRecord() {
@@ -610,6 +643,16 @@ export async function POST(request: NextRequest, context: Context) {
     if (action === 'video-remove') return removeVideo(request, admin);
     if (action === 'service-category-save') return saveReferralCategory(request, admin);
     if (action === 'partner-offer-save') return saveReferralOffer(request, admin);
+    if (action === 'referral-conversion-submit') return submitReferralConversion(request, admin);
+    if (action === 'referral-conversion-verify') {
+      return updateReferralConversion(request, admin, 'verify');
+    }
+    if (action === 'referral-conversion-reject') {
+      return updateReferralConversion(request, admin, 'reject');
+    }
+    if (action === 'referral-conversion-cancel') {
+      return updateReferralConversion(request, admin, 'cancel');
+    }
     return json({ error: 'غير موجود' }, 404);
   } catch (error) {
     if (error instanceof ReferralAdminError) return json({ error: error.reason }, error.status);

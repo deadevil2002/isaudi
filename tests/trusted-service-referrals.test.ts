@@ -23,6 +23,11 @@ import {
 } from '../src/lib/referrals/service';
 import type { LandingFinding } from '../src/lib/landing-page/types';
 import { normalizePartnerUrl } from '../src/lib/referrals/validation';
+import {
+  closeManualConversion,
+  submitManualConversion,
+  verifyManualConversion,
+} from '../src/lib/referrals/conversions';
 
 const NOW = Date.UTC(2026, 9, 2, 10, 0, 0);
 const SUPER_ADMIN = { id: 'admin-1', role: 'super_admin' };
@@ -52,6 +57,10 @@ function referralDatabase() {
   sqlite.exec(`PRAGMA foreign_keys=ON;
     CREATE TABLE users (id TEXT PRIMARY KEY, plan TEXT NOT NULL);
     CREATE TABLE admin_accounts (id TEXT PRIMARY KEY);
+    CREATE TABLE admin_audit_log (
+      id TEXT PRIMARY KEY, admin_id TEXT, action TEXT NOT NULL, target_type TEXT,
+      target_id TEXT, ip_hash TEXT, metadata_json TEXT, created_at INTEGER NOT NULL
+    );
     CREATE TABLE salla_connections (
       merchantId TEXT PRIMARY KEY,
       userId TEXT NOT NULL,
@@ -77,6 +86,10 @@ function referralDatabase() {
   ));
   sqlite.exec(readFileSync(
     new URL('../migrations/0023_referral_unique_audience_metrics.sql', import.meta.url),
+    'utf8'
+  ));
+  sqlite.exec(readFileSync(
+    new URL('../migrations/0024_referral_conversions_commissions.sql', import.meta.url),
     'utf8'
   ));
 
@@ -439,13 +452,141 @@ test('Admin reads are bounded, aggregate-backed, pseudonymous, and commission-sa
   });
   assert.match(String(dashboard.referrals[0].customer_identifier), /^cust_[a-f0-9]{12}$/);
   assert.equal('user_id' in dashboard.referrals[0], false);
-  assert.equal(dashboard.commissions.earnedHalala, 0);
   assert.equal(dashboard.commissions.verifiedConversions, 0);
-  assert.equal(dashboard.commissions.foundationOnly, true);
+  assert.deepEqual(dashboard.commissions.byCurrency, []);
   await assert.rejects(
     readReferralAdminDashboard({ admin: { id: 'admin-1', role: 'analyst' }, db }),
     (error: unknown) => error instanceof ReferralAdminError && error.status === 403
   );
+  sqlite.close();
+});
+
+test('verified manual conversion earns one rounded commission and snapshots commercial terms', async () => {
+  const { sqlite, db, repository } = referralDatabase();
+  insertAnalysis(sqlite, 'analysis-1', 'user-1', 'merchant-1', [finding()]);
+  await configureCategory(db);
+  await addOffer(db, 'offer-1', { commissionRateBps: 1000, commissionBasis: 'service_value' });
+  await getEligibleReferrals({ userId: 'user-1', analysisId: 'analysis-1', repository, createId: () => 'referral-1', now: () => NOW });
+  let sequence = 0;
+  const createId = () => `phase6d-${++sequence}`;
+  const submitted = await submitManualConversion({
+    admin: SUPER_ADMIN, db, createId, now: () => NOW + 10, ipHash: 'ip-hash',
+    data: {
+      referralId: 'referral-1', externalReference: 'invoice-verified-1',
+      convertedAt: NOW + 5, amountHalala: 12345, currency: 'sar',
+    },
+  });
+  assert.equal(submitted.status, 'submitted');
+  assert.deepEqual({ ...sqlite.prepare(`SELECT user_id, merchant_id, partner_offer_id, source
+    FROM referral_conversions WHERE id=?`).get(submitted.id)! }, {
+    user_id: 'user-1', merchant_id: 'merchant-1', partner_offer_id: 'offer-1',
+    source: 'manual_admin_verification',
+  });
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM referral_commissions').get()!.n, 0);
+  const verified = await verifyManualConversion({
+    admin: SUPER_ADMIN, db, createId, now: () => NOW + 20,
+    conversionId: submitted.id, ipHash: 'ip-hash',
+  });
+  assert.equal(verified.status, 'verified');
+  const commission = sqlite.prepare(`SELECT status, commission_rate_bps_snapshot,
+    commission_basis_snapshot, base_amount_halala, commission_amount_halala, currency
+    FROM referral_commissions`).get() as Record<string, unknown>;
+  assert.deepEqual({ ...commission }, {
+    status: 'earned', commission_rate_bps_snapshot: 1000,
+    commission_basis_snapshot: 'service_value', base_amount_halala: 12345,
+    commission_amount_halala: 1235, currency: 'SAR',
+  });
+  await addOffer(db, 'offer-1', {
+    id: 'offer-1', commissionRateBps: 2000, commissionBasis: 'contract_value',
+  });
+  const immutable = sqlite.prepare(`SELECT commission_rate_bps_snapshot,
+    commission_basis_snapshot, commission_amount_halala FROM referral_commissions`).get();
+  assert.deepEqual({ ...immutable! }, {
+    commission_rate_bps_snapshot: 1000,
+    commission_basis_snapshot: 'service_value',
+    commission_amount_halala: 1235,
+  });
+  assert.equal(sqlite.prepare(`SELECT COUNT(*) n FROM admin_audit_log
+    WHERE action IN ('referral_conversion_submitted','referral_conversion_verified')`).get()!.n, 2);
+  assert.equal(sqlite.prepare(`SELECT status FROM service_referrals WHERE id='referral-1'`).get()!.status, 'converted');
+  assert.equal(sqlite.prepare(`SELECT COUNT(*) n FROM referral_events WHERE event_type='converted'`).get()!.n, 1);
+  const dashboard = await readReferralAdminDashboard({ admin: SUPER_ADMIN, db, now: () => NOW + 30 });
+  assert.equal(dashboard.commissions.verifiedConversions, 1);
+  assert.deepEqual(dashboard.commissions.byCurrency, [{
+    currency: 'SAR', earnedHalala: 1235, approvedHalala: 0, paidHalala: 0,
+  }]);
+  sqlite.close();
+});
+
+test('clicks never create conversions and missing commission basis cannot be verified', async () => {
+  const { sqlite, db, repository } = referralDatabase();
+  insertAnalysis(sqlite, 'analysis-1', 'user-1', 'merchant-1', [finding()]);
+  await configureCategory(db);
+  await addOffer(db, 'offer-1', { commissionRateBps: 1000 });
+  await getEligibleReferrals({ userId: 'user-1', analysisId: 'analysis-1', repository, createId: () => 'referral-1', now: () => NOW });
+  await markReferralShown({ userId: 'user-1', referralId: 'referral-1', repository, createId: () => 'shown-1', now: () => NOW + 1 });
+  for (let index = 0; index < 5; index += 1) {
+    await registerReferralClick({ userId: 'user-1', referralId: 'referral-1', repository, createId: () => `click-${index}`, now: () => NOW + 2 + index });
+  }
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM referral_conversions').get()!.n, 0);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM referral_commissions').get()!.n, 0);
+  let sequence = 0;
+  const submitted = await submitManualConversion({
+    admin: SUPER_ADMIN, db, createId: () => `missing-basis-${++sequence}`, now: () => NOW + 20,
+    data: { referralId: 'referral-1', externalReference: 'evidence-1', convertedAt: NOW + 10, amountHalala: 10000, currency: 'SAR' },
+  });
+  await assert.rejects(
+    verifyManualConversion({ admin: SUPER_ADMIN, db, conversionId: submitted.id }),
+    (error: unknown) => error instanceof ReferralAdminError && error.reason === 'commission_basis_not_configured'
+  );
+  assert.equal(sqlite.prepare('SELECT status FROM referral_conversions').get()!.status, 'submitted');
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM referral_commissions').get()!.n, 0);
+  sqlite.close();
+});
+
+test('conversion attribution, idempotency, validation, authorization, and terminal states are enforced', async () => {
+  const { sqlite, db, repository } = referralDatabase();
+  insertAnalysis(sqlite, 'analysis-1', 'user-1', 'merchant-1', [finding()]);
+  await configureCategory(db);
+  await addOffer(db, 'offer-1', { commissionRateBps: 1000, commissionBasis: 'service_value' });
+  await getEligibleReferrals({ userId: 'user-1', analysisId: 'analysis-1', repository, createId: () => 'referral-1', now: () => NOW });
+  await assert.rejects(
+    submitManualConversion({ admin: { id: 'admin-1', role: 'support' }, db, data: {} }),
+    (error: unknown) => error instanceof ReferralAdminError && error.status === 403
+  );
+  await assert.rejects(
+    submitManualConversion({ admin: SUPER_ADMIN, db, data: { referralId: 'wrong', externalReference: 'x', convertedAt: NOW } }),
+    (error: unknown) => error instanceof ReferralAdminError && error.reason === 'referral_not_found'
+  );
+  await assert.rejects(
+    submitManualConversion({ admin: SUPER_ADMIN, db, data: { referralId: 'referral-1', externalReference: '', convertedAt: NOW } }),
+    (error: unknown) => error instanceof ReferralAdminError && error.reason === 'invalid_input'
+  );
+  await assert.rejects(
+    submitManualConversion({ admin: SUPER_ADMIN, db, data: { referralId: 'referral-1', externalReference: 'x', convertedAt: NOW, amountHalala: -1, currency: 'SAR' } }),
+    (error: unknown) => error instanceof ReferralAdminError && error.reason === 'invalid_amount'
+  );
+  let sequence = 0;
+  const createId = () => `state-${++sequence}`;
+  const submitted = await submitManualConversion({
+    admin: SUPER_ADMIN, db, createId, now: () => NOW + 1,
+    data: { referralId: 'referral-1', externalReference: 'unique-ref', convertedAt: NOW, amountHalala: 0, currency: 'SAR' },
+  });
+  await assert.rejects(
+    submitManualConversion({ admin: SUPER_ADMIN, db, createId, now: () => NOW + 2,
+      data: { referralId: 'referral-1', externalReference: 'unique-ref', convertedAt: NOW } }),
+    (error: unknown) => error instanceof ReferralAdminError && error.reason === 'duplicate_conversion'
+  );
+  const closed = await closeManualConversion({
+    admin: SUPER_ADMIN, db, createId, conversionId: submitted.id, status: 'rejected', now: () => NOW + 3,
+  });
+  assert.equal(closed.status, 'rejected');
+  await assert.rejects(
+    verifyManualConversion({ admin: SUPER_ADMIN, db, conversionId: submitted.id }),
+    (error: unknown) => error instanceof ReferralAdminError && error.reason === 'invalid_conversion_transition'
+  );
+  assert.equal(sqlite.prepare(`SELECT COUNT(*) n FROM admin_audit_log
+    WHERE action='referral_conversion_rejected'`).get()!.n, 1);
   sqlite.close();
 });
 

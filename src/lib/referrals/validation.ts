@@ -2,11 +2,15 @@ import { isIP } from 'node:net';
 import { isInternalStorefrontHostname } from '@/lib/salla/storefront-origin';
 import type {
   CommissionType,
+  CommissionBasis,
   PartnerOfferStatus,
   PartnerQualityStatus,
 } from './types';
 
 const PLATFORM_VALUES = new Set(['salla']);
+const COMMISSION_BASES = new Set<CommissionBasis>([
+  'first_payment', 'service_value', 'order_value', 'contract_value', 'custom',
+]);
 
 export function boundedText(value: unknown, max: number, required = true): string {
   if (typeof value !== 'string') throw new Error('invalid_text');
@@ -59,6 +63,12 @@ export function parseQualityStatus(value: unknown): PartnerQualityStatus {
     throw new Error('invalid_quality_status');
   }
   return value;
+}
+
+export function parseCommissionBasis(value: unknown): CommissionBasis | null {
+  if (value == null || value === '') return null;
+  if (!COMMISSION_BASES.has(value as CommissionBasis)) throw new Error('invalid_commission_basis');
+  return value as CommissionBasis;
 }
 
 export function parseCommission(input: Record<string, unknown>): {

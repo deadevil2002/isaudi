@@ -11,6 +11,12 @@ export type ServiceCategorySlug = 'landing_page_optimization';
 export type PartnerOfferStatus = 'active' | 'inactive' | 'suspended';
 export type PartnerQualityStatus = 'approved' | 'review' | 'rejected';
 export type CommissionType = 'percentage' | 'fixed';
+export type CommissionBasis =
+  | 'first_payment'
+  | 'service_value'
+  | 'order_value'
+  | 'contract_value'
+  | 'custom';
 
 export interface ServiceCategory {
   id: string;
@@ -40,6 +46,7 @@ export interface PartnerOffer {
   commissionRateBps: number | null;
   fixedAmountHalala: number | null;
   commissionCurrency: string | null;
+  commissionBasis: CommissionBasis | null;
   status: PartnerOfferStatus;
   displayPriority: number;
   qualityStatus: PartnerQualityStatus;

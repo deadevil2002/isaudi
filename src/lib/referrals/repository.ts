@@ -64,6 +64,9 @@ function parseOffer(row: Record<string, unknown>): PartnerOffer {
     commissionRateBps: row.commission_rate_bps == null ? null : number(row.commission_rate_bps),
     fixedAmountHalala: row.fixed_amount_halala == null ? null : number(row.fixed_amount_halala),
     commissionCurrency: row.commission_currency == null ? null : String(row.commission_currency),
+    commissionBasis: row.commission_basis == null
+      ? null
+      : String(row.commission_basis) as PartnerOffer['commissionBasis'],
     status: String(row.offer_status) as PartnerOffer['status'],
     displayPriority: number(row.display_priority),
     qualityStatus: String(row.quality_status) as PartnerOffer['qualityStatus'],
@@ -138,7 +141,7 @@ export function createReferralRepository(db: ReferralDb) {
           o.description_en AS offer_description_en,
           o.supported_platforms_json, o.commission_type,
           o.commission_rate_bps, o.fixed_amount_halala,
-          o.commission_currency, o.status AS offer_status,
+          o.commission_currency, o.commission_basis, o.status AS offer_status,
           o.display_priority, o.quality_status,
           o.created_at AS offer_created_at, o.updated_at AS offer_updated_at
         FROM service_categories c
