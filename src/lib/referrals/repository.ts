@@ -193,19 +193,30 @@ export function createReferralRepository(db: ReferralDb) {
       now: number;
     }>): Promise<void> => {
       if (!rows.length) return;
-      await db.batch(rows.map((row) => ({
-        sql: `INSERT INTO service_referrals (
-          id, user_id, merchant_id, analysis_id, finding_code,
-          service_category_id, partner_offer_id, status, source, plan_snapshot,
-          commission_snapshot_json, commission_earned_halala, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'eligible', ?, ?, NULL, NULL, ?, ?)
-        ON CONFLICT(user_id, analysis_id, finding_code, service_category_id) DO NOTHING`,
-        params: [
-          row.id, row.context.userId, row.context.merchantId, row.context.id,
-          row.finding.findingCode, row.category.id, row.offer.id,
-          row.context.analyzerVersion, row.context.plan, row.now, row.now,
-        ],
-      })));
+      await db.batch(rows.flatMap((row) => [
+        {
+          sql: `INSERT INTO service_referrals (
+            id, user_id, merchant_id, analysis_id, finding_code,
+            service_category_id, partner_offer_id, status, source, plan_snapshot,
+            commission_snapshot_json, commission_earned_halala, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'eligible', ?, ?, NULL, NULL, ?, ?)
+          ON CONFLICT(user_id, analysis_id, finding_code, service_category_id) DO NOTHING`,
+          params: [
+            row.id, row.context.userId, row.context.merchantId, row.context.id,
+            row.finding.findingCode, row.category.id, row.offer.id,
+            row.context.analyzerVersion, row.context.plan, row.now, row.now,
+          ],
+        },
+        {
+          sql: `INSERT INTO referral_daily_metrics (
+            day_start, service_category_id, partner_offer_id, plan_snapshot,
+            referrals_count, shown_count, clicks_count, unique_clickers_count
+          ) VALUES (CAST(? / 86400000 AS INTEGER) * 86400000, ?, ?, ?, changes(), 0, 0, 0)
+          ON CONFLICT(day_start, service_category_id, partner_offer_id, plan_snapshot)
+          DO UPDATE SET referrals_count = referrals_count + excluded.referrals_count`,
+          params: [row.now, row.category.id, row.offer.id, row.context.plan],
+        },
+      ]));
     },
 
     loadOwnedReferral: async (userId: string, referralId: string) => {
@@ -232,6 +243,15 @@ export function createReferralRepository(db: ReferralDb) {
             row.plan_snapshot, now],
         },
         {
+          sql: `INSERT INTO referral_daily_metrics (
+            day_start, service_category_id, partner_offer_id, plan_snapshot,
+            referrals_count, shown_count, clicks_count, unique_clickers_count
+          ) VALUES (CAST(? / 86400000 AS INTEGER) * 86400000, ?, ?, ?, 0, changes(), 0, 0)
+          ON CONFLICT(day_start, service_category_id, partner_offer_id, plan_snapshot)
+          DO UPDATE SET shown_count = shown_count + excluded.shown_count`,
+          params: [now, row.service_category_id, row.partner_offer_id, row.plan_snapshot],
+        },
+        {
           sql: `UPDATE service_referrals SET status = 'shown', updated_at = ?
             WHERE id = ? AND user_id = ? AND status = 'eligible'`,
           params: [now, row.id, row.user_id],
@@ -251,12 +271,31 @@ export function createReferralRepository(db: ReferralDb) {
             row.plan_snapshot, now],
         },
         {
+          sql: `INSERT INTO referral_daily_metrics (
+            day_start, service_category_id, partner_offer_id, plan_snapshot,
+            referrals_count, shown_count, clicks_count, unique_clickers_count
+          ) VALUES (CAST(? / 86400000 AS INTEGER) * 86400000, ?, ?, ?, 0, 0, 1, 0)
+          ON CONFLICT(day_start, service_category_id, partner_offer_id, plan_snapshot)
+          DO UPDATE SET clicks_count = clicks_count + 1`,
+          params: [now, row.service_category_id, row.partner_offer_id, row.plan_snapshot],
+        },
+        {
           sql: `INSERT OR IGNORE INTO referral_unique_clickers (
             referral_id, user_id, service_category_id, partner_offer_id,
             plan_snapshot, first_clicked_at
           ) VALUES (?, ?, ?, ?, ?, ?)`,
           params: [row.id, row.user_id, row.service_category_id,
             row.partner_offer_id, row.plan_snapshot, now],
+        },
+        {
+          sql: `INSERT INTO referral_daily_metrics (
+            day_start, service_category_id, partner_offer_id, plan_snapshot,
+            referrals_count, shown_count, clicks_count, unique_clickers_count
+          ) VALUES (CAST(? / 86400000 AS INTEGER) * 86400000, ?, ?, ?, 0, 0, 0, changes())
+          ON CONFLICT(day_start, service_category_id, partner_offer_id, plan_snapshot)
+          DO UPDATE SET unique_clickers_count =
+            unique_clickers_count + excluded.unique_clickers_count`,
+          params: [now, row.service_category_id, row.partner_offer_id, row.plan_snapshot],
         },
         {
           sql: `UPDATE service_referrals SET status = 'clicked', updated_at = ?
