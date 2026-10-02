@@ -276,21 +276,27 @@ export const dbService = {
 
   createOrUpdateStoreConnection: async (conn: any): Promise<void> => {
     const db = await getDb();
-    const existing = db.prepare('SELECT id FROM store_connections WHERE userId = ? AND platform = ?').get(conn.userId, conn.platform) as any;
+    const existing = await db.prepare('SELECT id FROM store_connections WHERE userId = ? AND platform = ?').get(conn.userId, conn.platform) as any;
     
     if (existing) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE store_connections 
-        SET status = @status, storeName = @storeName, storeUrl = @storeUrl, 
-            accessTokenEncrypted = @accessTokenEncrypted, refreshTokenEncrypted = @refreshTokenEncrypted, 
-            tokenExpiresAt = @tokenExpiresAt
-        WHERE id = @id
-      `).run({ ...conn, id: existing.id });
+        SET status = ?, storeName = ?, storeUrl = ?,
+            accessTokenEncrypted = ?, refreshTokenEncrypted = ?, tokenExpiresAt = ?
+        WHERE id = ?
+      `).run(
+        conn.status, conn.storeName, conn.storeUrl, conn.accessTokenEncrypted,
+        conn.refreshTokenEncrypted, conn.tokenExpiresAt, existing.id
+      );
     } else {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO store_connections (id, userId, platform, status, storeName, storeUrl, accessTokenEncrypted, refreshTokenEncrypted, tokenExpiresAt, createdAt)
-        VALUES (@id, @userId, @platform, @status, @storeName, @storeUrl, @accessTokenEncrypted, @refreshTokenEncrypted, @tokenExpiresAt, @createdAt)
-      `).run(conn);
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        conn.id, conn.userId, conn.platform, conn.status, conn.storeName,
+        conn.storeUrl, conn.accessTokenEncrypted, conn.refreshTokenEncrypted,
+        conn.tokenExpiresAt, conn.createdAt
+      );
     }
   },
 
@@ -301,27 +307,33 @@ export const dbService = {
 
   upsertProduct: async (product: any): Promise<void> => {
     const db = await getDb();
-    const existing = db.prepare('SELECT id FROM products WHERE userId = ? AND externalId = ?').get(product.userId, product.externalId) as any;
+    const existing = await db.prepare('SELECT id FROM products WHERE userId = ? AND externalId = ?').get(product.userId, product.externalId) as any;
     
     if (existing) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE products 
-        SET title = @title, sku = @sku, priceHalala = @priceHalala, 
-            inventory = @inventory, category = @category, updatedAt = @updatedAt,
-            reportId = @reportId
-        WHERE id = @id
-      `).run({ ...product, id: existing.id });
+        SET title = ?, sku = ?, priceHalala = ?, inventory = ?, category = ?,
+            updatedAt = ?, reportId = ?
+        WHERE id = ?
+      `).run(
+        product.title, product.sku, product.priceHalala, product.inventory,
+        product.category, product.updatedAt, product.reportId, existing.id
+      );
     } else {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO products (id, userId, platform, externalId, title, sku, priceHalala, inventory, category, reportId, createdAt, updatedAt)
-        VALUES (@id, @userId, @platform, @externalId, @title, @sku, @priceHalala, @inventory, @category, @reportId, @createdAt, @updatedAt)
-      `).run(product);
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        product.id, product.userId, product.platform, product.externalId,
+        product.title, product.sku, product.priceHalala, product.inventory,
+        product.category, product.reportId, product.createdAt, product.updatedAt
+      );
     }
   },
   
   getProductByExternalId: async (userId: string, externalId: string): Promise<any | null> => {
     const db = await getDb();
-    return db.prepare(`
+    return await db.prepare(`
       SELECT * FROM products 
       WHERE userId = ? AND externalId = ?
       ORDER BY COALESCE(updatedAt,0) DESC, COALESCE(createdAt,0) DESC
@@ -332,7 +344,7 @@ export const dbService = {
   // Product Costs
   getProductCost: async (productId: string): Promise<any | null> => {
     const db = await getDb();
-    return db.prepare('SELECT * FROM product_costs WHERE product_id = ?').get(productId) || null;
+    return await db.prepare('SELECT * FROM product_costs WHERE product_id = ?').get(productId) || null;
   },
 
   upsertProductCost: async (productId: string, payload: Partial<{
@@ -345,7 +357,7 @@ export const dbService = {
   }>): Promise<void> => {
     const db = await getDb();
     const now = Date.now();
-    const existing = db.prepare('SELECT id, created_at FROM product_costs WHERE product_id = ?').get(productId) as any;
+    const existing = await db.prepare('SELECT id, created_at FROM product_costs WHERE product_id = ?').get(productId) as any;
     const defaults = {
       purchase_cost_halala: 0,
       labor_cost_halala: 0,
@@ -357,24 +369,22 @@ export const dbService = {
     const data = { ...defaults, ...payload };
 
     if (existing) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE product_costs
-        SET purchase_cost_halala = @purchase_cost_halala,
-            labor_cost_halala = @labor_cost_halala,
-            shipping_cost_halala = @shipping_cost_halala,
-            packaging_cost_halala = @packaging_cost_halala,
-            ads_cost_per_unit_halala = @ads_cost_per_unit_halala,
-            payment_fee_percent_bps = @payment_fee_percent_bps,
+        SET purchase_cost_halala = ?, labor_cost_halala = ?, shipping_cost_halala = ?,
+            packaging_cost_halala = ?, ads_cost_per_unit_halala = ?,
+            payment_fee_percent_bps = ?,
             is_configured = 1,
-            updated_at = @updated_at
-        WHERE product_id = @product_id
-      `).run({
-        ...data,
-        product_id: productId,
-        updated_at: now
-      });
+            updated_at = ?
+        WHERE product_id = ?
+      `).run(
+        data.purchase_cost_halala, data.labor_cost_halala,
+        data.shipping_cost_halala, data.packaging_cost_halala,
+        data.ads_cost_per_unit_halala, data.payment_fee_percent_bps,
+        now, productId
+      );
     } else {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO product_costs (
           id, product_id,
           purchase_cost_halala, labor_cost_halala, shipping_cost_halala, packaging_cost_halala,
@@ -382,30 +392,27 @@ export const dbService = {
           is_configured,
           created_at, updated_at
         ) VALUES (
-          @id, @product_id,
-          @purchase_cost_halala, @labor_cost_halala, @shipping_cost_halala, @packaging_cost_halala,
-          @ads_cost_per_unit_halala, @payment_fee_percent_bps,
-          @is_configured,
-          @created_at, @updated_at
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
-      `).run({
-        id: randomUUID(),
-        product_id: productId,
-        ...data,
-        is_configured: 1,
-        created_at: now,
-        updated_at: now
-      });
+      `).run(
+        randomUUID(), productId, data.purchase_cost_halala,
+        data.labor_cost_halala, data.shipping_cost_halala,
+        data.packaging_cost_halala, data.ads_cost_per_unit_halala,
+        data.payment_fee_percent_bps, 1, now, now
+      );
     }
   },
 
   addOrder: async (order: any): Promise<void> => {
     const db = await getDb();
     // Insert order tied to a report; allow duplicates across reports
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO orders (id, userId, platform, externalId, reportId, totalHalala, status, itemsCount, createdAt)
-      VALUES (@id, @userId, @platform, @externalId, @reportId, @totalHalala, @status, @itemsCount, @createdAt)
-    `).run(order);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      order.id, order.userId, order.platform, order.externalId, order.reportId,
+      order.totalHalala, order.status, order.itemsCount, order.createdAt
+    );
   },
 
   insertOrderItem: async (item: {
@@ -419,10 +426,13 @@ export const dbService = {
     created_at: number;
   }): Promise<void> => {
     const db = await getDb();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO order_items (id, report_id, order_id, sku, product_name, qty, allocated_revenue, created_at)
-      VALUES (@id, @report_id, @order_id, @sku, @product_name, @qty, @allocated_revenue, @created_at)
-    `).run(item);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      item.id, item.report_id, item.order_id, item.sku, item.product_name,
+      item.qty, item.allocated_revenue, item.created_at
+    );
   },
 
   // Backward-compatible upsert for older callers
@@ -718,7 +728,7 @@ export const dbService = {
 
   createEmptyReport: async (id: string, userId: string, storeId?: string): Promise<void> => {
     const db = await getDb();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO reports (id, userId, storeId, reportJson, createdAt)
       VALUES (?, ?, ?, ?, ?)
     `).run(id, userId, storeId || null, JSON.stringify({ status: 'pending' }), Date.now());
@@ -726,7 +736,7 @@ export const dbService = {
 
   updateReportJsonForUser: async (userId: string, id: string, reportJson: string): Promise<void> => {
     const db = await getDb();
-    db.prepare(`
+    await db.prepare(`
       UPDATE reports SET reportJson = ? WHERE id = ? AND userId = ?
     `).run(reportJson, id, userId);
   },
@@ -750,7 +760,7 @@ export const dbService = {
 
   incrementFreeReports: async (userId: string): Promise<void> => {
     const db = await getDb();
-    db.prepare('UPDATE users SET free_reports_used = COALESCE(free_reports_used, 0) + 1 WHERE id = ?').run(userId);
+    await db.prepare('UPDATE users SET free_reports_used = COALESCE(free_reports_used, 0) + 1 WHERE id = ?').run(userId);
   },
 
   // Report snapshots
@@ -764,17 +774,19 @@ export const dbService = {
   },
   insertSnapshot: async (row: any): Promise<void> => {
     const db = await getDb();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO report_snapshots (
         id, user_id, created_at, source_hash, time_range_start, time_range_end,
         report_id, gross_sales_halala, orders_count, total_profit_halala,
         margin_pct_x100, missing_cost_products_count, missing_cost_sales_halala, report_json
-      ) VALUES (
-        @id, @user_id, @created_at, @source_hash, @time_range_start, @time_range_end,
-        @report_id, @gross_sales_halala, @orders_count, @total_profit_halala,
-        @margin_pct_x100, @missing_cost_products_count, @missing_cost_sales_halala, @report_json
-      )
-    `).run(row);
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      row.id, row.user_id, row.created_at, row.source_hash,
+      row.time_range_start, row.time_range_end, row.report_id,
+      row.gross_sales_halala, row.orders_count, row.total_profit_halala,
+      row.margin_pct_x100, row.missing_cost_products_count,
+      row.missing_cost_sales_halala, row.report_json
+    );
   },
   listSnapshots: async (userId: string, limit: number = 12): Promise<any[]> => {
     const db = await getDb();
