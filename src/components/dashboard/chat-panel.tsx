@@ -2,21 +2,39 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User as UserIcon, Loader2, Sparkles, MessageSquareText } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User as UserIcon,
+  Loader2,
+  Sparkles,
+  MessageSquareText,
+  ChartNoAxesCombined,
+  Target,
+  SearchCheck,
+  Lightbulb,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
+import type { AiChatResponse, AiChatSection } from "@/lib/ai/contracts";
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  response?: AiChatResponse;
 }
+
+export type ChatSendResult = string | {
+  reply: string;
+  response?: AiChatResponse;
+};
 
 interface ChatPanelProps {
   reportId: string;
   freeReportsUsed: number;
   isPremium: boolean;
-  sendMessage?: (message: string, reportId: string) => Promise<string>;
+  sendMessage?: (message: string, reportId: string) => Promise<ChatSendResult>;
   initialMessages?: Message[];
   blockedActionHref?: string;
   fallbackForm?: {
@@ -24,6 +42,88 @@ interface ChatPanelProps {
     fields: Record<string, string>;
     inputName: string;
   };
+}
+
+const sectionIcons: Record<AiChatSection['type'], typeof Target> = {
+  finding: SearchCheck,
+  evidence: ChartNoAxesCombined,
+  metrics: ChartNoAxesCombined,
+  actions: Target,
+};
+
+function StructuredAssistantMessage({
+  message,
+  lang,
+}: {
+  message: Message;
+  lang: 'ar' | 'en';
+}) {
+  const response = message.response;
+  if (!response || response.sections.length === 0) {
+    return <p className="break-words [overflow-wrap:anywhere]">{message.content}</p>;
+  }
+
+  return (
+    <div className="min-w-0 space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="rounded-xl border border-[#0fc9a7]/20 bg-[#071914]/70 p-3">
+        <div className="mb-1.5 flex items-center gap-2 text-xs font-bold text-[#72ead4]">
+          <Lightbulb className="h-4 w-4" aria-hidden="true" />
+          {lang === 'ar' ? 'الخلاصة' : 'Summary'}
+        </div>
+        <p className="break-words font-medium leading-7 text-white [overflow-wrap:anywhere]">
+          {response.summary}
+        </p>
+      </div>
+
+      {response.sections.map((section, index) => {
+        const Icon = sectionIcons[section.type];
+        return (
+          <section
+            key={`${section.title}-${index}`}
+            className="rounded-xl border border-white/10 bg-white/[0.025] p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300 motion-reduce:animate-none"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h4 className="flex min-w-0 items-center gap-2 font-bold text-[#f4f7fa]">
+                <Icon className="h-4 w-4 shrink-0 text-[#e6b95c]" aria-hidden="true" />
+                <span className="break-words [overflow-wrap:anywhere]">{section.title}</span>
+              </h4>
+              {section.priority !== 'none' && (
+                <span className="shrink-0 rounded-full border border-[#e6b95c]/20 bg-[#e6b95c]/10 px-2 py-0.5 text-[10px] font-bold text-[#f0c96e]">
+                  {lang === 'ar' ? 'أولوية' : 'Priority'}: {section.priority}
+                </span>
+              )}
+            </div>
+            <p className="mt-2 break-words leading-7 text-[#cbd5e1] [overflow-wrap:anywhere]">
+              {section.content}
+            </p>
+            {section.metrics.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2">
+                {section.metrics.map((metric) => (
+                  <div
+                    key={`${metric.label}-${metric.value}`}
+                    className="min-w-0 rounded-lg border border-white/10 bg-[#080d13]/70 px-3 py-2"
+                  >
+                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-[#8290a2]">
+                      {metric.label}
+                    </span>
+                    <span className="mt-0.5 block break-words font-bold text-white [overflow-wrap:anywhere]">
+                      {metric.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+
+      <p className="px-1 text-[11px] leading-5 text-[#8290a2]">
+        {lang === 'ar' ? 'درجة الثقة' : 'Confidence'}:{' '}
+        <span className="font-semibold text-[#a9b5c4]">{response.confidence.level}</span>
+        {' · '}{response.confidence.reason}
+      </p>
+    </div>
+  );
 }
 
 export function ChatPanel({ reportId, freeReportsUsed, isPremium, sendMessage, initialMessages, blockedActionHref, fallbackForm }: ChatPanelProps) {
@@ -57,8 +157,10 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium, sendMessage, i
 
     try {
       if (sendMessage) {
-        const reply = await sendMessage(userMsg, reportId);
-        setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+        const result = await sendMessage(userMsg, reportId);
+        const reply = typeof result === 'string' ? result : result.reply;
+        const response = typeof result === 'string' ? undefined : result.response;
+        setMessages(prev => [...prev, { role: 'assistant', content: reply, response }]);
       } else {
         const res = await fetch('/api/analysis/chat', {
           method: 'POST',
@@ -71,7 +173,11 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium, sendMessage, i
         }
 
         const data = await res.json();
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.reply,
+          response: data.response,
+        }]);
       }
     } catch (error) {
       console.error(error);
@@ -119,12 +225,14 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium, sendMessage, i
                 {msg.role === 'user' ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
               <div className={cn(
-                "rounded-2xl p-3.5 text-sm leading-7",
+                "min-w-0 rounded-2xl p-3.5 text-sm leading-7",
                 msg.role === 'user'
                   ? "rounded-se-sm border border-[#e6b95c]/15 bg-[#e6b95c]/[0.07] text-white"
                   : "rounded-ss-sm border border-[#0fc9a7]/20 bg-[#0fc9a7]/[0.055] text-[#e8edf3]"
               )}>
-                {msg.content}
+                {msg.role === 'assistant'
+                  ? <StructuredAssistantMessage message={msg} lang={lang} />
+                  : <p className="break-words [overflow-wrap:anywhere]">{msg.content}</p>}
               </div>
             </div>
           ))}

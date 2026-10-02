@@ -6,6 +6,31 @@ export type OpenAIChatMessage = {
   content: string;
 };
 
+export type OpenAIUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+};
+
+export type OpenAIChatResult = {
+  content: string;
+  model: string;
+  usage: OpenAIUsage;
+};
+
+export type OpenAIResponseFormat =
+  | { type: 'json_object' }
+  | {
+      type: 'json_schema';
+      json_schema: {
+        name: string;
+        strict: true;
+        schema: Record<string, unknown>;
+      };
+    };
+
 export class OpenAIChatError extends Error {
   constructor(
     public readonly kind: 'timeout' | 'network' | 'provider' | 'invalid_response',
@@ -21,10 +46,10 @@ export async function requestOpenAIChat(input: {
   messages: OpenAIChatMessage[];
   temperature?: number;
   maxTokens?: number;
-  responseFormat?: { type: 'json_object' };
+  responseFormat?: OpenAIResponseFormat;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
-}): Promise<string> {
+}): Promise<OpenAIChatResult> {
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -91,5 +116,43 @@ export async function requestOpenAIChat(input: {
   if (typeof content !== 'string' || !content.trim()) {
     throw new OpenAIChatError('invalid_response', response.status);
   }
-  return content.trim();
+
+  const record = data as {
+    model?: unknown;
+    usage?: {
+      prompt_tokens?: unknown;
+      completion_tokens?: unknown;
+      total_tokens?: unknown;
+      prompt_tokens_details?: {
+        cached_tokens?: unknown;
+        cache_write_tokens?: unknown;
+      };
+    };
+  };
+  const numberOrZero = (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(value) && value >= 0
+      ? Math.trunc(value)
+      : 0;
+  const inputTokens = numberOrZero(record.usage?.prompt_tokens);
+  const outputTokens = numberOrZero(record.usage?.completion_tokens);
+  const reportedTotal = numberOrZero(record.usage?.total_tokens);
+
+  return {
+    content: content.trim(),
+    model:
+      typeof record.model === 'string' && record.model.trim()
+        ? record.model.trim()
+        : OPENAI_CHAT_MODEL,
+    usage: {
+      inputTokens,
+      outputTokens,
+      totalTokens: reportedTotal || inputTokens + outputTokens,
+      cachedInputTokens: numberOrZero(
+        record.usage?.prompt_tokens_details?.cached_tokens
+      ),
+      cacheWriteTokens: numberOrZero(
+        record.usage?.prompt_tokens_details?.cache_write_tokens
+      ),
+    },
+  };
 }

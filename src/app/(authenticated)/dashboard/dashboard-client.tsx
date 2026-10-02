@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StoreSetup } from '@/components/dashboard/store-setup';
 import { GenerateAnalysis } from '@/components/dashboard/generate-analysis';
-import { ChatPanel } from '@/components/dashboard/chat-panel';
+import { ChatPanel, type ChatSendResult } from '@/components/dashboard/chat-panel';
 import { createTranslator } from "@/lib/i18n/translations";
 import { AnimatedNumber } from '@/components/dashboard/animated-number';
 import { TrendChart } from '@/components/dashboard/trend-chart';
@@ -94,7 +94,7 @@ export interface DashboardPreviewProps {
   analysisState?: "idle" | "loading" | "error";
   analysisError?: string;
   onUpgrade?: () => void;
-  chatSendMessage?: (message: string, reportId: string) => Promise<string>;
+  chatSendMessage?: (message: string, reportId: string) => Promise<ChatSendResult>;
   chatInitialMessages?: { role: 'user' | 'assistant'; content: string }[];
   chatFallbackForm?: {
     action: string;

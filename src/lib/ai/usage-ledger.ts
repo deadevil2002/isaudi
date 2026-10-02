@@ -1,6 +1,17 @@
 export type AiOperation = 'chat' | 'generate';
 export type AiUsageStatus = 'succeeded' | 'failed';
 
+export type AiUsageMetering = {
+  model: string;
+  reportId?: string | null;
+  sourceHash?: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+};
+
 interface UsageDb {
   prepare: (sql: string) => {
     get: (...params: unknown[]) => Promise<unknown>;
@@ -88,13 +99,17 @@ export async function finalizeAiUsage(input: {
   db: UsageDb;
   reservationId: string;
   status: AiUsageStatus;
+  metering?: AiUsageMetering;
   now?: number;
 }): Promise<void> {
   const now = input.now ?? Date.now();
   const row = await input.db
     .prepare(
       `UPDATE ai_usage_ledger
-       SET status = ?, finalized_at = ?, lease_expires_at = ?
+       SET status = ?, finalized_at = ?, lease_expires_at = ?,
+           model = ?, report_id = ?, source_hash = ?, input_tokens = ?,
+           output_tokens = ?, total_tokens = ?, cached_input_tokens = ?,
+           cache_write_tokens = ?
        WHERE id = ? AND status = 'reserved'
        RETURNING id`
     )
@@ -102,6 +117,14 @@ export async function finalizeAiUsage(input: {
       input.status,
       now,
       now,
+      input.metering?.model ?? null,
+      input.metering?.reportId ?? null,
+      input.metering?.sourceHash ?? null,
+      input.metering?.inputTokens ?? null,
+      input.metering?.outputTokens ?? null,
+      input.metering?.totalTokens ?? null,
+      input.metering?.cachedInputTokens ?? null,
+      input.metering?.cacheWriteTokens ?? null,
       input.reservationId
     );
   if (!row) throw new Error('AI usage reservation could not be finalized');

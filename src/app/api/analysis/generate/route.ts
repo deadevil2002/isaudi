@@ -11,12 +11,22 @@ import {
   requestTooLargeResponse,
 } from '@/lib/security/request-size';
 import { requestOpenAIChat } from '@/lib/ai/openai-chat';
-import { AI_UNTRUSTED_DATA_POLICY } from '@/lib/ai/chat-guard';
+import {
+  AI_ANALYSIS_RESPONSE_FORMAT,
+  insufficientAnalysisNarrative,
+  parseAiAnalysisNarrative,
+  type AiAnalysisNarrative,
+} from '@/lib/ai/contracts';
+import {
+  buildAnalysisMessages,
+  buildCompactAnalysisContext,
+} from '@/lib/ai/analysis-context';
 import { getRuntimeString } from '@/lib/runtime/environment';
 import {
   AI_GENERATION_MAX_TOKENS,
   finalizeAiUsage,
   reserveAiUsage,
+  type AiUsageMetering,
   type AiUsageStatus,
 } from '@/lib/ai/usage-ledger';
 
@@ -53,25 +63,8 @@ interface ProductCostsRow {
   payment_fee_percent_bps: number | null;
 }
 
-interface Narrative {
-  summary: string;
-  conversion_insight: string | string[];
-  pricing_suggestions: string | string[];
-  growth_opportunities: string[];
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function stringValue(value: unknown, fallback: string): string {
-  return typeof value === 'string' ? value : fallback;
-}
-
-function stringList(value: unknown, fallback: string[] = []): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string' && Boolean(item))
-    : fallback;
 }
 
 export async function POST(req: NextRequest) {
@@ -104,7 +97,6 @@ export async function POST(req: NextRequest) {
     }
     const targetReportId = targetReport.id;
 
-    const connection = await dbService.getStoreConnection(user.id);
     const db = await getDb();
     const prepare = db.prepare.bind(db);
 
@@ -246,115 +238,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let narrative: Narrative = {
-      summary: '',
-      conversion_insight: '',
-      pricing_suggestions: '',
-      growth_opportunities: []
-    };
-
-    const reservationId = randomUUID();
-    let reserved: boolean;
-    try {
-      reserved = await reserveAiUsage({
-        db,
-        reservationId,
-        userId: user.id,
-        operation: 'generate',
-        plan: user.plan,
-        now: nowMs,
-      });
-    } catch {
-      console.error('[analysis/generate] AI quota storage unavailable');
-      return NextResponse.json(
-        { error: 'الخدمة غير متاحة مؤقتاً.' },
-        { status: 503 }
-      );
-    }
-    if (!reserved) {
-      return NextResponse.json(
-        { error: 'تم بلوغ حد إنشاء التحليلات مؤقتاً. يرجى المحاولة لاحقاً.' },
-        { status: 429 }
-      );
-    }
-    releaseAiReservation = () =>
-      finalizeAiUsage({ db, reservationId, status: 'failed' });
-    let aiUsageFinalStatus: AiUsageStatus = 'succeeded';
-
-    try {
-      const content = await requestOpenAIChat({
-          apiKey: openaiApiKey,
-          messages: [
-            {
-              role: 'system',
-              content: `أنت محلل تجارة إلكترونية سعودي محترف. ${AI_UNTRUSTED_DATA_POLICY} التزم بالبيانات المرفقة وأعد JSON صالحاً فقط.`,
-            },
-            { role: 'user', content: JSON.stringify({
-                context: {
-                  platform: connection?.platform || 'csv',
-                  storeName: connection?.storeName || 'N/A'
-                },
-                metrics: base.metrics,
-                top_products: base.top_products,
-                weak_products: base.weak_products
-              })
-            }
-          ],
-          responseFormat: { type: 'json_object' },
-          maxTokens: AI_GENERATION_MAX_TOKENS,
-      });
-      const parsed: unknown = JSON.parse(content);
-      if (!isRecord(parsed)) {
-        throw new Error('Invalid narrative response');
-      }
-      narrative = {
-        summary: stringValue(parsed.summary, narrative.summary),
-        conversion_insight:
-          typeof parsed.conversion_insight === 'string'
-            ? parsed.conversion_insight
-            : stringList(parsed.conversion_insight),
-        pricing_suggestions:
-          typeof parsed.pricing_suggestions === 'string'
-            ? parsed.pricing_suggestions
-            : stringList(parsed.pricing_suggestions),
-        growth_opportunities: stringList(parsed.growth_opportunities)
-      };
-    } catch {
-      console.error('[analysis/generate] OpenAI narrative generation failed');
-      aiUsageFinalStatus = 'failed';
-      narrative = {
-        summary: 'تعذر توليد السرد الذكي حالياً.',
-        conversion_insight: '',
-        pricing_suggestions: '',
-        growth_opportunities: []
-      };
-    }
-
-    // Build stable aiNarrative object
-    const toArray = (v: unknown): string[] => {
-      if (!v) return [];
-      if (Array.isArray(v)) {
-        return v.filter(
-          (item): item is string => typeof item === 'string' && Boolean(item)
-        );
-      }
-      if (typeof v === 'string') return [v].filter(Boolean);
-      return [];
-    };
-    const aiNarrative = {
-      executiveSummary: narrative.summary || 'تم إنشاء تحليل مبني على بياناتك.',
-      pricingSuggestions: toArray(narrative.pricing_suggestions).length ? toArray(narrative.pricing_suggestions) : [
-        'راجع تسعير المنتجات الضعيفة بتجربة عروض رزم أو خصومات محدودة المدة.'
-      ],
-      growthOpportunities: toArray(narrative.growth_opportunities).length ? toArray(narrative.growth_opportunities) : [
-        'ركز حملات الإعلانات على أفضل المنتجات أداءً لزيادة العائد.',
-        'حسّن صور ووصف المنتجات ذات الأداء الضعيف لتحسين نسبة الإضافة للسلة.'
-      ],
-      conversionInsights: toArray(narrative.conversion_insight).length ? toArray(narrative.conversion_insight) : [
-        'نسبة التحويل تحتاج بيانات زيارات (GA4) لمقارنتها. طبّق تحسينات تجربة المستخدم: تبسيط خطوات الدفع، وإبراز حدود الشحن وسياسة الاسترجاع.'
-      ]
-    };
-
     const normalizeTitle = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
     const findProductBySku = async (sku: string): Promise<ProductRow | null> => {
       if (!sku) return null;
@@ -484,10 +367,88 @@ export async function POST(req: NextRequest) {
       lowMarginProducts
     };
 
+    const analysisContext = buildCompactAnalysisContext({
+      metrics: base.metrics,
+      profitability,
+      topProducts,
+      weakProducts,
+    });
+    const reservationId = randomUUID();
+    let reserved: boolean;
+    try {
+      reserved = await reserveAiUsage({
+        db,
+        reservationId,
+        userId: user.id,
+        operation: 'generate',
+        plan: user.plan,
+        now: nowMs,
+      });
+    } catch {
+      console.error('[analysis/generate] AI quota storage unavailable');
+      return NextResponse.json(
+        { error: 'الخدمة غير متاحة مؤقتاً.' },
+        { status: 503 }
+      );
+    }
+    if (!reserved) {
+      return NextResponse.json(
+        { error: 'تم بلوغ حد إنشاء التحليلات مؤقتاً. يرجى المحاولة لاحقاً.' },
+        { status: 429 }
+      );
+    }
+    let aiUsageFinalStatus: AiUsageStatus = 'succeeded';
+    let aiUsageMetering: AiUsageMetering | undefined;
+    releaseAiReservation = () =>
+      finalizeAiUsage({
+        db,
+        reservationId,
+        status: 'failed',
+        metering: aiUsageMetering,
+      });
+    let narrative: AiAnalysisNarrative;
+
+    try {
+      const result = await requestOpenAIChat({
+        apiKey: openaiApiKey,
+        messages: buildAnalysisMessages(analysisContext),
+        responseFormat: AI_ANALYSIS_RESPONSE_FORMAT,
+        temperature: 0.2,
+        maxTokens: AI_GENERATION_MAX_TOKENS,
+      });
+      aiUsageMetering = {
+        model: result.model,
+        reportId: targetReportId,
+        sourceHash,
+        ...result.usage,
+      };
+      narrative = parseAiAnalysisNarrative(result.content);
+    } catch {
+      console.error('[analysis/generate] Structured narrative generation failed');
+      aiUsageFinalStatus = 'failed';
+      narrative = insufficientAnalysisNarrative(
+        'تعذر الحصول على استجابة منظمة وموثوقة من مزود الذكاء الاصطناعي.'
+      );
+    }
+
+    const aiNarrative = {
+      executiveSummary: narrative.summary,
+      conversionInsights: [narrative.conversion_insight],
+      pricingSuggestions: narrative.pricing_suggestions,
+      growthOpportunities: narrative.growth_opportunities,
+      analysisType: narrative.type,
+      confidence: narrative.confidence,
+      insufficientEvidence: narrative.insufficient_evidence,
+    };
+
     const reportPayload = JSON.stringify({
       ...base,
-      ...narrative,
+      summary: narrative.summary,
+      conversion_insight: narrative.conversion_insight,
+      pricing_suggestions: narrative.pricing_suggestions,
+      growth_opportunities: narrative.growth_opportunities,
       aiNarrative,
+      analysisContract: narrative,
       profitability
     });
 
@@ -525,6 +486,7 @@ export async function POST(req: NextRequest) {
         db,
         reservationId,
         status: aiUsageFinalStatus,
+        metering: aiUsageMetering,
       });
       releaseAiReservation = null;
     }

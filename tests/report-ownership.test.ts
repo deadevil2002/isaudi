@@ -129,3 +129,15 @@ test('deferred dashboard report details remain authenticated, owner-scoped, and 
   assert.match(dashboardClient, /dynamic\(/);
   assert.match(dashboardClient, /api\/reports\/detail\?reportId=/);
 });
+
+test('AI chat resolves a requested report through the owner-scoped lookup', async () => {
+  const route = await readFile(
+    new URL('../src/app/api/analysis/chat/route.ts', import.meta.url),
+    'utf8'
+  );
+  assert.match(route, /getCurrentUser\(\)/);
+  assert.match(route, /resolveReportForUser\(/);
+  assert.match(route, /user\.id,/);
+  assert.match(route, /requestedReportId/);
+  assert.doesNotMatch(route, /getReportById\(/);
+});

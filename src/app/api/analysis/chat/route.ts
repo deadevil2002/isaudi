@@ -1,30 +1,53 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { dbService } from '@/lib/db/service';
 import { getCurrentUser } from '@/lib/auth/utils';
+import { resolveReportForUser } from '@/lib/reports/ownership';
 import {
   REQUEST_BODY_LIMITS,
   RequestBodyTooLargeError,
   readJsonWithLimit,
   requestTooLargeResponse,
 } from '@/lib/security/request-size';
-import {
-  OpenAIChatError,
-  requestOpenAIChat,
-} from '@/lib/ai/openai-chat';
+import { OpenAIChatError, requestOpenAIChat } from '@/lib/ai/openai-chat';
 import { getRuntimeString } from '@/lib/runtime/environment';
 import { getDb } from '@/lib/db/client';
+import { AI_CHAT_MAX_TOKENS, AI_CHAT_MESSAGE_MAX_LENGTH } from '@/lib/ai/chat-guard';
 import {
-  AI_CHAT_MAX_TOKENS,
-  AI_CHAT_MESSAGE_MAX_LENGTH,
-  buildAiChatMessages,
-  boundedReportContext,
-  consumeAiChatQuota,
-} from '@/lib/ai/chat-guard';
+  answerDeterministicQuestion,
+  buildFocusedChatContext,
+  buildStructuredChatMessages,
+  classifyAiQuestion,
+  compactContextFromReport,
+} from '@/lib/ai/analysis-context';
+import {
+  AI_CHAT_RESPONSE_FORMAT,
+  parseAiChatResponse,
+} from '@/lib/ai/contracts';
+import {
+  finalizeAiUsage,
+  reserveAiUsage,
+  type AiUsageMetering,
+} from '@/lib/ai/usage-ledger';
 
 const AI_UNAVAILABLE_MESSAGE =
   'عذراً، الخدمة الذكية غير متاحة حالياً. يرجى المحاولة لاحقاً.';
 
+function sourceHashFromReport(reportJson: string): string | null {
+  try {
+    const value = JSON.parse(reportJson) as {
+      snapshot?: { sourceHash?: unknown };
+    };
+    return typeof value.snapshot?.sourceHash === 'string'
+      ? value.snapshot.sourceHash
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
+  let releaseAiReservation: (() => Promise<void>) | null = null;
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -36,9 +59,13 @@ export async function POST(req: NextRequest) {
       if (error instanceof RequestBodyTooLargeError) return requestTooLargeResponse();
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
-    const message =
-      body && typeof body === 'object' && 'message' in body
-        ? (body as { message?: unknown }).message
+    const record = body && typeof body === 'object'
+      ? body as Record<string, unknown>
+      : {};
+    const message = record.message;
+    const requestedReportId =
+      typeof record.reportId === 'string' && record.reportId.trim()
+        ? record.reportId.trim()
         : null;
 
     if (typeof message !== 'string' || !message.trim()) {
@@ -51,21 +78,28 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Check limits
     if (user.plan === 'free' && (user.freeReportsUsed || 0) >= 2) {
-      return NextResponse.json({ error: 'Free limit reached. Upgrade to continue.' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Free limit reached. Upgrade to continue.' },
+        { status: 403 }
+      );
     }
 
-    // Get Report Context
-    const latestReport = await dbService.getLatestReport(user.id);
-    if (!latestReport) {
-      return NextResponse.json({ error: 'No report found. Please generate an analysis first.' }, { status: 404 });
+    const report = await resolveReportForUser(
+      dbService,
+      user.id,
+      requestedReportId
+    );
+    if (!report) {
+      return NextResponse.json(
+        { error: 'No report found. Please generate an analysis first.' },
+        { status: 404 }
+      );
     }
 
-    let reportContext: string;
+    let context;
     try {
-      reportContext = boundedReportContext(latestReport.reportJson);
+      context = compactContextFromReport(report.reportJson);
     } catch {
       console.error('[analysis/chat] Stored report context is invalid');
       return NextResponse.json(
@@ -74,55 +108,122 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const classified = classifyAiQuestion(normalizedMessage);
+    if (classified === 'factual') {
+      const response = answerDeterministicQuestion(normalizedMessage, context);
+      if (response) {
+        return NextResponse.json({
+          reply: response.summary,
+          response,
+          route: 'deterministic',
+          providerUsed: false,
+        });
+      }
+    }
+    const complexity = classified === 'deep' ? 'deep' : 'analytical';
+
     const apiKey = getRuntimeString('OPENAI_API_KEY');
     if (!apiKey) {
       console.error('[analysis/chat] OpenAI configuration missing');
+      return NextResponse.json({ error: AI_UNAVAILABLE_MESSAGE }, { status: 503 });
+    }
+
+    const db = await getDb();
+    const reservationId = randomUUID();
+    let reserved: boolean;
+    try {
+      reserved = await reserveAiUsage({
+        db,
+        reservationId,
+        userId: user.id,
+        operation: 'chat',
+        plan: user.plan,
+      });
+    } catch {
+      console.error('[analysis/chat] AI quota storage unavailable');
       return NextResponse.json(
-        { error: AI_UNAVAILABLE_MESSAGE },
+        { error: 'الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.' },
         { status: 503 }
       );
     }
+    if (!reserved) {
+      return NextResponse.json(
+        { error: 'تم بلوغ حد استخدام المساعد مؤقتاً. يرجى المحاولة لاحقاً.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      );
+    }
+    let aiUsageMetering: AiUsageMetering | undefined;
+    releaseAiReservation = () =>
+      finalizeAiUsage({
+        db,
+        reservationId,
+        status: 'failed',
+        metering: aiUsageMetering,
+      });
 
     try {
-      const db = await getDb();
-      const quota = await consumeAiChatQuota({
-        db,
-        userId: user.id,
-        plan: user.plan,
-      });
-      if (!quota.allowed) {
-        return NextResponse.json(
-          { error: 'تم بلوغ حد استخدام المساعد مؤقتاً. يرجى المحاولة لاحقاً.' },
-          {
-            status: 429,
-            headers: { 'Retry-After': String(quota.retryAfterSeconds) },
-          }
-        );
-      }
-      const reply = await requestOpenAIChat({
+      const result = await requestOpenAIChat({
         apiKey,
-        messages: buildAiChatMessages(reportContext, normalizedMessage),
-        temperature: 0.7,
+        messages: buildStructuredChatMessages({
+          context: buildFocusedChatContext(context, complexity),
+          question: normalizedMessage,
+          complexity,
+        }),
+        responseFormat: AI_CHAT_RESPONSE_FORMAT,
+        temperature: 0.2,
         maxTokens: AI_CHAT_MAX_TOKENS,
       });
-      return NextResponse.json({ reply });
+      aiUsageMetering = {
+        model: result.model,
+        reportId: report.id,
+        sourceHash: sourceHashFromReport(report.reportJson),
+        ...result.usage,
+      };
+      const response = parseAiChatResponse(result.content);
+      await finalizeAiUsage({
+        db,
+        reservationId,
+        status: 'succeeded',
+        metering: aiUsageMetering,
+      });
+      releaseAiReservation = null;
+      return NextResponse.json({
+        reply: response.summary,
+        response,
+        route: complexity,
+        providerUsed: true,
+      });
     } catch (error) {
-      if (!(error instanceof OpenAIChatError)) {
-        console.error('[analysis/chat] Quota storage unavailable');
+      try {
+        const release = releaseAiReservation;
+        if (!release) throw new Error('Missing AI usage reservation');
+        await release();
+        releaseAiReservation = null;
+      } catch {
+        console.error('[analysis/chat] AI usage reservation could not be finalized');
         return NextResponse.json(
           { error: 'الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.' },
           { status: 503 }
         );
       }
-      const diagnostic =
-        { kind: error.kind, status: error.status };
-      console.error('[analysis/chat] OpenAI request failed', diagnostic);
-      return NextResponse.json(
-        { error: AI_UNAVAILABLE_MESSAGE },
-        { status: 502 }
-      );
+      if (error instanceof OpenAIChatError) {
+        console.error('[analysis/chat] OpenAI request failed', {
+          kind: error.kind,
+          status: error.status,
+        });
+      } else {
+        console.error('[analysis/chat] Structured response validation failed');
+      }
+      return NextResponse.json({ error: AI_UNAVAILABLE_MESSAGE }, { status: 502 });
     }
   } catch {
+    if (releaseAiReservation) {
+      try {
+        await releaseAiReservation();
+      } catch {
+        console.error('[analysis/chat] Failed to release AI reservation');
+      }
+    }
     console.error('[analysis/chat] Authentication or data storage unavailable');
     return NextResponse.json(
       { error: 'الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.' },

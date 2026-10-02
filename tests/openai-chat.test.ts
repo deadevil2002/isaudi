@@ -6,7 +6,7 @@ import {
   requestOpenAIChat,
 } from '../src/lib/ai/openai-chat';
 
-test('OpenAI chat returns validated text and uses the supported model', async () => {
+test('OpenAI chat returns validated content, model, and provider usage', async () => {
   let requestBody: Record<string, unknown> = {};
   const reply = await requestOpenAIChat({
     apiKey: 'test-key',
@@ -17,12 +17,30 @@ test('OpenAI chat returns validated text and uses the supported model', async ()
       assert.ok(typeof parsed === 'object' && parsed !== null);
       requestBody = parsed as Record<string, unknown>;
       return Response.json({
+        model: 'gpt-4o-mini-2024-07-18',
         choices: [{ message: { content: '  إجابة مفيدة  ' } }],
+        usage: {
+          prompt_tokens: 120,
+          completion_tokens: 30,
+          total_tokens: 150,
+          prompt_tokens_details: {
+            cached_tokens: 80,
+            cache_write_tokens: 12,
+          },
+        },
       });
     },
   });
 
-  assert.equal(reply, 'إجابة مفيدة');
+  assert.equal(reply.content, 'إجابة مفيدة');
+  assert.equal(reply.model, 'gpt-4o-mini-2024-07-18');
+  assert.deepEqual(reply.usage, {
+    inputTokens: 120,
+    outputTokens: 30,
+    totalTokens: 150,
+    cachedInputTokens: 80,
+    cacheWriteTokens: 12,
+  });
   assert.equal(requestBody.model, OPENAI_CHAT_MODEL);
   assert.equal(requestBody.max_tokens, 400);
 });

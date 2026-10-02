@@ -21,7 +21,13 @@ export function ReportView({ data }: ReportViewProps) {
     t("dashboard.reportView.executiveSummary.fallback");
 
   const conversionList: string[] = ai?.conversionInsights || (data.conversion_insight ? [data.conversion_insight] : []);
-  const pricingList: string[] = ai?.pricingSuggestions || (data.pricing_suggestions ? [data.pricing_suggestions] : []);
+  const pricingList: string[] = ai?.pricingSuggestions || (
+    Array.isArray(data.pricing_suggestions)
+      ? data.pricing_suggestions
+      : data.pricing_suggestions
+        ? [data.pricing_suggestions]
+        : []
+  );
   const growthList: string[] = ai?.growthOpportunities || data.growth_opportunities || [];
   const profitability = data.profitability || null;
 

@@ -17,7 +17,7 @@ export type ReportViewData = {
   };
   summary?: string;
   conversion_insight?: string;
-  pricing_suggestions?: string;
+  pricing_suggestions?: string | string[];
   growth_opportunities?: string[];
   metrics?: {
     totalSales?: number;
