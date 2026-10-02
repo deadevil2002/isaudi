@@ -43,6 +43,12 @@ and CSV. `/design-preview/dashboard-review` is QA-only.
 - Normal Salla flow is Easy Mode via signed lifecycle webhooks
 - Credentials are encrypted; ownership is keyed by authoritative merchant ID
 - Linking codes are short-lived and single-use
+- Storefront origins come only from authenticated Salla user-info merchant data,
+  are normalized to HTTPS origins, and remain scoped by user + merchant
+- `landing_page_analyzer_v1` is on-demand and deterministic: public-only bounded
+  HTML fetch, same-origin redirects, compact evidence/findings, content-hash
+  caching, and no retained HTML/screenshots; JS-only pages fail as insufficient
+  evidence because Browser Rendering is not enabled in v1
 - Legacy OAuth callback remains for compatibility, not normal connection flow
 
 ### AI and reports

@@ -94,8 +94,19 @@ The landing-page analyzer must reuse the verified storefront-origin policy:
 HTTPS only, public DNS answers only, no internal/loopback/link-local/metadata
 destinations, no URL credentials, same-origin redirects only, and bounded
 redirects, time, response bytes, and HTML bytes. Every future redirect hop and
-DNS resolution must be revalidated before fetching. This phase stores the
-trusted origin and policy only; it does not fetch or render storefronts.
+DNS resolution must be revalidated before fetching.
+
+The versioned `landing_page_analyzer_v1` runs only on demand through the
+authenticated `POST /api/analysis/landing-page` endpoint. The browser supplies
+only a merchant selector; the server resolves the owner-scoped verified origin.
+The analyzer fetches bounded HTML with manual same-origin redirects, extracts
+deterministic evidence, and stores only the compact evidence/findings snapshot
+under `userId + merchantId + origin + contentHash + analyzerVersion`. Full HTML
+and screenshots are not retained. Identical content/version combinations use
+the stored snapshot and make no OpenAI request. JavaScript-only or visually
+ambiguous pages are marked `insufficient_evidence`/rendering-required rather
+than generating unsupported findings; Browser Rendering and AI reasoning are
+not used in v1.
 
 ## 3. Database Schema
 New tables added to SQLite (D1 compatible):

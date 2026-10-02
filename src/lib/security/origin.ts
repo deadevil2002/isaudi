@@ -12,6 +12,7 @@ export const ORIGIN_PROTECTED_POST_PATHS = [
   '/api/connect/salla/verify',
   '/api/analysis/generate',
   '/api/analysis/chat',
+  '/api/analysis/landing-page',
   '/api/reports/generate-weekly',
   '/api/billing/verify',
   '/api/billing/tap/create-payment',
