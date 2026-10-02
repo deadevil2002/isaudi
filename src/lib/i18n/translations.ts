@@ -245,6 +245,10 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "التكاليف",
     en: "Costs",
   },
+  "dashboard.menu.services": {
+    ar: "تحسين الصفحة",
+    en: "Page analysis",
+  },
   "dashboard.menu.connectStore": {
     ar: "ربط المتجر",
     en: "Connect store",

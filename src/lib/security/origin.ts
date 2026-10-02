@@ -13,6 +13,8 @@ export const ORIGIN_PROTECTED_POST_PATHS = [
   '/api/analysis/generate',
   '/api/analysis/chat',
   '/api/analysis/landing-page',
+  '/api/referrals/eligible',
+  '/api/referrals/shown',
   '/api/reports/generate-weekly',
   '/api/billing/verify',
   '/api/billing/tap/create-payment',

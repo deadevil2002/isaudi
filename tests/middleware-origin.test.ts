@@ -19,9 +19,11 @@ const request = (
 
 test('exports the exact protected POST allowlist', () => {
   assert.deepEqual(CSRF_PROTECTED_PATHS, ORIGIN_PROTECTED_POST_PATHS);
-  assert.equal(CSRF_PROTECTED_PATHS.length, 13);
+  assert.equal(CSRF_PROTECTED_PATHS.length, 15);
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/analysis/chat'));
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/analysis/landing-page'));
+  assert.ok(CSRF_PROTECTED_PATHS.includes('/api/referrals/eligible'));
+  assert.ok(CSRF_PROTECTED_PATHS.includes('/api/referrals/shown'));
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/connect/salla/link-code'));
   assert.ok(CSRF_PROTECTED_PATHS.includes('/api/connect/salla/verify'));
 });

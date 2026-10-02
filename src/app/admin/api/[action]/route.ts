@@ -19,6 +19,12 @@ import {
   readAdminObservability,
   readAdminObservabilityCustomers,
 } from '@/lib/admin/observability';
+import {
+  readReferralAdminDashboard,
+  ReferralAdminError,
+  savePartnerOffer,
+  saveServiceCategory,
+} from '@/lib/referrals/admin';
 
 type Context = { params: Promise<{ action: string }> };
 type PasswordRecord = {
@@ -220,6 +226,34 @@ async function observabilityCustomers(admin: { role: string }, request: NextRequ
   const page = Number.parseInt(request.nextUrl.searchParams.get('page') || '1', 10) || 1;
   const pageSize = Number.parseInt(request.nextUrl.searchParams.get('pageSize') || '10', 10) || 10;
   return json(await readAdminObservabilityCustomers(adminDb(), { page, pageSize }));
+}
+
+async function serviceReferrals(admin: { id: string; role: string }) {
+  return json(await readReferralAdminDashboard({ admin }));
+}
+
+async function saveReferralCategory(
+  request: NextRequest,
+  admin: { id: string; role: string }
+) {
+  const result = await saveServiceCategory({ admin, data: await body(request) });
+  await audit(
+    adminDb(), admin.id, 'service_category_saved', await requestIpHash(request),
+    'service_category', result.id, { slug: result.slug }
+  );
+  return json({ success: true, id: result.id });
+}
+
+async function saveReferralOffer(
+  request: NextRequest,
+  admin: { id: string; role: string }
+) {
+  const result = await savePartnerOffer({ admin, data: await body(request) });
+  await audit(
+    adminDb(), admin.id, 'partner_offer_saved', await requestIpHash(request),
+    'partner_offer', result.id
+  );
+  return json({ success: true, id: result.id });
 }
 
 async function readVideoRecord() {
@@ -531,10 +565,12 @@ export async function GET(request: NextRequest, context: Context) {
     if (action === 'data') return json(await portalData(admin));
     if (action === 'observability') return observability(admin);
     if (action === 'observability-customers') return observabilityCustomers(admin, request);
+    if (action === 'service-referrals') return serviceReferrals(admin);
     if (action === 'section') return adminSection(admin, request);
     if (action === 'video') return videoStatus(admin);
     return json({ error: 'غير موجود' }, 404);
-  } catch {
+  } catch (error) {
+    if (error instanceof ReferralAdminError) return json({ error: error.reason }, error.status);
     if ((action === 'status' || action === 'bootstrap') && getRuntimeString('NODE_ENV') !== 'production') {
       return json({
         authenticated: false,
@@ -572,8 +608,11 @@ export async function POST(request: NextRequest, context: Context) {
     if (action === 'video-save') return saveVideo(request, admin);
     if (action === 'video-disable') return disableVideo(request, admin);
     if (action === 'video-remove') return removeVideo(request, admin);
+    if (action === 'service-category-save') return saveReferralCategory(request, admin);
+    if (action === 'partner-offer-save') return saveReferralOffer(request, admin);
     return json({ error: 'غير موجود' }, 404);
   } catch (error) {
+    if (error instanceof ReferralAdminError) return json({ error: error.reason }, error.status);
     return error instanceof RequestBodyTooLargeError
       ? json({ error: 'حجم الطلب كبير جداً' }, 413)
       : json({ error: 'تعذر إكمال الطلب' }, 400);

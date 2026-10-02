@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   TrendingUp,
   ShoppingBag,
+  ScanSearch,
   Settings,
   CreditCard,
   PieChart
@@ -136,6 +137,7 @@ export function AuthenticatedShell({
   const isDashboard = pathname === "/dashboard";
   const isReports = pathname === "/dashboard/reports";
   const isCosts = pathname === "/dashboard/costs";
+  const isServices = pathname === "/dashboard/services";
   const isConnectStore = pathname.startsWith("/connect");
   const isBilling = pathname === "/billing";
   const isSettings = pathname === "/settings";
@@ -144,6 +146,7 @@ export function AuthenticatedShell({
     { href: "/dashboard", label: t("dashboard.menu.dashboard"), icon: LayoutDashboard, active: isDashboard },
     { href: "/dashboard/reports", label: t("dashboard.menu.reports"), icon: PieChart, active: isReports },
     { href: "/dashboard/costs", label: t("dashboard.menu.costs"), icon: TrendingUp, active: isCosts },
+    { href: "/dashboard/services", label: t("dashboard.menu.services"), icon: ScanSearch, active: isServices },
     { href: "/connect/salla", label: t("dashboard.menu.connectStore"), icon: ShoppingBag, active: isConnectStore },
     { href: "/billing", label: t("dashboard.menu.billing"), icon: CreditCard, active: isBilling },
     { href: "/settings", label: t("dashboard.menu.settings"), icon: Settings, active: isSettings },
