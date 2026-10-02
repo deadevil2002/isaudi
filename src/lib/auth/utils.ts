@@ -19,6 +19,8 @@ type AuthenticatedUser = {
   plan: string;
   planExpiresAt: number | null;
   email_verified: number;
+  email_verify_token: string | null;
+  email_verify_token_expires_at: number | null;
   freeReportsUsed: number;
 };
 
@@ -38,6 +40,7 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 
     const user = await d1
       .prepare(`SELECT id, email, plan, planExpiresAt, email_verified,
+        email_verify_token, email_verify_token_expires_at,
         free_reports_used AS freeReportsUsed FROM users WHERE id = ?`)
       .bind(session.userId)
       .first<AuthenticatedUser>();

@@ -1,14 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth/utils';
 import { dbService } from '@/lib/db/service';
 import { randomBytes } from 'crypto';
 import { sendVerifyEmail } from '@/lib/email/resend';
+import {
+  getRuntimeEnvironment,
+  getRuntimeString,
+} from '@/lib/runtime/environment';
 
 function resolveAppUrl(): string {
   const fallbackProd = 'https://isaudi.ai';
   const fallbackDev = 'http://localhost:3000';
-  const appUrl = process.env.APP_URL ? process.env.APP_URL.trim() : '';
-  const cfUrl = process.env.CF_PAGES_URL ? process.env.CF_PAGES_URL.trim() : '';
+  const appUrl = getRuntimeString('APP_URL') ?? '';
+  const cfUrl = getRuntimeString('CF_PAGES_URL') ?? '';
   if (process.env.NODE_ENV === 'production' && appUrl.startsWith('http://localhost')) {
     console.warn('[config] APP_URL points to localhost while NODE_ENV=production');
   }
@@ -22,20 +26,19 @@ function resolveAppUrl(): string {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if ((user as any).email_verified === 1) {
+    if (user.email_verified === 1) {
       return NextResponse.json({ success: true, alreadyVerified: true });
     }
 
-    const existingToken = (user as any).email_verify_token as string | null | undefined;
-    const existingExpiresAt = (user as any)
-      .email_verify_token_expires_at as number | null | undefined;
+    const existingToken = user.email_verify_token;
+    const existingExpiresAt = user.email_verify_token_expires_at;
     const now = Date.now();
 
     let tokenToUse = existingToken || null;
@@ -49,10 +52,23 @@ export async function POST(req: NextRequest) {
     const appUrl = resolveAppUrl();
     const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(tokenToUse!)}`;
 
+    const runtimeEnv = getRuntimeEnvironment();
+    const isProd = Boolean(runtimeEnv.DB) || process.env.NODE_ENV === 'production';
     try {
-      await sendVerifyEmail(user.email, verifyUrl);
+      await sendVerifyEmail(
+        user.email,
+        verifyUrl,
+        {
+          RESEND_API_KEY: getRuntimeString('RESEND_API_KEY'),
+          RESEND_FROM: getRuntimeString('RESEND_FROM'),
+          EMAIL_PROVIDER: getRuntimeString('EMAIL_PROVIDER'),
+          DEV_OTP: getRuntimeString('DEV_OTP'),
+        },
+        isProd
+      );
     } catch {
-      console.error('Failed to send verification email');
+      console.error('[email-verify] verification email delivery failed');
+      return NextResponse.json({ error: 'Email delivery failed' }, { status: 502 });
     }
 
     return NextResponse.json({ success: true });

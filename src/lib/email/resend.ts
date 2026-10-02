@@ -9,7 +9,7 @@ const defaultFrom = 'no-reply@updates.isaudi.ai';
 
 function resolveFromEmail(envFrom?: string | null, provider?: string | null): string {
   const trimmed = envFrom ? envFrom.trim() : '';
-  let value = trimmed || defaultFrom;
+  const value = trimmed || defaultFrom;
 
   if (!trimmed && provider === 'resend') {
     console.warn(
@@ -94,10 +94,14 @@ export async function sendEmailResend(params: {
     }
 
     if (res.ok) {
+      const responseId =
+        parsed && typeof parsed === 'object' && 'id' in parsed
+          ? (parsed as { id?: unknown }).id
+          : null;
       return {
         ok: true,
         status: res.status,
-        id: typeof (parsed as any)?.id === 'string' ? (parsed as any).id : '',
+        id: typeof responseId === 'string' ? responseId : '',
       };
     }
 
@@ -107,11 +111,14 @@ export async function sendEmailResend(params: {
       error: 'Resend API request failed',
       body: parsed,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       ok: false,
       status: res?.status ?? null,
-      error: typeof error?.message === 'string' ? error.message : 'Resend API request failed',
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : 'Resend API request failed',
     };
   }
 }
@@ -140,7 +147,9 @@ export async function sendVerifyEmail(
   env: EmailEnv = {},
   isProd = false
 ): Promise<void> {
-  const provider = env.EMAIL_PROVIDER ?? null;
+  const apiKey = (env.RESEND_API_KEY ?? '').toString().trim();
+  const configuredProvider = (env.EMAIL_PROVIDER ?? '').toString().trim();
+  const provider = configuredProvider || (apiKey ? 'resend' : null);
   const isResend = provider === 'resend';
   const devOtp = env.DEV_OTP === 'true';
 
@@ -155,6 +164,9 @@ export async function sendVerifyEmail(
         =========================================
       `);
       return;
+    }
+    if (isProd) {
+      throw new Error('Verification email service is not configured');
     }
     return;
   }
@@ -195,5 +207,6 @@ export async function sendVerifyEmail(
         =========================================
       `);
     }
+    throw new Error('Verification email delivery failed');
   }
 }
