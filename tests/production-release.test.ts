@@ -16,6 +16,7 @@ import {
   buildReleasePlan,
   createProductionRehearsalDatabase,
   inspectLocalDatabase,
+  normalizeSchemaSql,
   verifyFinalReleaseState,
   watchedCounts,
 } from '../scripts/lib/production-release-core.mjs';
@@ -42,6 +43,20 @@ test('release plan is exact, ledger-safe, and explicitly skips historical 0014',
     assert.equal(plan.workerDeploymentIncluded, false);
     assert.equal(plan.writeBudget.total, APPROVED_EXPECTED_WRITES);
     assert.equal(plan.steps.at(-1)?.name, '0019_admin_observability.sql');
+  });
+});
+
+test('production baseline fixture matches the canonical store connection index definitions', () => {
+  withDatabase((db) => {
+    const state = inspectLocalDatabase(db);
+    assert.equal(
+      state.objects['index:idx_store_connections_user_status']?.sql,
+      normalizeSchemaSql('CREATE INDEX idx_store_connections_user_status ON store_connections(userId, status)'),
+    );
+    assert.equal(
+      state.objects['index:idx_store_connections_user_platform']?.sql,
+      normalizeSchemaSql('CREATE INDEX idx_store_connections_user_platform ON store_connections(userId, platform)'),
+    );
   });
 });
 

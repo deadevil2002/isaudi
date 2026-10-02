@@ -410,8 +410,8 @@ function createProductionSchema(db) {
       createdAt INTEGER NOT NULL,
       FOREIGN KEY(userId) REFERENCES users(id)
     );
-    CREATE INDEX idx_store_connections_user_status ON store_connections(userId,status);
-    CREATE INDEX idx_store_connections_user_platform ON store_connections(userId,platform);
+    CREATE INDEX idx_store_connections_user_status ON store_connections(userId, status);
+    CREATE INDEX idx_store_connections_user_platform ON store_connections(userId, platform);
     CREATE TABLE products (
       id TEXT PRIMARY KEY,
       userId TEXT NOT NULL,
