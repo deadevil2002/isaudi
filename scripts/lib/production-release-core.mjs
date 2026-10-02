@@ -185,7 +185,35 @@ export const AI_OBSERVABILITY_COLUMNS = Object.freeze([
   'provider_status',
 ]);
 
-const BASE_AI_COLUMNS = Object.freeze(AI_METERING_COLUMNS.slice(0, 7));
+const AI_USAGE_LEDGER_COLUMN_DEFINITIONS = Object.freeze([
+  { name: 'id', type: 'TEXT', notNull: 0, defaultValue: null, primaryKey: 1, hidden: 0 },
+  { name: 'user_id', type: 'TEXT', notNull: 1, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'operation', type: 'TEXT', notNull: 1, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'status', type: 'TEXT', notNull: 1, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'created_at', type: 'INTEGER', notNull: 1, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'lease_expires_at', type: 'INTEGER', notNull: 1, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'finalized_at', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'model', type: 'TEXT', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'report_id', type: 'TEXT', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'source_hash', type: 'TEXT', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'input_tokens', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'output_tokens', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'total_tokens', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'cached_input_tokens', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'cache_write_tokens', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'plan', type: 'TEXT', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'latency_ms', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'failure_kind', type: 'TEXT', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+  { name: 'provider_status', type: 'INTEGER', notNull: 0, defaultValue: null, primaryKey: 0, hidden: 0 },
+]);
+
+const AI_USAGE_LEDGER_INDEX_DEFINITIONS = Object.freeze([
+  { name: 'idx_ai_usage_active_leases', unique: 0, origin: 'c', partial: 0, columns: ['user_id', 'operation', 'status', 'lease_expires_at'] },
+  { name: 'idx_ai_usage_user_operation_created', unique: 0, origin: 'c', partial: 0, columns: ['user_id', 'operation', 'created_at'] },
+  { name: 'sqlite_autoindex_ai_usage_ledger_1', unique: 1, origin: 'pk', partial: 0, columns: ['id'] },
+]);
+
+const AI_USAGE_LEDGER_STATUS_CHECK = "statusin('reserved','succeeded','failed')";
 
 function fail(message) {
   throw new Error(`Production release safety check failed: ${message}`);
@@ -253,8 +281,145 @@ function schemaRows(db) {
 }
 
 function tableColumns(db, table) {
-  return db.prepare(`SELECT cid,name,type,"notnull" AS not_null,dflt_value,pk
-    FROM pragma_table_info(?) ORDER BY cid`).all(table);
+  return db.prepare(`SELECT cid,name,type,"notnull" AS not_null,dflt_value,pk,hidden
+    FROM pragma_table_xinfo(?) ORDER BY cid`).all(table);
+}
+
+function canonicalizeCheckExpression(expression) {
+  let result = '';
+  for (let index = 0; index < expression.length;) {
+    const character = expression[index];
+    if (/\s/.test(character)) {
+      index += 1;
+      continue;
+    }
+    if (character === "'") {
+      let literal = character;
+      index += 1;
+      while (index < expression.length) {
+        literal += expression[index];
+        if (expression[index] === "'") {
+          if (expression[index + 1] === "'") {
+            literal += expression[index + 1];
+            index += 2;
+            continue;
+          }
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      result += literal;
+      continue;
+    }
+    if (character === '"' || character === '`' || character === '[') {
+      const closing = character === '[' ? ']' : character;
+      let identifier = '';
+      index += 1;
+      while (index < expression.length && expression[index] !== closing) {
+        identifier += expression[index];
+        index += 1;
+      }
+      if (expression[index] === closing) index += 1;
+      result += identifier.toLowerCase();
+      continue;
+    }
+    result += character.toLowerCase();
+    index += 1;
+  }
+  return result;
+}
+
+export function extractCheckConstraints(sql) {
+  const source = String(sql ?? '');
+  const checks = [];
+  let quote = null;
+  for (let index = 0; index < source.length;) {
+    const character = source[index];
+    if (quote) {
+      if (character === quote) {
+        if (source[index + 1] === quote && quote !== ']') index += 2;
+        else {
+          quote = null;
+          index += 1;
+        }
+      } else index += 1;
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`' || character === '[') {
+      quote = character === '[' ? ']' : character;
+      index += 1;
+      continue;
+    }
+    const match = source.slice(index).match(/^check\b/i);
+    if (!match) {
+      index += 1;
+      continue;
+    }
+    let cursor = index + match[0].length;
+    while (/\s/.test(source[cursor] ?? '')) cursor += 1;
+    if (source[cursor] !== '(') {
+      index = cursor;
+      continue;
+    }
+    const start = cursor + 1;
+    let depth = 1;
+    let innerQuote = null;
+    cursor += 1;
+    for (; cursor < source.length && depth > 0; cursor += 1) {
+      const inner = source[cursor];
+      if (innerQuote) {
+        if (inner === innerQuote) {
+          if (source[cursor + 1] === innerQuote && innerQuote !== ']') cursor += 1;
+          else innerQuote = null;
+        }
+      } else if (inner === "'" || inner === '"' || inner === '`' || inner === '[') {
+        innerQuote = inner === '[' ? ']' : inner;
+      } else if (inner === '(') depth += 1;
+      else if (inner === ')') depth -= 1;
+    }
+    if (depth !== 0) fail('ai_usage_ledger contains an unterminated CHECK constraint');
+    checks.push(canonicalizeCheckExpression(source.slice(start, cursor - 1)));
+    index = cursor;
+  }
+  return checks;
+}
+
+export function normalizeAiUsageLedgerColumn(column) {
+  return {
+    name: String(column.name),
+    type: String(column.type ?? '').trim().replace(/\s+/g, ' ').toUpperCase(),
+    notNull: Number(column.not_null ?? column.notnull ?? 0),
+    defaultValue: column.dflt_value == null ? null : String(column.dflt_value).trim(),
+    primaryKey: Number(column.pk ?? 0),
+    hidden: Number(column.hidden ?? 0),
+  };
+}
+
+function localAiUsageLedgerSchema(db, objects, columns) {
+  const indexes = db.prepare(`SELECT seq,name,"unique" AS is_unique,origin,partial
+    FROM pragma_index_list('ai_usage_ledger') ORDER BY name`).all().map((index) => ({
+    name: index.name,
+    unique: Number(index.is_unique),
+    origin: index.origin,
+    partial: Number(index.partial),
+    columns: db.prepare('SELECT name FROM pragma_index_info(?) ORDER BY seqno').all(index.name).map((column) => column.name),
+  }));
+  const tableOptions = db.prepare(`SELECT wr,strict FROM pragma_table_list WHERE name='ai_usage_ledger'`).get();
+  return {
+    exists: Boolean(objects['table:ai_usage_ledger']),
+    columns: (columns.ai_usage_ledger ?? []).map(normalizeAiUsageLedgerColumn),
+    foreignKeys: db.prepare(`SELECT id,seq,"table","from","to",on_update,on_delete,"match"
+      FROM pragma_foreign_key_list('ai_usage_ledger') ORDER BY id,seq`).all(),
+    indexes,
+    checks: extractCheckConstraints(objects['table:ai_usage_ledger']?.sql),
+    triggers: Object.values(objects)
+      .filter((object) => object.type === 'trigger' && object.table === 'ai_usage_ledger')
+      .map((object) => object.name)
+      .sort(),
+    withoutRowId: Number(tableOptions?.wr ?? 0),
+    strict: Number(tableOptions?.strict ?? 0),
+  };
 }
 
 function tableCount(db, table) {
@@ -315,6 +480,7 @@ export function inspectLocalDatabase(db) {
     identity: { ...RELEASE_IDENTITY },
     objects,
     columns,
+    aiUsageLedgerSchema: localAiUsageLedgerSchema(db, objects, columns),
     ledger: db.prepare('SELECT id,name,applied_at FROM d1_migrations ORDER BY id').all(),
     ledgerIndexes: db.prepare(`SELECT name,"unique" AS is_unique FROM pragma_index_list('d1_migrations') ORDER BY name`).all(),
     counts,
@@ -626,17 +792,47 @@ function assertLedgerSchema(state) {
   }
 }
 
+export function assertAiUsageLedgerSemanticSchema(schema, prefixLength) {
+  if (!schema?.exists) fail('required table ai_usage_ledger is missing');
+  const expectedColumnCount = prefixLength >= 12 ? 19 : prefixLength >= 11 ? 15 : 7;
+  const expectedColumns = AI_USAGE_LEDGER_COLUMN_DEFINITIONS.slice(0, expectedColumnCount);
+  if (JSON.stringify(schema.columns) !== JSON.stringify(expectedColumns)) {
+    fail('ai_usage_ledger semantic columns differ from the verified definition');
+  }
+  if ((schema.foreignKeys ?? []).length !== 0) {
+    fail('ai_usage_ledger contains an unexpected foreign key');
+  }
+  const indexes = [...(schema.indexes ?? [])]
+    .map((index) => ({
+      name: String(index.name),
+      unique: Number(index.unique ?? index.is_unique ?? 0),
+      origin: String(index.origin ?? ''),
+      partial: Number(index.partial ?? 0),
+      columns: (index.columns ?? []).map(String),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  if (JSON.stringify(indexes) !== JSON.stringify(AI_USAGE_LEDGER_INDEX_DEFINITIONS)) {
+    fail('ai_usage_ledger indexes or unique constraints differ from the verified definition');
+  }
+  if (JSON.stringify(schema.checks ?? []) !== JSON.stringify([AI_USAGE_LEDGER_STATUS_CHECK])) {
+    fail('ai_usage_ledger CHECK constraints differ from the verified definition');
+  }
+  const expectedTriggers = prefixLength >= 12 ? ['admin_ai_usage_finalize'] : [];
+  if (JSON.stringify(schema.triggers ?? []) !== JSON.stringify(expectedTriggers)) {
+    fail('ai_usage_ledger triggers differ from the release ledger state');
+  }
+  if (Number(schema.withoutRowId ?? 0) !== 0 || Number(schema.strict ?? 0) !== 0) {
+    fail('ai_usage_ledger has unexpected table options');
+  }
+  return true;
+}
+
 function assertSchemaForProgress(state, prefixLength) {
   const expected = getExpectedStates();
   assertObjectSet(state.objects, expected.baseline.objects, PREEXISTING_RELEASE_OBJECTS);
 
-  const meteringApplied = prefixLength >= 11;
   const observabilityApplied = prefixLength >= 12;
-  assertSameObject(
-    state.objects,
-    meteringApplied ? expected.final.objects : expected.baseline.objects,
-    'table:ai_usage_ledger',
-  );
+  assertAiUsageLedgerSemanticSchema(state.aiUsageLedgerSchema, prefixLength);
 
   if (prefixLength >= 1) assertObjectSet(state.objects, expected.final.objects, AUDIT_BRIDGE_OBJECTS);
   else {
@@ -661,14 +857,6 @@ function assertSchemaForProgress(state, prefixLength) {
   const videoApplied = prefixLength >= 10;
   if (videoApplied) assertSameObject(state.objects, expected.final.objects, 'table:how_it_works_video');
   else if (state.objects['table:how_it_works_video']) fail('historical 0014 video table must remain absent before 0017');
-
-  const meteringColumns = columnNames(state.columns, 'ai_usage_ledger');
-  const expectedColumns = observabilityApplied
-    ? AI_OBSERVABILITY_COLUMNS
-    : meteringApplied
-      ? AI_METERING_COLUMNS
-      : BASE_AI_COLUMNS;
-  if (JSON.stringify(meteringColumns) !== JSON.stringify(expectedColumns)) fail('AI usage metering columns do not match the release ledger state');
 
   const observabilityKeys = Object.keys(expected.final.objects).filter((key) =>
     key === 'table:admin_ai_usage_daily' ||

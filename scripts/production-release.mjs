@@ -9,6 +9,8 @@ import {
   assertIdentity,
   assertReleaseState,
   buildReleasePlan,
+  extractCheckConstraints,
+  normalizeAiUsageLedgerColumn,
   verifyFinalReleaseState,
   watchedCounts,
 } from './lib/production-release-core.mjs';
@@ -123,7 +125,37 @@ function query(sql) {
 }
 
 function tableColumns(table) {
-  return query(`SELECT cid,name,type,"notnull" AS not_null,dflt_value,pk FROM pragma_table_info('${table}') ORDER BY cid`);
+  return query(`SELECT cid,name,type,"notnull" AS not_null,dflt_value,pk,hidden FROM pragma_table_xinfo('${table}') ORDER BY cid`);
+}
+
+function inspectAiUsageLedgerSchema(objects, columns) {
+  const indexRows = query(`SELECT seq,name,"unique" AS is_unique,origin,partial
+    FROM pragma_index_list('ai_usage_ledger') ORDER BY name`);
+  const indexes = indexRows.map((index) => {
+    const quotedName = String(index.name).replaceAll("'", "''");
+    return {
+      name: index.name,
+      unique: Number(index.is_unique),
+      origin: index.origin,
+      partial: Number(index.partial),
+      columns: query(`SELECT name FROM pragma_index_info('${quotedName}') ORDER BY seqno`).map((column) => column.name),
+    };
+  });
+  const tableOptions = query(`SELECT wr,strict FROM pragma_table_list WHERE name='ai_usage_ledger'`)[0];
+  return {
+    exists: Boolean(objects['table:ai_usage_ledger']),
+    columns: (columns.ai_usage_ledger ?? []).map(normalizeAiUsageLedgerColumn),
+    foreignKeys: query(`SELECT id,seq,"table","from","to",on_update,on_delete,"match"
+      FROM pragma_foreign_key_list('ai_usage_ledger') ORDER BY id,seq`),
+    indexes,
+    checks: extractCheckConstraints(objects['table:ai_usage_ledger']?.sql),
+    triggers: Object.values(objects)
+      .filter((object) => object.type === 'trigger' && object.table === 'ai_usage_ledger')
+      .map((object) => object.name)
+      .sort(),
+    withoutRowId: Number(tableOptions?.wr ?? 0),
+    strict: Number(tableOptions?.strict ?? 0),
+  };
 }
 
 function inspectRemoteState() {
@@ -191,6 +223,7 @@ function inspectRemoteState() {
     identity: { ...RELEASE_IDENTITY },
     objects,
     columns,
+    aiUsageLedgerSchema: inspectAiUsageLedgerSchema(objects, columns),
     ledger: query('SELECT id,name,applied_at FROM d1_migrations ORDER BY id'),
     ledgerIndexes: query(`SELECT name,"unique" AS is_unique FROM pragma_index_list('d1_migrations') ORDER BY name`),
     counts,

@@ -11,10 +11,12 @@ import {
   RELEASE_IDENTITY,
   RELEASE_NAMES,
   applyReleasePlanLocally,
+  assertAiUsageLedgerSemanticSchema,
   assertExecutionApproval,
   assertIdentity,
   buildReleasePlan,
   createProductionRehearsalDatabase,
+  extractCheckConstraints,
   inspectLocalDatabase,
   normalizeSchemaSql,
   verifyFinalReleaseState,
@@ -85,7 +87,7 @@ test('production execution requires exact approval and a fresh Time Travel bookm
 test('unexpected schema and unexpected ledger state are rejected', () => {
   withDatabase((db) => {
     db.exec('ALTER TABLE ai_usage_ledger ADD COLUMN unexpected_release_column TEXT');
-    assert.throws(() => buildReleasePlan(inspectLocalDatabase(db)), /ai_usage_ledger differs/);
+    assert.throws(() => buildReleasePlan(inspectLocalDatabase(db)), /ai_usage_ledger semantic columns differ/);
   });
   withDatabase((db) => {
     db.prepare('INSERT INTO d1_migrations(name) VALUES (?)').run('unexpected.sql');
@@ -237,6 +239,93 @@ test('release resumes from verified 0016 state with only 0017 through 0019', () 
     assert.deepEqual(resumePlan.steps.map((step) => step.name), RELEASE_NAMES.slice(9));
     assert.equal(resumePlan.writeBudget.total, 2_582);
     assert.equal(resumePlan.writeBudget.priorEstimatedWrites, 8_580);
+    assert.equal(resumePlan.writeBudget.cumulativeEstimatedWrites, APPROVED_EXPECTED_WRITES);
+    assert.equal(partialState.quickCheck, 'ok');
+    assert.equal(partialState.foreignKeyViolations, 0);
+    assert.equal(partialState.aggregateMismatches, 0);
+
+    applyReleasePlanLocally(db, resumePlan);
+    const finalState = inspectLocalDatabase(db);
+    assert.equal(verifyFinalReleaseState(finalState), true);
+    assert.deepEqual(watchedCounts(finalState), beforeCounts);
+    const idempotentPlan = buildReleasePlan(finalState);
+    assert.equal(idempotentPlan.steps.length, 0);
+    assert.equal(idempotentPlan.writeBudget.total, 0);
+  });
+});
+
+test('0018 ai_usage_ledger verification accepts equivalent D1 serialization', () => {
+  withDatabase((db) => {
+    const initialPlan = buildReleasePlan(inspectLocalDatabase(db));
+    applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 11) });
+    const state = inspectLocalDatabase(db);
+    const expectedMigrationSql = readFileSync(
+      path.join(process.cwd(), 'migrations', '0011_ai_usage_ledger.sql'),
+      'utf8',
+    );
+    const d1SerializedSql = `CrEaTe TaBlE "ai_usage_ledger" (
+      "id" TEXT PRIMARY KEY, "user_id" TEXT NOT NULL, "operation" TEXT NOT NULL,
+      "status" TEXT NOT NULL CHECK ([status] IN ('reserved', 'succeeded', 'failed')),
+      "created_at" INTEGER NOT NULL, "lease_expires_at" INTEGER NOT NULL,
+      "finalized_at" INTEGER, "model" TEXT, "report_id" TEXT, "source_hash" TEXT,
+      "input_tokens" INTEGER, "output_tokens" INTEGER, "total_tokens" INTEGER,
+      "cached_input_tokens" INTEGER, "cache_write_tokens" INTEGER
+    )`;
+
+    assert.deepEqual(extractCheckConstraints(expectedMigrationSql), extractCheckConstraints(d1SerializedSql));
+    const equivalentSchema = structuredClone(state.aiUsageLedgerSchema);
+    equivalentSchema.checks = extractCheckConstraints(d1SerializedSql);
+    assert.equal(assertAiUsageLedgerSemanticSchema(equivalentSchema, 11), true);
+    assert.deepEqual(buildReleasePlan(state).steps.map((step) => step.name), ['0019_admin_observability.sql']);
+  });
+});
+
+test('0018 ai_usage_ledger semantic verifier rejects real schema differences', () => {
+  withDatabase((db) => {
+    const initialPlan = buildReleasePlan(inspectLocalDatabase(db));
+    applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 11) });
+    const schema = inspectLocalDatabase(db).aiUsageLedgerSchema;
+    const cases = [
+      ['missing column', (copy: typeof schema) => copy.columns.splice(8, 1), /semantic columns/],
+      ['wrong type', (copy: typeof schema) => { copy.columns[7].type = 'INTEGER'; }, /semantic columns/],
+      ['wrong nullability', (copy: typeof schema) => { copy.columns[7].notNull = 1; }, /semantic columns/],
+      ['wrong default', (copy: typeof schema) => { copy.columns[7].defaultValue = "'unknown'"; }, /semantic columns/],
+      ['wrong primary key', (copy: typeof schema) => { copy.columns[0].primaryKey = 0; }, /semantic columns/],
+      ['wrong foreign key', (copy: typeof schema) => { copy.foreignKeys.push({ table: 'users' }); }, /unexpected foreign key/],
+      ['missing required index', (copy: typeof schema) => copy.indexes.splice(0, 1), /indexes or unique constraints/],
+      ['extra unique constraint', (copy: typeof schema) => copy.indexes.push({ name: 'unexpected_unique', unique: 1, origin: 'u', partial: 0, columns: ['model'] }), /indexes or unique constraints/],
+      ['extra critical constraint', (copy: typeof schema) => copy.checks.push('input_tokens>=0'), /CHECK constraints/],
+    ] as const;
+
+    for (const [label, mutate, expected] of cases) {
+      const copy = structuredClone(schema);
+      mutate(copy);
+      assert.throws(() => assertAiUsageLedgerSemanticSchema(copy, 11), expected, label);
+    }
+  });
+});
+
+test('0019 ai_usage_ledger semantic verifier requires its finalized trigger', () => {
+  withDatabase((db) => {
+    applyReleasePlanLocally(db, buildReleasePlan(inspectLocalDatabase(db)));
+    const schema = structuredClone(inspectLocalDatabase(db).aiUsageLedgerSchema);
+    assert.deepEqual(schema.triggers, ['admin_ai_usage_finalize']);
+    schema.triggers = [];
+    assert.throws(() => assertAiUsageLedgerSemanticSchema(schema, 12), /triggers differ/);
+  });
+});
+
+test('release resumes from verified 0018 state with only 0019 and is idempotent', () => {
+  withDatabase((db) => {
+    const initialPlan = buildReleasePlan(inspectLocalDatabase(db));
+    applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 11) });
+
+    const partialState = inspectLocalDatabase(db);
+    const beforeCounts = watchedCounts(partialState);
+    const resumePlan = buildReleasePlan(partialState);
+    assert.deepEqual(resumePlan.steps.map((step) => step.name), ['0019_admin_observability.sql']);
+    assert.equal(resumePlan.writeBudget.total, 2_580);
+    assert.equal(resumePlan.writeBudget.priorEstimatedWrites, 8_582);
     assert.equal(resumePlan.writeBudget.cumulativeEstimatedWrites, APPROVED_EXPECTED_WRITES);
     assert.equal(partialState.quickCheck, 'ok');
     assert.equal(partialState.foreignKeyViolations, 0);
