@@ -176,8 +176,8 @@ export function AuthenticatedShell({
           "group relative flex min-h-11 w-full items-center rounded-xl font-medium transition-[background-color,color,transform] duration-200 active:scale-[0.99] motion-reduce:transition-none motion-reduce:active:scale-100",
           mobile ? "gap-3 px-4 py-2.5" : "gap-3 px-3 py-2.5",
           active
-            ? "bg-[#0fc9a7]/10 text-[#72ead4] shadow-[inset_0_0_0_1px_rgba(15,201,167,.12)]"
-            : "text-[#94a3b8] hover:bg-[#1d252f] hover:text-[#f0f4f8]",
+            ? "bg-[linear-gradient(110deg,rgba(230,185,92,.22),rgba(230,185,92,.07))] text-[#f3ce7c] shadow-[inset_0_0_0_1px_rgba(230,185,92,.22),0_10px_26px_rgba(0,0,0,.18)]"
+            : "text-[#94a3b8] hover:bg-white/[.045] hover:text-[#f0f4f8]",
         )}
       >
         <Icon className="h-5 w-5 shrink-0" />
@@ -371,7 +371,7 @@ export function AuthenticatedShell({
       </dialog>
 
       {/* Main Layout */}
-      <div id="qa-shell-content" className="min-h-[100dvh] bg-[#06090c] text-[#f0f4f8] pt-16 md:pt-24 pb-12 flex flex-col font-sans relative">
+      <div id="qa-shell-content" className="relative flex min-h-[100dvh] flex-col bg-[#05080b] pb-12 pt-16 font-sans text-[#f0f4f8] md:pt-6">
         {/* Ambient Background */}
         <div
           className="fixed inset-0 pointer-events-none z-0 isaudi-grid-bg"
@@ -380,12 +380,12 @@ export function AuthenticatedShell({
           }}
         />
 
-        <Container className="flex-1 flex flex-col min-h-0 relative z-10">
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8 flex-1 min-h-0">
+        <Container className="relative z-10 flex min-h-0 max-w-[1600px] flex-1 flex-col lg:px-6 xl:px-8">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 md:flex-row lg:gap-6" dir="ltr">
 
             {/* Desktop Sidebar */}
-            <aside className={cn("hidden w-64 shrink-0 self-start md:sticky md:flex", previewTopOffsetClass ? "md:top-[calc(1.5rem+3rem)]" : "md:top-6")}>
-              <div className="isaudi-surface relative flex w-full flex-col gap-2 overflow-hidden rounded-3xl p-4">
+            <aside dir={lang === "ar" ? "rtl" : "ltr"} className={cn("hidden w-56 shrink-0 self-start md:sticky md:flex", previewTopOffsetClass ? "md:top-[calc(1.5rem+3rem)]" : "md:top-6")}>
+              <div className="isaudi-sidebar relative flex min-h-[calc(100dvh-3rem)] w-full flex-col gap-2 overflow-hidden rounded-[2rem] p-4">
                 {/* Subtle top edge highlight */}
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ffffff1a] to-transparent" />
 
@@ -454,7 +454,7 @@ export function AuthenticatedShell({
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 min-w-0">
+            <main dir={lang === "ar" ? "rtl" : "ltr"} className="min-w-0 flex-1">
               {children}
             </main>
           </div>

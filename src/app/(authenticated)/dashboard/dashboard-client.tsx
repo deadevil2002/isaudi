@@ -14,7 +14,21 @@ import { AnimatedNumber } from '@/components/dashboard/animated-number';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { InsightCard } from '@/components/dashboard/insight-card';
 import { Skeleton } from '@/components/dashboard/skeleton';
-import { Lightbulb, TrendingUp, TrendingDown, Activity, Package, ShoppingCart, WalletCards, ArrowUpRight } from 'lucide-react';
+import {
+  Activity,
+  ArrowUpRight,
+  BarChart3,
+  CalendarRange,
+  ChevronDown,
+  CircleCheck,
+  Gauge,
+  Lightbulb,
+  Package,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
+  WalletCards,
+} from 'lucide-react';
 import { parseReportViewData, type ReportViewData } from '@/lib/dashboard/report-view-data';
 
 function ReportDetailsSkeleton() {
@@ -136,6 +150,8 @@ export function DashboardClient({
   );
   const [reportLoadState, setReportLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [reportRequestAttempt, setReportRequestAttempt] = useState(0);
+  const [trendWindow, setTrendWindow] = useState<4 | 8 | 12>(12);
+  const [activeKpi, setActiveKpi] = useState<'products' | 'orders' | 'sales' | 'margin' | null>(null);
   const reportDetailsRef = useRef<HTMLDivElement>(null);
   const parsedReport = useMemo(() => {
     if (report?.data) return report.data;
@@ -191,6 +207,32 @@ export function DashboardClient({
       ? t("billing.plan.business")
       : user.plan;
   const hasData = stats && (stats.products > 0 || stats.orders > 0);
+  const dashboardCopy = lang === 'ar' ? {
+    overview: 'نظرة المتجر', connected: 'متصل', disconnected: 'غير متصل',
+    currentPeriod: 'الفترة الحالية', weeks: 'أسابيع', details: 'عرض التفاصيل',
+    closeDetails: 'إغلاق التفاصيل', productIntelligence: 'ذكاء المنتجات',
+    productIntelligenceHint: 'مؤشرات مبنية على آخر تقرير مكتمل', topPerformance: 'أفضل أداء',
+    needsAttention: 'يحتاج انتباه', stable: 'مستقر', noProductData: 'لا توجد بيانات منتجات كافية بعد.',
+    actualData: 'هذه التفاصيل من بيانات متجرك المسجلة.', reportsCta: 'فتح التقارير',
+    advisorRegion: 'مستشار المتجر', margin: 'هامش الربح', averageOrder: 'متوسط الطلب',
+    salesContext: 'إجمالي المبيعات المسجلة في التقرير الحالي.',
+    ordersContext: 'إجمالي الطلبات المؤهلة للتحليل.',
+    productsContext: 'عدد المنتجات المخزنة لهذا الحساب.',
+    marginContext: 'الهامش المحسوب من تكاليف المنتجات المتاحة فقط.',
+  } : {
+    overview: 'Store overview', connected: 'Connected', disconnected: 'Disconnected',
+    currentPeriod: 'Current period', weeks: 'weeks', details: 'View details',
+    closeDetails: 'Close details', productIntelligence: 'Product intelligence',
+    productIntelligenceHint: 'Signals from the latest completed report', topPerformance: 'Top performance',
+    needsAttention: 'Needs attention', stable: 'Stable', noProductData: 'There is not enough product data yet.',
+    actualData: 'These details come from your recorded store data.', reportsCta: 'Open reports',
+    advisorRegion: 'Store consultant', margin: 'Profit margin', averageOrder: 'Average order',
+    salesContext: 'Total sales recorded in the current report.',
+    ordersContext: 'Total orders eligible for analysis.',
+    productsContext: 'Products stored for this account.',
+    marginContext: 'Margin calculated only from products with available costs.',
+  };
+  const visibleTrend = trend.slice(0, trendWindow);
 
   const showSetup = !storeConnected;
   const showGenerate = storeConnected && !report;
@@ -314,12 +356,41 @@ export function DashboardClient({
   }, [isPremium, t, previewProps]);
 
   return (
-    <div className="space-y-8 text-[#f0f4f8]">
-      <div className="min-w-0">
-        <h1 className="break-words text-2xl font-bold text-white [overflow-wrap:anywhere] sm:text-3xl">
-          {t("dashboard.welcomeLine").replace("{email}", user.email)}
-        </h1>
-      </div>
+    <div className="space-y-6 text-[#f0f4f8]">
+      <div className={showReport ? "grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]" : "min-w-0"} dir="ltr">
+        <div className="min-w-0 space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <section className="isaudi-card isaudi-hero-surface p-5 sm:p-7" aria-labelledby="dashboard-overview-title">
+        <div className="pointer-events-none absolute inset-y-0 end-0 w-2/3 bg-[radial-gradient(circle_at_70%_25%,rgba(230,185,92,.2),transparent_38%),radial-gradient(circle_at_85%_85%,rgba(32,212,178,.12),transparent_38%)]" />
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="isaudi-eyebrow">{dashboardCopy.overview}</span>
+              <span className={`inline-flex min-h-7 items-center gap-2 rounded-full border px-2.5 text-xs font-semibold ${storeConnected ? 'border-[#20d4b2]/25 bg-[#20d4b2]/10 text-[#72ead4]' : 'border-white/10 bg-white/[.04] text-[#a4b0c0]'}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${storeConnected ? 'bg-[#20d4b2]' : 'bg-[#728196]'}`} aria-hidden="true" />
+                {storeConnected ? dashboardCopy.connected : dashboardCopy.disconnected}
+              </span>
+            </div>
+            <h1 id="dashboard-overview-title" className="max-w-3xl break-words text-2xl font-bold leading-tight text-white [overflow-wrap:anywhere] sm:text-3xl lg:text-[2rem]">
+              {t("dashboard.welcomeLine").replace("{email}", user.email)}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-[#a4b0c0]">
+              {isPremium ? t("dashboard.plan.premiumDesc") : t("dashboard.plan.upgradeDesc")}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.04)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[.14em] text-[#728196]">{t("dashboard.plan.label")}</div>
+              <div className="mt-1 text-lg font-bold capitalize text-[#f3ce7c]">{planName}</div>
+            </div>
+            <Link href={previewProps ? "#" : "/billing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined}>
+              <Button className="isaudi-primary-action min-h-12 rounded-2xl px-5 font-bold">
+                {isPremium ? t("dashboard.plan.manage") : t("dashboard.plan.upgrade")}
+                <ArrowUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {isDev && (
         <div className="bg-[#161c24] border border-[#e6b95c]/30 rounded-2xl p-4 text-xs text-[#94a3b8] flex flex-col gap-2">
@@ -352,73 +423,98 @@ export function DashboardClient({
         </div>
       )}
 
-      {/* Plan Card */}
-      <div className="isaudi-card p-6 text-white sm:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#e6b95c]/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <div className="text-[#e6b95c] mb-2 text-sm font-bold tracking-wider">{t("dashboard.plan.label")}</div>
-            <div className="text-4xl font-bold mb-3 capitalize">{planName}</div>
-            <p className="text-[#94a3b8] text-sm max-w-md leading-relaxed">
-              {isPremium ? t("dashboard.plan.premiumDesc") : t("dashboard.plan.upgradeDesc")}
-            </p>
-          </div>
-          <Link href={previewProps ? "#" : "/billing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined}>
-            <Button className="whitespace-nowrap rounded-full border-0 bg-[#e6b95c] px-6 font-bold text-[#171004] shadow-[0_12px_30px_rgba(230,185,92,.14)] hover:bg-[#f0c96e]">
-              {isPremium ? t("dashboard.plan.manage") : t("dashboard.plan.upgrade")}
-              <ArrowUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-
       {/* Stats Overview */}
       {hasData && storeConnected && (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="isaudi-card isaudi-card-interactive group p-5 sm:p-6">
-              <div className="mb-7 flex items-start justify-between gap-4">
-                <div className="text-sm leading-6 text-[#a4b0c0]">
-                  {t("dashboard.stats.productsLabel")} <span className="text-[#728196]">{t("dashboard.stats.productsNote")}</span>
-                </div>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-[#e6b95c] transition-colors group-hover:border-[#e6b95c]/25 group-hover:bg-[#e6b95c]/10">
-                  <Package className="h-5 w-5" aria-hidden="true" />
-                </span>
-              </div>
-              <div className="isaudi-data-number text-3xl font-bold text-white sm:text-4xl">
-                <AnimatedNumber value={stats.products} />
-              </div>
-            </div>
-            <div className="isaudi-card isaudi-card-interactive group p-5 sm:p-6">
-              <div className="mb-7 flex items-start justify-between gap-4">
-                <div className="text-sm leading-6 text-[#a4b0c0]">
-                  {t("dashboard.stats.ordersLabel")} <span className="text-[#728196]">{t("dashboard.stats.ordersNote")}</span>
-                </div>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-white transition-colors group-hover:border-white/20 group-hover:bg-white/[0.07]">
-                  <ShoppingCart className="h-5 w-5" aria-hidden="true" />
-                </span>
-              </div>
-              <div className="isaudi-data-number text-3xl font-bold text-white sm:text-4xl">
-                <AnimatedNumber value={parsedReport?.metrics?.totalOrders ?? stats.orders} />
-              </div>
-            </div>
-            <div className="isaudi-card isaudi-card-interactive group p-5 sm:p-6">
-              <div className="mb-7 flex items-start justify-between gap-4">
-                <div className="text-sm leading-6 text-[#a4b0c0]">
-                  {t("dashboard.stats.salesLabel")} <span className="text-[#728196]">{t("dashboard.stats.salesNote")}</span>
-                </div>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#20d4b2] transition-colors group-hover:border-[#0fc9a7]/35 group-hover:bg-[#0fc9a7]/15">
-                  <WalletCards className="h-5 w-5" aria-hidden="true" />
-                </span>
-              </div>
-              <div className="isaudi-data-number text-3xl font-bold text-[#20d4b2] sm:text-4xl">
-                <AnimatedNumber
-                  value={parsedReport?.metrics?.totalSales ?? (stats.sales / 100)}
-                  formatter={(v) => `${v.toLocaleString()} SAR`}
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {([
+              {
+                id: 'sales' as const,
+                label: t("dashboard.stats.salesLabel"),
+                note: t("dashboard.stats.salesNote"),
+                value: parsedReport?.metrics?.totalSales ?? (stats.sales / 100),
+                formatter: (value: number) => `${value.toLocaleString()} SAR`,
+                icon: WalletCards,
+                tone: 'teal',
+                detail: dashboardCopy.salesContext,
+              },
+              {
+                id: 'orders' as const,
+                label: t("dashboard.stats.ordersLabel"),
+                note: t("dashboard.stats.ordersNote"),
+                value: parsedReport?.metrics?.totalOrders ?? stats.orders,
+                icon: ShoppingCart,
+                tone: 'default',
+                detail: dashboardCopy.ordersContext,
+              },
+              {
+                id: 'margin' as const,
+                label: parsedReport?.profitability?.marginPct != null ? dashboardCopy.margin : dashboardCopy.averageOrder,
+                note: dashboardCopy.currentPeriod,
+                value: parsedReport?.profitability?.marginPct ?? parsedReport?.metrics?.avgOrderValue ?? 0,
+                formatter: (value: number) => parsedReport?.profitability?.marginPct != null ? `${value.toFixed(1)}%` : `${value.toFixed(2)} SAR`,
+                icon: Gauge,
+                tone: 'gold',
+                detail: parsedReport?.profitability?.marginPct != null ? dashboardCopy.marginContext : dashboardCopy.actualData,
+              },
+              {
+                id: 'products' as const,
+                label: t("dashboard.stats.productsLabel"),
+                note: t("dashboard.stats.productsNote"),
+                value: stats.products,
+                icon: Package,
+                tone: 'gold',
+                detail: dashboardCopy.productsContext,
+              },
+            ]).map((item) => {
+              const Icon = item.icon;
+              const expanded = activeKpi === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls="dashboard-kpi-detail"
+                  onClick={() => setActiveKpi((current) => current === item.id ? null : item.id)}
+                  className={`isaudi-card isaudi-card-interactive isaudi-focus group min-w-0 p-4 text-start sm:p-5 ${expanded ? 'border-[#e6b95c]/35 shadow-[0_22px_60px_rgba(0,0,0,.36),0_0_0_1px_rgba(230,185,92,.08)]' : ''}`}
+                >
+                  <div className="mb-5 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold leading-5 text-[#b4bfcc] sm:text-sm">{item.label}</div>
+                      <div className="mt-0.5 truncate text-[10px] text-[#728196] sm:text-xs">{item.note}</div>
+                    </div>
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${item.tone === 'teal' ? 'border-[#20d4b2]/20 bg-[#20d4b2]/10 text-[#20d4b2]' : item.tone === 'gold' ? 'border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]' : 'border-white/10 bg-white/[.04] text-white'}`}>
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  </div>
+                  <div className={`isaudi-data-number break-words text-2xl font-bold sm:text-3xl ${item.tone === 'teal' ? 'text-[#20d4b2]' : 'text-white'}`}>
+                    <AnimatedNumber value={item.value} formatter={item.formatter} />
+                  </div>
+                  <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[#8290a2] transition-colors group-hover:text-[#d9e0e8]">
+                    {expanded ? dashboardCopy.closeDetails : dashboardCopy.details}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </span>
+                </button>
+              );
+            })}
           </div>
+
+          {activeKpi && (
+            <div id="dashboard-kpi-detail" role="status" className="isaudi-inset-panel flex flex-col gap-3 p-4 text-sm text-[#b8c3cf] sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#20d4b2]" aria-hidden="true" />
+                <p className="leading-6">{({
+                  products: dashboardCopy.productsContext,
+                  orders: dashboardCopy.ordersContext,
+                  sales: dashboardCopy.salesContext,
+                  margin: parsedReport?.profitability?.marginPct != null ? dashboardCopy.marginContext : dashboardCopy.actualData,
+                })[activeKpi]}</p>
+              </div>
+              <Link className="isaudi-focus inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-white/10 px-3 font-semibold text-white transition hover:border-[#e6b95c]/30 hover:bg-[#e6b95c]/[.06]" href={previewProps ? '#' : '/dashboard/reports'} onClick={previewProps ? (event) => event.preventDefault() : undefined}>
+                {dashboardCopy.reportsCta}
+              </Link>
+            </div>
+          )}
 
           {((stats.excludedOrdersCount ?? 0) > 0 || (stats.excludedSalesHalala ?? 0) > 0) && (
             <div className="text-xs text-[#64748b]">
@@ -462,10 +558,16 @@ export function DashboardClient({
 
           {/* Weekly Trend (Paid) */}
           <div className="mt-6">
-            <div className="bg-[#161c24] p-6 sm:p-8 rounded-3xl border border-[#ffffff1a] shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div className="text-xl font-bold text-white">
-                  {t("dashboard.trend.title")}
+            <div className="isaudi-card p-5 sm:p-7">
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]">
+                    <BarChart3 className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <div className="text-lg font-bold text-white sm:text-xl">{t("dashboard.trend.title")}</div>
+                    <p className="mt-1 text-xs text-[#728196]">{dashboardCopy.actualData}</p>
+                  </div>
                 </div>
                 {!isPremium && (
                   <Link href={previewProps ? "#" : "/pricing"} onClick={previewProps?.onNavigateBilling ? (e) => { e.preventDefault(); previewProps.onNavigateBilling!(e); } : previewProps ? (e) => e.preventDefault() : undefined} className="text-sm text-[#e6b95c] hover:text-[#f9d889] transition-colors border border-[#e6b95c]/30 px-4 py-1.5 rounded-full hover:bg-[#e6b95c]/10">
@@ -494,9 +596,10 @@ export function DashboardClient({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
-                      className="text-sm text-[#94a3b8] border border-[#ffffff1a] hover:bg-white/5 rounded-full px-4 py-1.5 transition-colors active:scale-95"
+                      className="isaudi-focus inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-3 text-sm font-semibold text-[#a4b0c0] transition hover:border-white/20 hover:bg-white/[.04] hover:text-white disabled:cursor-wait disabled:opacity-60"
+                      disabled={loadingTrend}
                       onClick={async () => {
                         if (previewProps) return;
                         if (loadingTrend) return;
@@ -530,8 +633,25 @@ export function DashboardClient({
                         }
                       }}
                     >
+                      <CalendarRange className="h-4 w-4" aria-hidden="true" />
                       {loadingTrend ? t("dashboard.trend.refresh.loading") : t("dashboard.trend.refresh")}
                     </button>
+
+                    {trend.length > 0 && (
+                      <div className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-black/15 p-1" aria-label={dashboardCopy.currentPeriod}>
+                        {([4, 8, 12] as const).map((weeks) => (
+                          <button
+                            key={weeks}
+                            type="button"
+                            aria-pressed={trendWindow === weeks}
+                            onClick={() => setTrendWindow(weeks)}
+                            className={`isaudi-focus min-h-8 rounded-lg px-2.5 text-xs font-semibold transition ${trendWindow === weeks ? 'bg-[#e6b95c] text-[#171004] shadow-[0_6px_16px_rgba(230,185,92,.16)]' : 'text-[#8290a2] hover:text-white'}`}
+                          >
+                            {weeks} {dashboardCopy.weeks}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {compare && (
                       <div className="text-sm border border-[#ffffff1a] rounded-full px-4 py-1.5 flex items-center gap-2">
@@ -549,9 +669,9 @@ export function DashboardClient({
 
                   {loadingTrend ? (
                     <Skeleton className="w-full h-[240px]" />
-                  ) : trend.length > 0 ? (
+                  ) : visibleTrend.length > 0 ? (
                     <div className="pt-4 pb-2">
-                      <TrendChart data={trend} />
+                      <TrendChart data={visibleTrend} />
                     </div>
                   ) : (
                     <div className="h-[240px] flex items-center justify-center text-[#64748b] border border-[#ffffff1a] border-dashed rounded-xl">
@@ -559,10 +679,10 @@ export function DashboardClient({
                     </div>
                   )}
 
-                  {trend.length > 0 && (
+                  {visibleTrend.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-                      {trend.slice(0, 4).map((w: TrendSnapshot) => (
-                        <div key={w.id} className="p-4 rounded-2xl border border-[#ffffff1a] bg-[#0e1218] hover:border-white/10 transition-colors">
+                      {visibleTrend.slice(0, 4).map((w: TrendSnapshot) => (
+                        <div key={w.id} className="isaudi-inset-panel p-4 transition-colors hover:border-white/15">
                           <div className="text-xs text-[#94a3b8] mb-1">
                             {formatReportDate(w.timeRangeStart)} — {formatReportDate(w.timeRangeEnd)}
                           </div>
@@ -587,8 +707,59 @@ export function DashboardClient({
             </div>
           </div>
 
+          {(parsedReport?.top_products?.length || parsedReport?.weak_products?.length) ? (
+            <section className="isaudi-card p-5 sm:p-7" aria-labelledby="product-intelligence-title">
+              <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="mb-2 flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[#20d4b2]/20 bg-[#20d4b2]/10 text-[#20d4b2]">
+                      <Package className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <h2 id="product-intelligence-title" className="text-lg font-bold text-white sm:text-xl">{dashboardCopy.productIntelligence}</h2>
+                  </div>
+                  <p className="text-xs leading-5 text-[#728196]">{dashboardCopy.productIntelligenceHint}</p>
+                </div>
+                <Link href={previewProps ? '#' : '/dashboard/reports'} onClick={previewProps ? (event) => event.preventDefault() : undefined} className="isaudi-focus inline-flex min-h-10 items-center gap-2 self-start rounded-xl border border-white/10 px-3 text-xs font-semibold text-[#b8c3cf] transition hover:border-[#e6b95c]/30 hover:text-white sm:self-auto">
+                  {dashboardCopy.reportsCta}
+                  <ArrowUpRight className="h-3.5 w-3.5 rtl:-scale-x-100" aria-hidden="true" />
+                </Link>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {([
+                  ...((parsedReport.top_products || []).slice(0, 3).map((product) => ({ product, status: dashboardCopy.topPerformance, tone: 'teal' as const }))),
+                  ...((parsedReport.weak_products || []).slice(0, 3).map((product) => ({ product, status: dashboardCopy.needsAttention, tone: 'gold' as const }))),
+                ]).map(({ product, status, tone }, index) => {
+                  const productData = typeof product === 'string' ? null : product;
+                  const name = typeof product === 'string' ? product : product.name || product.sku || t("dashboard.reportView.topProducts.defaultName");
+                  const rowClass = "isaudi-inset-panel min-w-0 px-4 py-3";
+                  const body = (
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-white" title={name}>{name}</div>
+                        {productData?.sku && <div className="mt-1 truncate font-mono text-[10px] text-[#728196]">{productData.sku}</div>}
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${tone === 'teal' ? 'border-[#20d4b2]/20 bg-[#20d4b2]/10 text-[#72ead4]' : 'border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#f3ce7c]'}`}>{status}</span>
+                    </div>
+                  );
+                  if (!productData) return <div key={`${name}-${index}`} className={rowClass}>{body}</div>;
+                  return (
+                    <details key={`${name}-${index}`} className={`${rowClass} group open:border-[#e6b95c]/20`}>
+                      <summary className="isaudi-focus min-h-9 cursor-pointer list-none rounded-lg">{body}</summary>
+                      <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-white/[.07] pt-3 text-xs">
+                        <div><dt className="text-[#728196]">{t("common.sales")}</dt><dd className="mt-1 font-semibold text-white">{productData.revenue == null ? '—' : `${productData.revenue.toLocaleString()} SAR`}</dd></div>
+                        <div><dt className="text-[#728196]">{t("dashboard.stats.ordersLabel")}</dt><dd className="mt-1 font-semibold text-white">{productData.qty ?? '—'}</dd></div>
+                        <div><dt className="text-[#728196]">{t("common.profit")}</dt><dd className="mt-1 font-semibold text-[#72ead4]">{productData.totalProfit == null && productData.profitSar == null ? '—' : `${(productData.totalProfit ?? productData.profitSar ?? 0).toLocaleString()} SAR`}</dd></div>
+                        <div><dt className="text-[#728196]">{dashboardCopy.margin}</dt><dd className="mt-1 font-semibold text-white">{productData.marginPct == null ? '—' : `${productData.marginPct.toFixed(1)}%`}</dd></div>
+                      </dl>
+                    </details>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
           <div className="mt-4">
-            <div className="bg-[#161c24] p-6 sm:p-8 rounded-3xl border border-[#ffffff1a] shadow-sm">
+            <div className="isaudi-card p-5 sm:p-7">
               <div className="flex items-center justify-between mb-6">
                 <div className="text-xl font-bold text-white">
                   {t("dashboard.insights.title")}
@@ -759,9 +930,9 @@ export function DashboardClient({
           previewError={previewProps?.analysisError}
         />
       ) : showReport ? (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <div className="space-y-6">
           {!isPremium && (
-            <div className="lg:col-span-3">
+            <div>
               <div className="flex flex-col items-start gap-4 rounded-3xl border border-[#ffffff1a] bg-[#161c24] p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 break-words text-lg font-bold text-white">
                   {t("dashboard.freeBanner.text").replace(
@@ -781,7 +952,7 @@ export function DashboardClient({
           )}
           <div
             ref={reportDetailsRef}
-            className="min-h-[32rem] lg:col-span-2"
+            className="min-h-[32rem]"
             aria-busy={!parsedReport && reportLoadState !== 'error'}
           >
             {!parsedReport && reportLoadState !== 'error' && (
@@ -804,7 +975,12 @@ export function DashboardClient({
               <ReportDetailsSkeleton />
             )}
           </div>
-          <div className="lg:col-span-1">
+        </div>
+      ) : null}
+        </div>
+
+        {showReport && report && (
+          <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start" dir={lang === 'ar' ? 'rtl' : 'ltr'} aria-label={dashboardCopy.advisorRegion}>
             <ChatPanel
               reportId={report.id}
               freeReportsUsed={actualFreeReportsUsed}
@@ -814,9 +990,9 @@ export function DashboardClient({
               fallbackForm={previewProps?.chatFallbackForm}
               blockedActionHref={previewProps?.onNavigateBilling ? "#" : undefined}
             />
-          </div>
-        </div>
-      ) : null}
+          </aside>
+        )}
+      </div>
     </div>
   );
 }

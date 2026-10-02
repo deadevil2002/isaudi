@@ -138,10 +138,10 @@ function StatusBadge({ status, lang }: { status: Status; lang: Lang }) {
   return <span className={`inline-flex min-h-7 items-center gap-2 rounded-full border px-2.5 text-xs font-medium ${classes}`}><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />{copy[lang][status]}</span>;
 }
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
-  return <div className="min-w-0 rounded-2xl border border-white/[.08] bg-black/15 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.03)]"><p className="text-xs text-slate-500">{label}</p><p className="mt-2 break-words text-xl font-semibold tracking-tight text-white">{value}</p>{note && <p className="mt-1 text-xs leading-5 text-slate-500">{note}</p>}</div>;
+  return <div className="isaudi-inset-panel min-w-0 p-4 transition-colors hover:border-white/[.13]"><p className="text-xs text-slate-400">{label}</p><p className="isaudi-data-number mt-2 break-words text-xl font-semibold tracking-tight text-white">{value}</p>{note && <p className="mt-1 text-xs leading-5 text-slate-500">{note}</p>}</div>;
 }
 function Section({ id, title, icon: Icon, children }: { id: string; title: string; icon: ComponentType<{ className?: string }>; children: React.ReactNode }) {
-  return <section id={id} className="scroll-mt-28 rounded-[1.75rem] border border-white/[.09] bg-[linear-gradient(145deg,rgba(18,30,39,.92),rgba(8,14,19,.96))] p-4 shadow-[0_24px_70px_rgba(0,0,0,.25),inset_0_1px_0_rgba(255,255,255,.04)] sm:p-6"><div className="mb-5 flex items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[#d7b568]/20 bg-[#d7b568]/10 text-[#e5c979]"><Icon className="h-5 w-5" /></span><h2 className="text-lg font-semibold sm:text-xl">{title}</h2></div>{children}</section>;
+  return <section id={id} className="isaudi-card scroll-mt-28 p-4 sm:p-6"><div className="mb-5 flex items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[#d7b568]/20 bg-[#d7b568]/10 text-[#e5c979] shadow-[inset_0_1px_0_rgba(255,255,255,.08)]"><Icon className="h-5 w-5" /></span><h2 className="text-lg font-semibold sm:text-xl">{title}</h2></div>{children}</section>;
 }
 
 function Customers({ lang }: { lang: Lang }) {

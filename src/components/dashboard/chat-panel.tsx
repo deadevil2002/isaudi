@@ -13,6 +13,7 @@ import {
   Target,
   SearchCheck,
   Lightbulb,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -78,42 +79,48 @@ function StructuredAssistantMessage({
       {response.sections.map((section, index) => {
         const Icon = sectionIcons[section.type];
         return (
-          <section
+          <details
             key={`${section.title}-${index}`}
-            className="rounded-xl border border-white/10 bg-white/[0.025] p-3 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300 motion-reduce:animate-none"
+            open={index === 0}
+            className="group rounded-xl border border-white/10 bg-white/[0.025] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300 motion-reduce:animate-none"
           >
-            <div className="flex items-start justify-between gap-3">
+            <summary className="isaudi-focus flex min-h-12 cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3">
               <h4 className="flex min-w-0 items-center gap-2 font-bold text-[#f4f7fa]">
                 <Icon className="h-4 w-4 shrink-0 text-[#e6b95c]" aria-hidden="true" />
                 <span className="break-words [overflow-wrap:anywhere]">{section.title}</span>
               </h4>
-              {section.priority !== 'none' && (
-                <span className="shrink-0 rounded-full border border-[#e6b95c]/20 bg-[#e6b95c]/10 px-2 py-0.5 text-[10px] font-bold text-[#f0c96e]">
-                  {lang === 'ar' ? 'أولوية' : 'Priority'}: {section.priority}
-                </span>
+              <span className="flex shrink-0 items-center gap-2">
+                {section.priority !== 'none' && (
+                  <span className="rounded-full border border-[#e6b95c]/20 bg-[#e6b95c]/10 px-2 py-0.5 text-[10px] font-bold text-[#f0c96e]">
+                    {lang === 'ar' ? 'أولوية' : 'Priority'}: {section.priority}
+                  </span>
+                )}
+                <span className="grid h-6 w-6 place-items-center rounded-full border border-white/10 text-[#8290a2] transition-transform group-open:rotate-180" aria-hidden="true"><ChevronDown className="h-3.5 w-3.5" /></span>
+              </span>
+            </summary>
+            <div className="border-t border-white/[.07] px-3 pb-3 pt-2">
+              <p className="break-words leading-7 text-[#cbd5e1] [overflow-wrap:anywhere]">
+                {section.content}
+              </p>
+              {section.metrics.length > 0 && (
+                <div className="mt-3 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2">
+                  {section.metrics.map((metric) => (
+                    <div
+                      key={`${metric.label}-${metric.value}`}
+                      className="min-w-0 rounded-lg border border-white/10 bg-[#080d13]/70 px-3 py-2"
+                    >
+                      <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-[#8290a2]">
+                        {metric.label}
+                      </span>
+                      <span className="mt-0.5 block break-words font-bold text-white [overflow-wrap:anywhere]">
+                        {metric.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            <p className="mt-2 break-words leading-7 text-[#cbd5e1] [overflow-wrap:anywhere]">
-              {section.content}
-            </p>
-            {section.metrics.length > 0 && (
-              <div className="mt-3 grid grid-cols-1 gap-2 min-[390px]:grid-cols-2">
-                {section.metrics.map((metric) => (
-                  <div
-                    key={`${metric.label}-${metric.value}`}
-                    className="min-w-0 rounded-lg border border-white/10 bg-[#080d13]/70 px-3 py-2"
-                  >
-                    <span className="block truncate text-[10px] font-semibold uppercase tracking-wide text-[#8290a2]">
-                      {metric.label}
-                    </span>
-                    <span className="mt-0.5 block break-words font-bold text-white [overflow-wrap:anywhere]">
-                      {metric.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          </details>
         );
       })}
 
@@ -191,7 +198,7 @@ export function ChatPanel({ reportId, freeReportsUsed, isPremium, sendMessage, i
   };
 
   return (
-    <div className="isaudi-card flex h-[600px] flex-col overflow-hidden">
+    <div className="isaudi-card flex h-[min(720px,calc(100dvh-3rem))] min-h-[560px] flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.025] p-4">
         <div className="flex min-w-0 items-center gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#0fc9a7]/20 bg-[#0fc9a7]/10">
