@@ -15,6 +15,9 @@ export const EXECUTION_APPROVAL = 'APPLY_ISAUDI_PRODUCTION_D1_RELEASE';
 export const APPROVED_EXPECTED_WRITES = 11_162;
 export const APPROVED_MAX_WRITES = 12_000;
 export const BOOKMARK_MAX_AGE_MS = 10 * 60 * 1_000;
+const APPROVED_CUMULATIVE_WRITES_BY_PREFIX = Object.freeze([
+  0, 1, 2, 3, 4, 5, 6, 7, 8_565, 8_580, 8_581, 8_582, 11_162,
+]);
 
 export const BASE_LEDGER_NAMES = Object.freeze([
   '0001_init.sql',
@@ -317,7 +320,7 @@ export function inspectLocalDatabase(db) {
     counts,
     aggregateMismatches,
     foreignKeyViolations: db.prepare('PRAGMA foreign_key_check').all().length,
-    integrity: db.prepare('PRAGMA integrity_check').get().integrity_check,
+    quickCheck: db.prepare('PRAGMA quick_check').get().quick_check,
   };
 }
 
@@ -797,11 +800,17 @@ export function buildReleasePlan(state) {
     }
     return { name, kind: 'schema_migration', sql: migration(name) };
   });
-  const writeBudget = calculateWriteBudget(state, steps);
-  if (writeBudget.total > APPROVED_MAX_WRITES) fail(`expected writes ${writeBudget.total} exceed approved maximum ${APPROVED_MAX_WRITES}`);
-  if (prefixLength === 0 && Math.abs(writeBudget.total - APPROVED_EXPECTED_WRITES) > 100) {
-    fail(`expected writes ${writeBudget.total} materially differ from approved estimate ${APPROVED_EXPECTED_WRITES}`);
+  const remainingWriteBudget = calculateWriteBudget(state, steps);
+  const priorEstimatedWrites = APPROVED_CUMULATIVE_WRITES_BY_PREFIX[prefixLength];
+  const cumulativeEstimatedWrites = priorEstimatedWrites + remainingWriteBudget.total;
+  const expectedRemainingWrites = APPROVED_EXPECTED_WRITES - priorEstimatedWrites;
+  if (cumulativeEstimatedWrites > APPROVED_MAX_WRITES) {
+    fail(`cumulative expected writes ${cumulativeEstimatedWrites} exceed approved maximum ${APPROVED_MAX_WRITES}`);
   }
+  if (Math.abs(remainingWriteBudget.total - expectedRemainingWrites) > 100) {
+    fail(`remaining expected writes ${remainingWriteBudget.total} materially differ from approved estimate ${expectedRemainingWrites}`);
+  }
+  const writeBudget = { ...remainingWriteBudget, priorEstimatedWrites, cumulativeEstimatedWrites };
   return {
     prefixLength,
     steps,
@@ -820,7 +829,7 @@ export function verifyFinalReleaseState(state) {
   if (prefixLength !== RELEASE_NAMES.length) fail('release ledger is incomplete');
   if (state.aggregateMismatches !== 0) fail(`runtime aggregate mismatches: ${state.aggregateMismatches}`);
   if (state.foreignKeyViolations !== 0) fail(`foreign-key violations: ${state.foreignKeyViolations}`);
-  if (state.integrity !== 'ok') fail(`integrity_check returned ${state.integrity}`);
+  if (state.quickCheck !== 'ok') fail(`quick_check returned ${state.quickCheck}`);
   if (Number(state.counts.user_runtime_summaries) !== Number(state.counts.users)) {
     fail('runtime user summary count does not match users');
   }

@@ -41,7 +41,7 @@ try {
     expectedSequence: RELEASE_NAMES,
     expectedWrites: firstPlan.writeBudget,
     approvedExpectedWrites: APPROVED_EXPECTED_WRITES,
-    integrity: after.integrity,
+    quickCheck: after.quickCheck,
     foreignKeyViolations: after.foreignKeyViolations,
     aggregateMismatches: after.aggregateMismatches,
     sourceCountsPreserved: true,

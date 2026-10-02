@@ -30,7 +30,7 @@ Status: **not approved for execution**. Verified 2026-10-02. Production remained
 2. Capture a fresh Time Travel bookmark immediately before the mutation window with `wrangler d1 time-travel info isaudi-db --config ./wrangler.toml --json`. Store the bookmark securely outside Git.
 3. Rehearse on a disposable, access-controlled local database built from the export. Never print or commit customer data, and securely remove the local copy when verification is complete.
 4. The initial production-export rehearsal proved that `0009`–`0014` apply and `0015` then fails with `no such column: created_at`. The canonical chain must not be run without the bridge.
-5. An isolated `0016` rehearsal on the same production copy created 13 user summaries, one exact Admin summary, and all 16 runtime triggers. Source-table row counts were unchanged, aggregate comparisons had zero mismatches, `PRAGMA integrity_check` was `ok`, and `PRAGMA foreign_key_check` returned no rows.
+5. An isolated `0016` rehearsal on the same production copy created 13 user summaries, one exact Admin summary, and all 16 runtime triggers. Source-table row counts were unchanged, aggregate comparisons had zero mismatches, `PRAGMA quick_check` was `ok`, and `PRAGMA foreign_key_check` returned no rows. Production verification supplements these supported checks with exact ledger, schema, index, trigger, aggregate, audit-bridge, metering, YouTube, and row-preservation invariants.
 6. The bridge is `migrations/production-reconciliation/0008b_reconcile_legacy_admin_audit.sql`. A representative rehearsal used the verified production cardinalities (13 users, 1,022 products, 1,546 orders, 1,671 items, and the remaining verified table counts), legacy audit fixtures, foreign keys, and recursive triggers. The complete runner sequence passed with unchanged business counts, exact audit projections, exact runtime and Admin observability aggregates, 16 runtime triggers, 27 observability triggers, the final YouTube schema, all 19 AI usage columns, integrity `ok`, and no foreign-key violations.
 7. Use only `scripts/production-release.mjs` for a real release. It performs the fixed identity preflight, verifies the exact ledger/schema and live counts, computes the write budget, applies one atomic Wrangler migration at a time, verifies the exact ledger prefix after every step, emits JSON, and stops before Worker deployment. Do not apply the reconciliation config or individual migration files manually and do not edit the ledger ad hoc.
 
@@ -113,7 +113,7 @@ Run these read-only checks after the migration transaction and before Worker dep
 
 ```sql
 PRAGMA foreign_key_check;
-PRAGMA integrity_check;
+PRAGMA quick_check;
 
 SELECT name, type FROM sqlite_schema
 WHERE name IN ('admin_audit_log', 'how_it_works_video',

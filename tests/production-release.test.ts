@@ -117,7 +117,7 @@ test('complete local release preserves rows and verifies bridge, aggregates, You
     assert.deepEqual(watchedCounts(after), beforeCounts);
     assert.equal(after.aggregateMismatches, 0);
     assert.equal(after.foreignKeyViolations, 0);
-    assert.equal(after.integrity, 'ok');
+    assert.equal(after.quickCheck, 'ok');
     assert.equal(after.counts.user_runtime_summaries, 13);
     assert.equal(after.counts.runtime_admin_summary, 1);
     assert.equal(Object.keys(after.objects).filter((key) => key.startsWith('trigger:runtime_')).length, 16);
@@ -210,4 +210,44 @@ test('remote migration apply uses supported Wrangler arguments and fails closed 
   assert.equal(executionLoop.match(/applyRemoteMigrationStep\(step\)/g)?.length, 1);
   assert.ok(executionLoop.indexOf('applyRemoteMigrationStep(step)') < executionLoop.indexOf('appliedSteps.push(step.name)'));
   assert.doesNotMatch(executionLoop, /catch|retry/i);
+});
+
+test('Production verification uses supported D1 checks and retains targeted invariants', () => {
+  const runner = readFileSync(path.join(process.cwd(), 'scripts', 'production-release.mjs'), 'utf8');
+  const core = readFileSync(path.join(process.cwd(), 'scripts', 'lib', 'production-release-core.mjs'), 'utf8');
+
+  assert.doesNotMatch(runner, /PRAGMA integrity_check/);
+  assert.match(runner, /PRAGMA quick_check/);
+  assert.match(runner, /PRAGMA foreign_key_check/);
+  assert.match(core, /runtime aggregate mismatches/);
+  assert.match(core, /runtime user summary count does not match users/);
+  assert.match(core, /audit backup count does not match the compatibility table/);
+  assert.doesNotMatch(runner, /time-travel\s+restore|wrangler\s+deploy/i);
+  assert.ok(runner.indexOf('const initialState = inspectRemoteState()') < runner.indexOf('const plan = buildReleasePlan(initialState)'));
+});
+
+test('release resumes from verified 0016 state with only 0017 through 0019', () => {
+  withDatabase((db) => {
+    const initialPlan = buildReleasePlan(inspectLocalDatabase(db));
+    applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 9) });
+
+    const partialState = inspectLocalDatabase(db);
+    const beforeCounts = watchedCounts(partialState);
+    const resumePlan = buildReleasePlan(partialState);
+    assert.deepEqual(resumePlan.steps.map((step) => step.name), RELEASE_NAMES.slice(9));
+    assert.equal(resumePlan.writeBudget.total, 2_582);
+    assert.equal(resumePlan.writeBudget.priorEstimatedWrites, 8_580);
+    assert.equal(resumePlan.writeBudget.cumulativeEstimatedWrites, APPROVED_EXPECTED_WRITES);
+    assert.equal(partialState.quickCheck, 'ok');
+    assert.equal(partialState.foreignKeyViolations, 0);
+    assert.equal(partialState.aggregateMismatches, 0);
+
+    applyReleasePlanLocally(db, resumePlan);
+    const finalState = inspectLocalDatabase(db);
+    assert.equal(verifyFinalReleaseState(finalState), true);
+    assert.deepEqual(watchedCounts(finalState), beforeCounts);
+    const idempotentPlan = buildReleasePlan(finalState);
+    assert.equal(idempotentPlan.steps.length, 0);
+    assert.equal(idempotentPlan.writeBudget.total, 0);
+  });
 });

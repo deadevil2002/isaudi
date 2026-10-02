@@ -196,7 +196,7 @@ function inspectRemoteState() {
     counts,
     aggregateMismatches,
     foreignKeyViolations: runtimePresent ? query('PRAGMA foreign_key_check').length : null,
-    integrity: runtimePresent ? query('PRAGMA integrity_check')[0]?.integrity_check : null,
+    quickCheck: runtimePresent ? query('PRAGMA quick_check')[0]?.quick_check : null,
   };
 }
 
@@ -279,7 +279,7 @@ function reportFor({ action, plan, openAiSecretPresent, appliedSteps = [], final
     adminBootstrapTokenRequiredLater: true,
     workerDeploymentIncluded: false,
     finalVerification: finalState ? {
-      integrity: finalState.integrity,
+      quickCheck: finalState.quickCheck,
       foreignKeyViolations: finalState.foreignKeyViolations,
       aggregateMismatches: finalState.aggregateMismatches,
     } : null,
