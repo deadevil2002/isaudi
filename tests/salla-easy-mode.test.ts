@@ -1185,7 +1185,7 @@ test('link-code endpoint requires an authenticated verified user and is origin-p
   assert.doesNotMatch(repository, /authorizerEmail\s*=\s*\?/);
 });
 
-test('release migration applies only the new idempotent linking schema before deployment', () => {
+test('production release reconciles the idempotent linking schema before a separate deployment', () => {
   const pkg = JSON.parse(readFileSync(
     new URL('../package.json', import.meta.url),
     'utf8'
@@ -1194,9 +1194,14 @@ test('release migration applies only the new idempotent linking schema before de
     new URL('../migrations/0013_salla_link_codes.sql', import.meta.url),
     'utf8'
   );
-  assert.match(pkg.scripts['d1:release:remote'], /d1:release:salla-link/);
-  assert.doesNotMatch(pkg.scripts['d1:release:remote'], /d1:release:salla(?:\s|&|$)/);
-  assert.match(pkg.scripts['d1:verify:release'], /salla_link_codes/);
-  assert.match(pkg.scripts['d1:verify:release'], /salla_link_claims/);
+  const releaseCore = readFileSync(
+    new URL('../scripts/lib/production-release-core.mjs', import.meta.url),
+    'utf8'
+  );
+  assert.match(pkg.scripts['d1:release:production:execute'], /production-release\.mjs/);
+  assert.match(releaseCore, /'0013_salla_link_codes\.sql'/);
+  assert.match(releaseCore, /'table:salla_link_codes'/);
+  assert.match(releaseCore, /'table:salla_link_claims'/);
+  assert.doesNotMatch(pkg.scripts['d1:release:production:execute'], /deploy/);
   assert.doesNotMatch(migration, /ALTER TABLE|DROP TABLE|DROP COLUMN/i);
 });
