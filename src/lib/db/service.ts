@@ -170,7 +170,7 @@ export const dbService = {
 
   setEmailVerificationToken: async (userId: string, token: string, expiresAt: number): Promise<void> => {
     const db = await getDb();
-    db.prepare(
+    await db.prepare(
       'UPDATE users SET email_verify_token = ?, email_verify_token_expires_at = ? WHERE id = ?'
     ).run(token, expiresAt, userId);
   },
@@ -191,7 +191,7 @@ export const dbService = {
       process.env.DEBUG_EMAIL_VERIFY === '1';
 
     const cleanToken = typeof token === 'string' ? token.trim() : '';
-    const countRow = db
+    const countRow = await db
       .prepare('SELECT COUNT(*) as c FROM users WHERE email_verify_token = ?')
       .get(cleanToken) as { c?: number } | undefined;
     const countMatches = (countRow && typeof countRow.c === 'number' ? countRow.c : 0) || 0;
@@ -223,9 +223,9 @@ export const dbService = {
       return { ok: false, reason: 'expired' };
     }
 
-    db.prepare(
-      'UPDATE users SET email_verified = 1, email_verified_at = ?, email_verify_token = NULL, email_verify_token_expires_at = NULL WHERE id = ?'
-    ).run(now, user.id);
+    await db.prepare(
+      'UPDATE users SET email_verified = 1, email_verify_token = NULL, email_verify_token_expires_at = NULL WHERE id = ?'
+    ).run(user.id);
 
     if (debugEmailVerify) {
       console.log('[email-verify] success', {

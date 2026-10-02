@@ -37,7 +37,6 @@ export interface User {
   createdAt: number;
   freeReportsUsed?: number;
   email_verified?: number;
-  email_verified_at?: number | null;
   email_verify_token?: string | null;
   email_verify_token_expires_at?: number | null;
 }

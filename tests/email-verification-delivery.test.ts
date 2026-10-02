@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { sendVerifyEmail } from '../src/lib/email/resend';
 
@@ -66,5 +67,31 @@ test('production verification fails closed when email is not configured', async 
       true
     ),
     /Verification email service is not configured/
+  );
+});
+
+test('email verification uses the approved D1 schema and awaits every token write', async () => {
+  const [service, initialSchema, tokenMigration] = await Promise.all([
+    readFile(new URL('../src/lib/db/service.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../migrations/0002_add_email_verify_columns.sql', import.meta.url),
+      'utf8'
+    ),
+  ]);
+  const approvedSchema = `${initialSchema}\n${tokenMigration}`;
+
+  assert.equal(approvedSchema.includes('email_verified_at'), false);
+  assert.match(
+    service,
+    /await db\.prepare\(\s*'UPDATE users SET email_verify_token = \?, email_verify_token_expires_at = \? WHERE id = \?'\s*\)\.run/
+  );
+  assert.match(
+    service,
+    /await db\.prepare\(\s*'UPDATE users SET email_verified = 1, email_verify_token = NULL, email_verify_token_expires_at = NULL WHERE id = \?'\s*\)\.run/
+  );
+  assert.equal(
+    service.includes('UPDATE users SET email_verified = 1, email_verified_at'),
+    false
   );
 });
