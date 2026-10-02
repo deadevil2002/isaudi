@@ -21,6 +21,13 @@ import {
 
 const PUBLIC_DNS = async () => ['8.8.8.8'];
 
+const storeInfo = (merchantId: string, domain: string) => async () => ({
+  merchantId,
+  domain,
+  name: 'Verified Store',
+  status: 'active',
+});
+
 function page(overrides = ''): string {
   return `<!doctype html><html lang="en"><head>
     <title>Excellent Store</title>
@@ -381,6 +388,7 @@ test('content hash cache and multi-store snapshots remain tenant scoped', async 
   let id = 0;
   const analyze = (userId: string, merchantId: string) => analyzeVerifiedLandingPage({
     userId, merchantId, repository, getStorefront,
+    getStoreInfo: storeInfo(merchantId, origins[merchantId]?.origin ?? ''),
     resolver: PUBLIC_DNS,
     fetcher: async () => new Response(page(), { headers: { 'Content-Type': 'text/html' } }),
     createId: () => `a${++id}`,
@@ -412,6 +420,7 @@ test('fetch failures are stored without findings, HTML, screenshots, or secrets'
         source: 'salla.oauth2.user_info.merchant.domain', verifiedAt: 1,
         verificationVersion: 'salla_user_info_v1',
       }),
+      getStoreInfo: storeInfo('m1', 'https://one.example.com'),
       resolver: async () => ['169.254.169.254'],
       fetcher: async () => new Response(page()),
       createId: () => 'failed-1',
@@ -423,6 +432,48 @@ test('fetch failures are stored without findings, HTML, screenshots, or secrets'
   assert.deepEqual({ ...row }, {
     status: 'failed', failure_reason: 'dns_no_public_address', evidence_json: null, findings_json: null,
   });
+  db.close();
+});
+
+test('service fetches the authenticated Salla storefront path and rejects identity or origin mismatch', async () => {
+  const { db, repository } = sqliteRepository();
+  const verified = {
+    userId: 'u1', merchantId: 'm1', origin: 'https://demostore.salla.sa', storeName: null,
+    source: 'salla.oauth2.user_info.merchant.domain', verifiedAt: 1,
+    verificationVersion: 'salla_user_info_v1',
+  };
+  let requested = '';
+  const result = await analyzeVerifiedLandingPage({
+    userId: 'u1', merchantId: 'm1', repository,
+    getStorefront: async () => verified,
+    getStoreInfo: storeInfo('m1', 'https://demostore.salla.sa/dev-store-123/?q=1#x'),
+    resolver: PUBLIC_DNS,
+    fetcher: async (input) => {
+      requested = String(input);
+      return new Response(page(), { headers: { 'Content-Type': 'text/html' } });
+    },
+    createId: () => 'path-analysis',
+  });
+  assert.equal(requested, 'https://demostore.salla.sa/dev-store-123');
+  assert.equal(result.storefrontOrigin, 'https://demostore.salla.sa');
+  assert.equal(result.finalUrl, 'https://demostore.salla.sa/dev-store-123');
+
+  for (const getStoreInfo of [
+    storeInfo('other-merchant', 'https://demostore.salla.sa/dev-store-123'),
+    storeInfo('m1', 'https://attacker.example/dev-store-123'),
+  ]) {
+    await assert.rejects(
+      analyzeVerifiedLandingPage({
+        userId: 'u1', merchantId: 'm1', repository,
+        getStorefront: async () => verified,
+        getStoreInfo,
+        resolver: PUBLIC_DNS,
+        fetcher: async () => new Response(page()),
+      }),
+      (error: unknown) => error instanceof LandingPageAnalysisUnavailableError &&
+        error.reason === 'verified_storefront_unavailable'
+    );
+  }
   db.close();
 });
 

@@ -1,6 +1,7 @@
 import {
   SALLA_ORDERS_URL,
   SALLA_PRODUCTS_URL,
+  SALLA_STORE_INFO_URL,
 } from './constants';
 import {
   getAuthenticatedSallaAccessToken,
@@ -10,7 +11,7 @@ import {
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 
-export type SallaReadOperation = 'products' | 'orders';
+export type SallaReadOperation = 'products' | 'orders' | 'store_info';
 export type SallaReadErrorCategory =
   | 'connection_unavailable'
   | 'scope_denied'
@@ -40,6 +41,13 @@ export class SallaReadError extends Error {
     this.name = 'SallaReadError';
     this.category = category;
   }
+}
+
+export interface SallaStoreInfo {
+  merchantId: string;
+  domain: string;
+  name: string;
+  status: string;
 }
 
 function logReadFailure(
@@ -240,6 +248,92 @@ async function requestPage(
   };
 }
 
+function providerIdentifier(value: unknown): string | null {
+  if (typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value)) {
+    return value;
+  }
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+    return String(value);
+  }
+  return null;
+}
+
+async function requestStoreInfo(
+  accessToken: string,
+  fetcher: typeof fetch
+): Promise<SallaStoreInfo> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  let payload: unknown = null;
+  try {
+    response = await fetcher(SALLA_STORE_INFO_URL, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: controller.signal,
+    });
+    const rawBody = await readBodyWithinLimit(response);
+    if (rawBody.trim()) {
+      try {
+        payload = JSON.parse(rawBody) as unknown;
+      } catch {
+        throw new SallaReadError('invalid_response');
+      }
+    }
+  } catch (error) {
+    if (error instanceof SallaReadError) throw error;
+    logReadFailure('store_info', 'provider_error', undefined, error);
+    throw new SallaReadError('provider_error');
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      const details = providerErrorDetails(payload);
+      if (
+        details.code === 'Unauthorized' &&
+        details.message === 'The access token is invalid'
+      ) {
+        throw new SallaReadError('auth_rejected');
+      }
+      if (
+        details.code === 'Unauthorized' &&
+        details.message?.startsWith(
+          'The access token should have access to one of those scopes:'
+        )
+      ) {
+        throw new SallaReadError('scope_denied');
+      }
+    }
+    throw new SallaReadError('provider_error');
+  }
+
+  if (!isRecord(payload) || payload.success === false || !isRecord(payload.data)) {
+    throw new SallaReadError('invalid_response');
+  }
+  const merchantId = providerIdentifier(payload.data.id);
+  const domain = typeof payload.data.domain === 'string'
+    ? payload.data.domain.trim()
+    : '';
+  const name = typeof payload.data.name === 'string'
+    ? payload.data.name.trim()
+    : '';
+  const rawStatus = payload.data.status;
+  const status = typeof rawStatus === 'string' || typeof rawStatus === 'number'
+    ? String(rawStatus)
+    : '';
+  if (!merchantId || !domain || !name || !status) {
+    throw new SallaReadError('invalid_response');
+  }
+  return { merchantId, domain, name, status };
+}
+
 function defaultResolveAccessToken(
   userId: string,
   options: { fetcher: typeof fetch; now: number; merchantId?: string }
@@ -322,6 +416,45 @@ export function listOrders(
   options: ReadClientOptions = {}
 ): Promise<SallaListResult> {
   return list('orders', userId, options);
+}
+
+export async function getStoreInfo(
+  userId: string,
+  options: ReadClientOptions = {}
+): Promise<SallaStoreInfo> {
+  const fetcher = options.fetcher || fetch;
+  const now = options.now ?? Date.now();
+  const resolveAccessToken = options.resolveAccessToken || defaultResolveAccessToken;
+  const refreshRejectedToken = options.refreshRejectedToken || defaultRefreshRejectedToken;
+  let credentials: { merchantId: string; accessToken: string };
+  try {
+    credentials = await resolveAccessToken(userId, {
+      fetcher,
+      now,
+      merchantId: options.merchantId,
+    });
+  } catch {
+    throw new SallaReadError('connection_unavailable');
+  }
+
+  try {
+    return await requestStoreInfo(credentials.accessToken, fetcher);
+  } catch (error) {
+    if (!(error instanceof SallaReadError) || error.category !== 'auth_rejected') {
+      throw error;
+    }
+    let refreshed: { merchantId: string; accessToken: string };
+    try {
+      refreshed = await refreshRejectedToken(
+        userId,
+        credentials.accessToken,
+        { fetcher, now: Date.now(), merchantId: options.merchantId }
+      );
+    } catch {
+      throw new SallaReadError('refresh_failed');
+    }
+    return requestStoreInfo(refreshed.accessToken, fetcher);
+  }
 }
 
 export function verificationErrorForRead(error: unknown): string {

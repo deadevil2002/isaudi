@@ -54,11 +54,7 @@ export function isInternalStorefrontHostname(value: string): boolean {
     INTERNAL_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
 }
 
-/**
- * Accept only an HTTPS public hostname asserted by Salla and persist its
- * canonical origin. Paths, query strings, and fragments are intentionally
- * discarded because the analyzer starts from the storefront root.
- */
+/** Accept only an HTTPS public hostname asserted by Salla. */
 export function normalizeTrustedStorefrontOrigin(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const raw = value.trim();
@@ -86,6 +82,40 @@ export function normalizeTrustedStorefrontOrigin(value: unknown): string | null 
     return null;
   }
   return `https://${hostname}`;
+}
+
+/**
+ * Preserve the meaningful storefront path returned by Salla's authenticated
+ * Store Information API while removing query, fragment, and trailing slash.
+ */
+export function normalizeTrustedStorefrontUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > 2_048 || /[\u0000-\u001f\u007f\\]/.test(raw)) {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (
+    parsed.protocol !== STOREFRONT_FETCH_POLICY.protocol ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port
+  ) {
+    return null;
+  }
+
+  const hostname = normalizeHostname(parsed.hostname);
+  if (!hostname || isIP(hostname) !== 0 || isInternalStorefrontHostname(hostname)) {
+    return null;
+  }
+  const pathname = parsed.pathname.replace(/\/+$/, '');
+  return `https://${hostname}${pathname}`;
 }
 
 export function normalizeTrustedStoreName(value: unknown): string | null {

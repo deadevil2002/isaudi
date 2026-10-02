@@ -3,6 +3,7 @@ import { isIP } from 'node:net';
 import {
   assertPublicStorefrontResolution,
   normalizeTrustedStorefrontOrigin,
+  normalizeTrustedStorefrontUrl,
   STOREFRONT_FETCH_POLICY,
   validateStorefrontRedirect,
 } from '@/lib/salla/storefront-origin';
@@ -259,15 +260,18 @@ async function sha256(bytes: Uint8Array): Promise<string> {
 }
 
 export async function fetchVerifiedStorefront(
-  trustedOrigin: string,
+  trustedStorefrontUrl: string,
   options: {
     fetcher?: typeof fetch;
     resolver?: StorefrontResolver;
     now?: () => number;
   } = {}
 ): Promise<SafeStorefrontDocument> {
-  const origin = normalizeTrustedStorefrontOrigin(trustedOrigin);
-  if (!origin || origin !== trustedOrigin) {
+  const storefrontUrl = normalizeTrustedStorefrontUrl(trustedStorefrontUrl);
+  const origin = storefrontUrl
+    ? normalizeTrustedStorefrontOrigin(storefrontUrl)
+    : null;
+  if (!storefrontUrl || !origin || storefrontUrl !== trustedStorefrontUrl) {
     throw new LandingPageFetchError('invalid_verified_origin', 'Verified storefront origin is invalid');
   }
 
@@ -276,7 +280,7 @@ export async function fetchVerifiedStorefront(
   const now = options.now ?? Date.now;
   const startedAt = now();
   const deadline = startedAt + STOREFRONT_FETCH_POLICY.timeoutMs;
-  let currentUrl = `${origin}/`;
+  let currentUrl = storefrontUrl;
   let redirectCount = 0;
 
   while (true) {

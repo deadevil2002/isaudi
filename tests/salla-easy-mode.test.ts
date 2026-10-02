@@ -39,6 +39,7 @@ import {
   assertPublicStorefrontResolution,
   isPublicStorefrontAddress,
   normalizeTrustedStorefrontOrigin,
+  normalizeTrustedStorefrontUrl,
   SALLA_STOREFRONT_ORIGIN_SOURCE,
   SALLA_STOREFRONT_VERIFICATION_VERSION,
   STOREFRONT_FETCH_POLICY,
@@ -175,6 +176,27 @@ test('verified storefront origins normalize only public HTTPS hostnames', () => 
     'ftp://shop.example.com',
   ]) {
     assert.equal(normalizeTrustedStorefrontOrigin(unsafe), null, unsafe);
+  }
+});
+
+test('authenticated storefront URLs preserve meaningful paths only', () => {
+  assert.equal(
+    normalizeTrustedStorefrontUrl(
+      '  https://DemoStore.Salla.sa/dev-shop-123/?source=salla#featured  '
+    ),
+    'https://demostore.salla.sa/dev-shop-123'
+  );
+  assert.equal(
+    normalizeTrustedStorefrontUrl('https://demostore.salla.sa/'),
+    'https://demostore.salla.sa'
+  );
+  for (const unsafe of [
+    'http://demostore.salla.sa/dev-store',
+    'https://user:pass@demostore.salla.sa/dev-store',
+    'https://127.0.0.1/dev-store',
+    'https://metadata.google.internal/dev-store',
+  ]) {
+    assert.equal(normalizeTrustedStorefrontUrl(unsafe), null, unsafe);
   }
 });
 

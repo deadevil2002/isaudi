@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  getStoreInfo,
   listOrders,
   listProducts,
   SallaReadError,
@@ -84,6 +85,54 @@ test('read client uses the documented first-page URLs and safe fetch options', a
   assert.equal(
     new Headers(calls[0].init?.headers).get('Authorization'),
     'Bearer access-token'
+  );
+});
+
+test('store information uses the authenticated merchant endpoint without exposing the token', async () => {
+  let requested = '';
+  const result = await getStoreInfo('owner-1', {
+    merchantId: 'owned-merchant',
+    resolveAccessToken,
+    fetcher: async (input, init) => {
+      requested = String(input);
+      assert.equal(init?.method, 'GET');
+      assert.equal(init?.cache, 'no-store');
+      assert.equal(init?.redirect, 'manual');
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer access-token');
+      return new Response(JSON.stringify({
+        status: 200,
+        success: true,
+        data: {
+          id: 'owned-merchant',
+          domain: 'https://demostore.salla.sa/dev-store-123/',
+          name: 'Demo Store',
+          status: 'active',
+        },
+      }));
+    },
+  });
+  assert.equal(requested, 'https://api.salla.dev/admin/v2/store/info');
+  assert.deepEqual(result, {
+    merchantId: 'owned-merchant',
+    domain: 'https://demostore.salla.sa/dev-store-123/',
+    name: 'Demo Store',
+    status: 'active',
+  });
+  assert.equal(JSON.stringify(result).includes('access-token'), false);
+});
+
+test('store information rejects incomplete provider identity data', async () => {
+  await assert.rejects(
+    getStoreInfo('owner-1', {
+      resolveAccessToken,
+      fetcher: async () => new Response(JSON.stringify({
+        status: 200,
+        success: true,
+        data: { id: 'owned-merchant', domain: '', name: 'Demo', status: 'active' },
+      })),
+    }),
+    (error: unknown) => error instanceof SallaReadError &&
+      error.category === 'invalid_response'
   );
 });
 

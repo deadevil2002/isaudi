@@ -6,6 +6,8 @@ export const SALLA_USER_INFO_URL =
   'https://accounts.salla.sa/oauth2/user/info';
 export const SALLA_TOKEN_URL = 'https://accounts.salla.sa/oauth2/token';
 export const SALLA_ADMIN_API_BASE_URL = 'https://api.salla.dev/admin/v2';
+export const SALLA_STORE_INFO_URL =
+  `${SALLA_ADMIN_API_BASE_URL}/store/info`;
 export const SALLA_PRODUCTS_URL =
   `${SALLA_ADMIN_API_BASE_URL}/products?page=1&per_page=5`;
 export const SALLA_ORDERS_URL =
