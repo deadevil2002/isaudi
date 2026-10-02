@@ -259,6 +259,31 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.sbc-verify-seal {
+  width: 0;
+  height: 0;
+  overflow: visible;
+  background: transparent !important;
+}
+
+.sbc-verify-seal:not([data-seal-ready="true"]),
+iframe.sbc-seal-frame:not([data-seal-ready="true"]) {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+iframe.sbc-seal-frame[data-seal-ready="true"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  border: 0 !important;
+  background: transparent !important;
+  color-scheme: dark;
+  /* Fail-safe shape until the authenticated provider dimensions are received. */
+  clip-path: inset(0 round 22px);
+}
+
 ::selection {
   background: rgba(15, 201, 167, 0.28);
   color: var(--isaudi-text);

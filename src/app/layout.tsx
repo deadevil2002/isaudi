@@ -66,6 +66,11 @@ export default function RootLayout({
           {children}
         </LanguageProvider>
         <Script
+          id="isaudi-saudi-business-seal-lifecycle"
+          src="/scripts/saudi-business-seal-lifecycle.js"
+          strategy="beforeInteractive"
+        />
+        <Script
           id="saudi-business-center-verification-seal"
           src="https://eauthenticate.saudibusiness.gov.sa/EAuthSealApi/seal.js"
           strategy="afterInteractive"
