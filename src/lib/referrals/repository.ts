@@ -256,6 +256,7 @@ export function createReferralRepository(db: ReferralDb) {
             WHERE id = ? AND user_id = ? AND status = 'eligible'`,
           params: [now, row.id, row.user_id],
         },
+        ...audienceOperations('viewer', row, now),
       ]);
     },
 
@@ -302,9 +303,44 @@ export function createReferralRepository(db: ReferralDb) {
             WHERE id = ? AND user_id = ? AND status IN ('eligible', 'shown', 'clicked')`,
           params: [now, row.id, row.user_id],
         },
+        ...audienceOperations('clicker', row, now),
       ]);
     },
   };
+}
+
+function audienceOperations(
+  audienceKind: 'viewer' | 'clicker',
+  row: Record<string, unknown>,
+  now: number
+): Array<{ sql: string; params: unknown[] }> {
+  return (['day', 'month'] as const).flatMap((periodKind) => {
+    const periodStart = periodKind === 'day'
+      ? 'CAST(? / 86400000 AS INTEGER) * 86400000'
+      : "CAST(strftime('%s', datetime(? / 1000, 'unixepoch'), 'start of month') AS INTEGER) * 1000";
+    return [
+      {
+        sql: `INSERT OR IGNORE INTO referral_unique_audience (
+          audience_kind, period_kind, period_start, user_id,
+          service_category_id, partner_offer_id, plan_snapshot, first_event_at
+        ) VALUES (?, ?, ${periodStart}, ?, ?, ?, ?, ?)`,
+        params: [audienceKind, periodKind, now, row.user_id,
+          row.service_category_id, row.partner_offer_id, row.plan_snapshot, now],
+      },
+      {
+        sql: `INSERT INTO referral_audience_metrics (
+          audience_kind, period_kind, period_start, service_category_id,
+          partner_offer_id, plan_snapshot, unique_users_count
+        ) VALUES (?, ?, ${periodStart}, ?, ?, ?, changes())
+        ON CONFLICT(audience_kind, period_kind, period_start,
+          service_category_id, partner_offer_id, plan_snapshot)
+        DO UPDATE SET unique_users_count =
+          unique_users_count + excluded.unique_users_count`,
+        params: [audienceKind, periodKind, now, row.service_category_id,
+          row.partner_offer_id, row.plan_snapshot],
+      },
+    ];
+  });
 }
 
 export async function getReferralRepository() {

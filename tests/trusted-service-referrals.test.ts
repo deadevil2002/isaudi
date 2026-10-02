@@ -5,6 +5,7 @@ import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import {
   readReferralAdminDashboard,
+  referralMetric,
   ReferralAdminError,
   savePartnerOffer,
   saveServiceCategory,
@@ -72,6 +73,10 @@ function referralDatabase() {
   `);
   sqlite.exec(readFileSync(
     new URL('../migrations/0022_trusted_service_referrals.sql', import.meta.url),
+    'utf8'
+  ));
+  sqlite.exec(readFileSync(
+    new URL('../migrations/0023_referral_unique_audience_metrics.sql', import.meta.url),
     'utf8'
   ));
 
@@ -359,6 +364,14 @@ test('clicks preserve total versus unique metrics and never create commission', 
   assert.deepEqual({ ...metrics }, {
     referrals_count: 1, shown_count: 1, clicks_count: 2, unique_clickers_count: 1,
   });
+  const audience = sqlite.prepare(`SELECT audience_kind, period_kind, unique_users_count
+    FROM referral_audience_metrics ORDER BY audience_kind, period_kind`).all();
+  assert.deepEqual(audience.map((row: Record<string, unknown>) => ({ ...row })), [
+    { audience_kind: 'clicker', period_kind: 'day', unique_users_count: 1 },
+    { audience_kind: 'clicker', period_kind: 'month', unique_users_count: 1 },
+    { audience_kind: 'viewer', period_kind: 'day', unique_users_count: 1 },
+    { audience_kind: 'viewer', period_kind: 'month', unique_users_count: 1 },
+  ]);
   const referral = sqlite.prepare(`SELECT status, commission_snapshot_json,
     commission_earned_halala FROM service_referrals`).get() as Record<string, unknown>;
   assert.deepEqual({ ...referral }, {
@@ -422,7 +435,7 @@ test('Admin reads are bounded, aggregate-backed, pseudonymous, and commission-sa
   await registerReferralClick({ userId: 'user-1', referralId: 'referral-1', repository, createId: () => 'click-1', now: () => NOW + 2 });
   const dashboard = await readReferralAdminDashboard({ admin: SUPER_ADMIN, db, now: () => NOW + 3 });
   assert.deepEqual(dashboard.metrics.today, {
-    referrals: 1, shown: 1, clicks: 1, uniqueClickers: 1, ctr: 1,
+    referrals: 1, shown: 1, uniqueViewers: 1, clicks: 1, uniqueClickers: 1, ctr: 1,
   });
   assert.match(String(dashboard.referrals[0].customer_identifier), /^cust_[a-f0-9]{12}$/);
   assert.equal('user_id' in dashboard.referrals[0], false);
@@ -432,6 +445,87 @@ test('Admin reads are bounded, aggregate-backed, pseudonymous, and commission-sa
   await assert.rejects(
     readReferralAdminDashboard({ admin: { id: 'admin-1', role: 'analyst' }, db }),
     (error: unknown) => error instanceof ReferralAdminError && error.status === 403
+  );
+  sqlite.close();
+});
+
+test('CTR uses unique clickers divided by unique viewers, never total clicks', () => {
+  const cases = [
+    { viewers: 1, clicks: 1, clickers: 1, ctr: 1 },
+    { viewers: 1, clicks: 5, clickers: 1, ctr: 1 },
+    { viewers: 2, clicks: 1, clickers: 1, ctr: 0.5 },
+    { viewers: 2, clicks: 5, clickers: 2, ctr: 1 },
+    { viewers: 0, clicks: 0, clickers: 0, ctr: 0 },
+  ];
+  for (const row of cases) {
+    assert.equal(referralMetric({
+      shown: row.viewers,
+      unique_viewers: row.viewers,
+      clicks: row.clicks,
+      unique_clickers: row.clickers,
+    }).ctr, row.ctr);
+  }
+});
+
+test('audience migration backfills only distinct users from recorded historical events', () => {
+  const sqlite = new DatabaseSync(':memory:');
+  sqlite.exec(`PRAGMA foreign_keys=ON;
+    CREATE TABLE users (id TEXT PRIMARY KEY, plan TEXT NOT NULL);
+    CREATE TABLE admin_accounts (id TEXT PRIMARY KEY);
+    CREATE TABLE salla_connections (merchantId TEXT PRIMARY KEY, userId TEXT NOT NULL, status TEXT NOT NULL);
+    CREATE TABLE landing_page_analyses (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, merchant_id TEXT NOT NULL,
+      status TEXT NOT NULL, analyzer_version TEXT NOT NULL, findings_json TEXT
+    );
+    INSERT INTO users VALUES ('user-1','growth');
+    INSERT INTO admin_accounts VALUES ('admin-1');
+    INSERT INTO salla_connections VALUES ('merchant-1','user-1','connected');
+    INSERT INTO landing_page_analyses VALUES
+      ('analysis-1','user-1','merchant-1','succeeded','landing_page_analyzer_v1','[]');
+  `);
+  sqlite.exec(readFileSync(
+    new URL('../migrations/0022_trusted_service_referrals.sql', import.meta.url),
+    'utf8'
+  ));
+  sqlite.prepare(`UPDATE service_categories SET active=1
+    WHERE id='svc_landing_page_optimization'`).run();
+  sqlite.prepare(`INSERT INTO partner_offers (
+    id, service_category_id, partner_name, partner_url, service_title_ar,
+    service_title_en, description_ar, description_en, supported_platforms_json,
+    commission_type, commission_rate_bps, fixed_amount_halala, commission_currency,
+    status, display_priority, quality_status, created_by_admin_id, created_at, updated_at
+  ) VALUES ('offer-1','svc_landing_page_optimization','Partner','https://partner.example',
+    'خدمة','Service','','','["salla"]','percentage',1000,NULL,NULL,'active',1,'approved','admin-1',?,?)`)
+    .run(NOW, NOW);
+  sqlite.prepare(`INSERT INTO service_referrals (
+    id, user_id, merchant_id, analysis_id, finding_code, service_category_id,
+    partner_offer_id, source, plan_snapshot, status, created_at, updated_at
+  ) VALUES ('referral-1','user-1','merchant-1','analysis-1','finding-1',
+    'svc_landing_page_optimization','offer-1','deterministic','growth','clicked',?,?)`)
+    .run(NOW, NOW);
+  const insertEvent = sqlite.prepare(`INSERT INTO referral_events (
+    id, referral_id, user_id, merchant_id, analysis_id, finding_code,
+    service_category_id, partner_offer_id, plan_snapshot, event_type, created_at
+  ) VALUES (?, 'referral-1','user-1','merchant-1','analysis-1','finding-1',
+    'svc_landing_page_optimization','offer-1','growth',?,?)`);
+  insertEvent.run('shown-1', 'shown', NOW);
+  insertEvent.run('click-1', 'clicked', NOW + 1);
+  insertEvent.run('click-2', 'clicked', NOW + 2);
+  sqlite.exec(readFileSync(
+    new URL('../migrations/0023_referral_unique_audience_metrics.sql', import.meta.url),
+    'utf8'
+  ));
+  assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM referral_unique_audience').get()!.n, 4);
+  assert.deepEqual(
+    sqlite.prepare(`SELECT audience_kind, period_kind, unique_users_count
+      FROM referral_audience_metrics ORDER BY audience_kind, period_kind`).all()
+      .map((row: Record<string, unknown>) => ({ ...row })),
+    [
+      { audience_kind: 'clicker', period_kind: 'day', unique_users_count: 1 },
+      { audience_kind: 'clicker', period_kind: 'month', unique_users_count: 1 },
+      { audience_kind: 'viewer', period_kind: 'day', unique_users_count: 1 },
+      { audience_kind: 'viewer', period_kind: 'month', unique_users_count: 1 },
+    ]
   );
   sqlite.close();
 });

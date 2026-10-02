@@ -185,14 +185,15 @@ function startOfUtcMonth(now: number): number {
   return Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1);
 }
 
-function metric(row: Record<string, unknown> | undefined) {
+export function referralMetric(row: Record<string, unknown> | undefined) {
   const referrals = Number(row?.referrals ?? 0);
   const shown = Number(row?.shown ?? 0);
   const clicks = Number(row?.clicks ?? 0);
+  const uniqueViewers = Number(row?.unique_viewers ?? 0);
   const uniqueClickers = Number(row?.unique_clickers ?? 0);
   return {
-    referrals, shown, clicks, uniqueClickers,
-    ctr: shown > 0 ? clicks / shown : 0,
+    referrals, shown, uniqueViewers, clicks, uniqueClickers,
+    ctr: uniqueViewers > 0 ? uniqueClickers / uniqueViewers : 0,
   };
 }
 
@@ -219,20 +220,46 @@ export async function readReferralAdminDashboard(input: {
       JOIN service_categories c ON c.id=o.service_category_id
       ORDER BY o.display_priority ASC, o.created_at DESC LIMIT 100`).all(),
     db.prepare(`SELECT SUM(referrals_count) referrals, SUM(shown_count) shown,
-      SUM(clicks_count) clicks, SUM(unique_clickers_count) unique_clickers
-      FROM referral_daily_metrics WHERE day_start>=?`).get(today),
+      SUM(clicks_count) clicks,
+      COALESCE((SELECT SUM(unique_users_count) FROM referral_audience_metrics
+        WHERE audience_kind='viewer' AND period_kind='day' AND period_start=?), 0)
+        unique_viewers,
+      COALESCE((SELECT SUM(unique_users_count) FROM referral_audience_metrics
+        WHERE audience_kind='clicker' AND period_kind='day' AND period_start=?), 0)
+        unique_clickers
+      FROM referral_daily_metrics WHERE day_start>=?`).get(today, today, today),
     db.prepare(`SELECT SUM(referrals_count) referrals, SUM(shown_count) shown,
-      SUM(clicks_count) clicks, SUM(unique_clickers_count) unique_clickers
-      FROM referral_daily_metrics WHERE day_start>=?`).get(month),
+      SUM(clicks_count) clicks,
+      COALESCE((SELECT SUM(unique_users_count) FROM referral_audience_metrics
+        WHERE audience_kind='viewer' AND period_kind='month' AND period_start=?), 0)
+        unique_viewers,
+      COALESCE((SELECT SUM(unique_users_count) FROM referral_audience_metrics
+        WHERE audience_kind='clicker' AND period_kind='month' AND period_start=?), 0)
+        unique_clickers
+      FROM referral_daily_metrics WHERE day_start>=?`).get(month, month, month),
     db.prepare(`SELECT m.service_category_id, c.slug AS category_slug,
       m.partner_offer_id, o.partner_name, m.plan_snapshot,
       SUM(m.referrals_count) referrals, SUM(m.shown_count) shown,
-      SUM(m.clicks_count) clicks, SUM(m.unique_clickers_count) unique_clickers
+      SUM(m.clicks_count) clicks,
+      COALESCE(MAX(viewers.unique_users_count), 0) unique_viewers,
+      COALESCE(MAX(clickers.unique_users_count), 0) unique_clickers
       FROM referral_daily_metrics m
       JOIN service_categories c ON c.id=m.service_category_id
       JOIN partner_offers o ON o.id=m.partner_offer_id
+      LEFT JOIN referral_audience_metrics viewers
+        ON viewers.audience_kind='viewer' AND viewers.period_kind='month'
+        AND viewers.period_start=?
+        AND viewers.service_category_id=m.service_category_id
+        AND viewers.partner_offer_id=m.partner_offer_id
+        AND viewers.plan_snapshot=m.plan_snapshot
+      LEFT JOIN referral_audience_metrics clickers
+        ON clickers.audience_kind='clicker' AND clickers.period_kind='month'
+        AND clickers.period_start=?
+        AND clickers.service_category_id=m.service_category_id
+        AND clickers.partner_offer_id=m.partner_offer_id
+        AND clickers.plan_snapshot=m.plan_snapshot
       WHERE m.day_start>=? GROUP BY m.service_category_id, m.partner_offer_id, m.plan_snapshot
-      ORDER BY clicks DESC, shown DESC LIMIT 100`).all(month),
+      ORDER BY clicks DESC, shown DESC LIMIT 100`).all(month, month, month),
     db.prepare(`SELECT r.id, r.analysis_id, r.finding_code, r.status, r.source,
       r.plan_snapshot, r.created_at, c.slug AS category_slug, o.partner_name,
       r.user_id FROM service_referrals r
@@ -254,8 +281,8 @@ export async function readReferralAdminDashboard(input: {
     };
   }));
   return {
-    metrics: { today: metric(todayMetrics), month: metric(monthMetrics) },
-    breakdown: breakdown.map((row) => ({ ...row, ...metric(row) })),
+    metrics: { today: referralMetric(todayMetrics), month: referralMetric(monthMetrics) },
+    breakdown: breakdown.map((row) => ({ ...row, ...referralMetric(row) })),
     categories,
     offers,
     referrals: await pseudonymize(referrals),
