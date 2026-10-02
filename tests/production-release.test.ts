@@ -189,6 +189,31 @@ test('release mechanism contains no automatic Worker deployment', () => {
   assert.equal(packageJson.scripts.release, undefined);
 });
 
+test('Production Worker deployment is pinned to the iSaudi identity and cannot fall back to default auth', () => {
+  const packageJson = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')) as {
+    scripts: Record<string, string>;
+  };
+  const config = readFileSync(path.join(process.cwd(), 'wrangler.toml'), 'utf8');
+  const preflight = readFileSync(path.join(process.cwd(), 'scripts', 'assert-cloudflare-account.mjs'), 'utf8');
+  const deploy = packageJson.scripts['cf:deploy'];
+
+  assert.equal(
+    deploy,
+    'npm run cf:preflight:production && wrangler deploy --config ./wrangler.toml --profile isaudi',
+  );
+  assert.ok(deploy.indexOf('cf:preflight:production') < deploy.indexOf('wrangler deploy'));
+  assert.match(config, /name = "isaudi"/);
+  assert.match(config, /account_id = "e8ae8afc6a6708283d6b0b4534f7c91f"/);
+  assert.match(config, /database_name = "isaudi-db"/);
+  assert.match(config, /database_id = "9e19c212-0118-4660-aaeb-e46cc7f4470e"/);
+  assert.match(preflight, /CLOUDFLARE_API_TOKEN/);
+  assert.match(preflight, /authenticated account response does not match the pinned account/);
+  assert.match(preflight, /Wrangler profile is .* not/);
+  assert.doesNotMatch(deploy, /d1(?::|\s)+(?:release|migrations|execute)/i);
+  assert.doesNotMatch(preflight, /method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/);
+  assert.doesNotMatch(preflight, /console\.(?:log|error)\([^\n]*token/i);
+});
+
 test('remote migration apply uses supported Wrangler arguments and fails closed without retry', () => {
   const runner = readFileSync(path.join(process.cwd(), 'scripts', 'production-release.mjs'), 'utf8');
   const applyFunction = runner.match(

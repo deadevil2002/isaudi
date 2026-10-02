@@ -13,7 +13,7 @@
     "cf:preflight:staging:create": "node scripts/assert-cloudflare-account.mjs staging-create",
     "cf:preflight:staging:deploy": "node scripts/assert-cloudflare-account.mjs staging-deploy",
     "cf:preflight:staging": "node scripts/assert-cloudflare-account.mjs staging",
-    "cf:deploy": "npm run cf:preflight:production && wrangler deploy --config ./wrangler.toml",
+    "cf:deploy": "npm run cf:preflight:production && wrangler deploy --config ./wrangler.toml --profile isaudi",
     "strip:source-maps": "node scripts/prepare-cloudflare-assets.mjs",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
