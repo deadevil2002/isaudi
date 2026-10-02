@@ -186,3 +186,28 @@ test('release mechanism contains no automatic Worker deployment', () => {
   assert.equal(packageJson.scripts.deploy, undefined);
   assert.equal(packageJson.scripts.release, undefined);
 });
+
+test('remote migration apply uses supported Wrangler arguments and fails closed without retry', () => {
+  const runner = readFileSync(path.join(process.cwd(), 'scripts', 'production-release.mjs'), 'utf8');
+  const applyFunction = runner.match(
+    /function applyRemoteMigrationStep\(step\) \{[\s\S]*?\n\}\n\nfunction assertSourceCountsPreserved/,
+  )?.[0];
+  const executionLoop = runner.match(
+    /const appliedSteps = \[\];[\s\S]*?const finalState = inspectRemoteState\(\);/,
+  )?.[0];
+
+  assert.ok(applyFunction);
+  assert.match(applyFunction, /'d1',\s*'migrations',\s*'apply'/);
+  assert.match(applyFunction, /RELEASE_IDENTITY\.database/);
+  assert.match(applyFunction, /'--remote'/);
+  assert.match(applyFunction, /'--config',\s*configPath/);
+  assert.match(applyFunction, /'--profile',\s*RELEASE_IDENTITY\.profile/);
+  assert.doesNotMatch(applyFunction, /'--yes'/);
+  assert.match(runner, /CI: 'true'/);
+  assert.match(runner, /assertExecutionApproval\(/);
+  assert.match(runner, /execFileSync\(/);
+  assert.ok(executionLoop);
+  assert.equal(executionLoop.match(/applyRemoteMigrationStep\(step\)/g)?.length, 1);
+  assert.ok(executionLoop.indexOf('applyRemoteMigrationStep(step)') < executionLoop.indexOf('appliedSteps.push(step.name)'));
+  assert.doesNotMatch(executionLoop, /catch|retry/i);
+});

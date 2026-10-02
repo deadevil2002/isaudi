@@ -68,6 +68,7 @@ function fixedEnvironment() {
   }
   return {
     ...process.env,
+    CI: 'true',
     CLOUDFLARE_PROFILE: RELEASE_IDENTITY.profile,
     CLOUDFLARE_ACCOUNT_ID: RELEASE_IDENTITY.accountId,
   };
@@ -242,7 +243,6 @@ migrations_table = "d1_migrations"
       configPath,
       '--profile',
       RELEASE_IDENTITY.profile,
-      '--yes',
     ]);
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });
