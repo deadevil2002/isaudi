@@ -7,6 +7,7 @@ import {
   commitSallaTokenRefresh,
   getSallaConnectionByMerchant,
   getSallaConnectionForUser,
+  getSallaConnectionForUserAndMerchant,
   markSallaRefreshUncertain,
   releaseSallaRefreshAttemptBeforeRequest,
 } from './repository';
@@ -239,9 +240,11 @@ export async function getSallaAccessTokenForMerchant(
 
 export async function getAuthenticatedSallaAccessToken(
   userId: string,
-  options: { fetcher?: typeof fetch; now?: number } = {}
+  options: { fetcher?: typeof fetch; now?: number; merchantId?: string } = {}
 ): Promise<{ merchantId: string; accessToken: string }> {
-  const connection = await getSallaConnectionForUser(userId);
+  const connection = options.merchantId
+    ? await getSallaConnectionForUserAndMerchant(userId, options.merchantId)
+    : await getSallaConnectionForUser(userId);
   if (!connection || connection.userId !== userId) {
     throw new SallaTokenUnavailableError();
   }
@@ -260,9 +263,11 @@ export async function getAuthenticatedSallaAccessToken(
 export async function refreshAuthenticatedSallaAccessTokenForRejectedToken(
   userId: string,
   rejectedAccessToken: string,
-  options: { fetcher?: typeof fetch; now?: number } = {}
+  options: { fetcher?: typeof fetch; now?: number; merchantId?: string } = {}
 ): Promise<{ merchantId: string; accessToken: string }> {
-  const connection = await getSallaConnectionForUser(userId);
+  const connection = options.merchantId
+    ? await getSallaConnectionForUserAndMerchant(userId, options.merchantId)
+    : await getSallaConnectionForUser(userId);
   if (
     !connection ||
     connection.userId !== userId ||

@@ -6,7 +6,10 @@ import {
   type SallaListResult,
   type SallaPagination,
 } from './client';
-import { getSallaConnectionForUser } from './repository';
+import {
+  getSallaConnectionForUser,
+  getSallaConnectionForUserAndMerchant,
+} from './repository';
 import type { SallaConnection } from './types';
 
 export interface VerificationOperation {
@@ -88,7 +91,14 @@ export async function verifySallaConnection(
   userId: string,
   options: VerificationOptions = {}
 ): Promise<SallaVerificationResult> {
-  const getConnection = options.getConnection || getSallaConnectionForUser;
+  const getConnection = options.getConnection || (
+    options.merchantId
+      ? (ownedUserId: string) => getSallaConnectionForUserAndMerchant(
+          ownedUserId,
+          options.merchantId!
+        )
+      : getSallaConnectionForUser
+  );
   let connection: SallaConnection | undefined;
   try {
     connection = await getConnection(userId);
@@ -102,6 +112,7 @@ export async function verifySallaConnection(
   const clientOptions: ReadClientOptions = {
     fetcher: options.fetcher,
     now: options.now,
+    merchantId: options.merchantId,
     resolveAccessToken: options.resolveAccessToken,
     refreshRejectedToken: options.refreshRejectedToken,
   };

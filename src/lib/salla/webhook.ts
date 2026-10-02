@@ -8,6 +8,12 @@ import {
 } from './repository';
 import { hashSallaLinkCode } from './link-code';
 import type { SallaAuthorizer } from './types';
+import {
+  normalizeTrustedStorefrontOrigin,
+  normalizeTrustedStoreName,
+  SALLA_STOREFRONT_ORIGIN_SOURCE,
+  SALLA_STOREFRONT_VERIFICATION_VERSION,
+} from './storefront-origin';
 
 type JsonObject = Record<string, unknown>;
 
@@ -85,8 +91,16 @@ function tokenExpiry(data: JsonObject): number | null {
 async function fetchAuthorizer(
   accessToken: string,
   fetcher: typeof fetch,
-  expectedMerchantId: string
-): Promise<SallaAuthorizer> {
+  expectedMerchantId: string,
+  verifiedAt: number
+): Promise<{
+  authorizer: SallaAuthorizer;
+  storeName: string | null;
+  storefrontOrigin: string | null;
+  storefrontOriginSource: string | null;
+  storefrontOriginVerifiedAt: number | null;
+  storefrontOriginVerificationVersion: string | null;
+}> {
   const response = await fetcher(SALLA_USER_INFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -100,14 +114,26 @@ async function fetchAuthorizer(
   }
   const responseMerchant = object(data?.merchant) || object(user?.merchant);
   const responseMerchantId = nonEmpty(responseMerchant?.id);
-  if (responseMerchantId && responseMerchantId !== expectedMerchantId) {
+  if (!responseMerchantId || responseMerchantId !== expectedMerchantId) {
     throw new SallaWebhookValidationError('Salla merchant identity mismatch');
   }
+  const storefrontOrigin = normalizeTrustedStorefrontOrigin(
+    responseMerchant?.domain
+  );
   return {
-    id: nonEmpty(user?.id),
-    email: normalizeEmail(email),
-    name: nonEmpty(user?.name),
-    role: nonEmpty(user?.role),
+    authorizer: {
+      id: nonEmpty(user?.id),
+      email: normalizeEmail(email),
+      name: nonEmpty(user?.name),
+      role: nonEmpty(user?.role),
+    },
+    storeName: normalizeTrustedStoreName(responseMerchant?.name),
+    storefrontOrigin,
+    storefrontOriginSource: storefrontOrigin
+      ? SALLA_STOREFRONT_ORIGIN_SOURCE : null,
+    storefrontOriginVerifiedAt: storefrontOrigin ? verifiedAt : null,
+    storefrontOriginVerificationVersion: storefrontOrigin
+      ? SALLA_STOREFRONT_VERIFICATION_VERSION : null,
   };
 }
 
@@ -184,10 +210,11 @@ export async function processSallaWebhook(
     throw new SallaWebhookValidationError('Malformed Salla authorization webhook');
   }
 
-  const authorizer = await fetchAuthorizer(
+  const verifiedStore = await fetchAuthorizer(
     accessToken,
     options.fetcher || fetch,
-    id
+    id,
+    (options.now || Date.now)()
   );
   const encryptToken = options.encryptToken || encryptSallaToken;
   await (options.upsertAuthorization || upsertSallaAuthorization)({
@@ -196,7 +223,13 @@ export async function processSallaWebhook(
     refreshTokenEncrypted: encryptToken(refreshToken),
     tokenExpiresAt,
     scopes,
-    authorizer,
+    authorizer: verifiedStore.authorizer,
+    storeName: verifiedStore.storeName,
+    storefrontOrigin: verifiedStore.storefrontOrigin,
+    storefrontOriginSource: verifiedStore.storefrontOriginSource,
+    storefrontOriginVerifiedAt: verifiedStore.storefrontOriginVerifiedAt,
+    storefrontOriginVerificationVersion:
+      verifiedStore.storefrontOriginVerificationVersion,
     eventAt: at,
   });
   return 'mutated';

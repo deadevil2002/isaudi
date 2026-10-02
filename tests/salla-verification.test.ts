@@ -87,6 +87,20 @@ test('read client uses the documented first-page URLs and safe fetch options', a
   );
 });
 
+test('multi-store reads carry the explicit merchant selector through token resolution', async () => {
+  let selector: string | undefined;
+  await listProducts('owner-1', {
+    merchantId: 'merchant-2',
+    resolveAccessToken: async (userId, options) => {
+      assert.equal(userId, 'owner-1');
+      selector = options.merchantId;
+      return { merchantId: 'merchant-2', accessToken: 'access-token' };
+    },
+    fetcher: async () => providerPage([]),
+  });
+  assert.equal(selector, 'merchant-2');
+});
+
 test('HTTP 200 provider error envelopes and unsafe pagination fail closed', async () => {
   await assert.rejects(
     listProducts('owner-1', {

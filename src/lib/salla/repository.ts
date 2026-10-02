@@ -1,20 +1,24 @@
 import { getDb } from '@/lib/db/client';
+import { getPlanLimits } from '@/lib/subscription/plans';
 import type {
   SallaAuthorizer,
   SallaConnection,
   SallaConnectState,
+  VerifiedSallaStorefront,
 } from './types';
 
 export const SALLA_AUTHORIZATION_UPSERT_SQL = `
   INSERT INTO salla_connections (
     merchantId, userId, status, accessTokenEncrypted, refreshTokenEncrypted,
     tokenExpiresAt, scopes, authorizerId, authorizerEmail, authorizerName,
-    authorizerRole, authorizedAt, updatedAt, lastEventAt, lastEventType,
-    lastEventPriority, tokenVersion
+    authorizerRole, storeName, storefrontOrigin, storefrontOriginSource,
+    storefrontOriginVerifiedAt, storefrontOriginVerificationVersion,
+    authorizedAt, updatedAt, lastEventAt, lastEventType, lastEventPriority,
+    tokenVersion
   ) VALUES (
     ?1,
-    NULL, 'pending',
-    ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+    NULL, 'pending', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
+    ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
     'app.store.authorize', 10, 1
   )
   ON CONFLICT(merchantId) DO UPDATE SET
@@ -29,6 +33,21 @@ export const SALLA_AUTHORIZATION_UPSERT_SQL = `
     authorizerEmail = excluded.authorizerEmail,
     authorizerName = excluded.authorizerName,
     authorizerRole = excluded.authorizerRole,
+    storeName = COALESCE(excluded.storeName, salla_connections.storeName),
+    storefrontOrigin = COALESCE(
+      excluded.storefrontOrigin,
+      salla_connections.storefrontOrigin
+    ),
+    storefrontOriginSource = CASE WHEN excluded.storefrontOrigin IS NOT NULL
+      THEN excluded.storefrontOriginSource
+      ELSE salla_connections.storefrontOriginSource END,
+    storefrontOriginVerifiedAt = CASE WHEN excluded.storefrontOrigin IS NOT NULL
+      THEN excluded.storefrontOriginVerifiedAt
+      ELSE salla_connections.storefrontOriginVerifiedAt END,
+    storefrontOriginVerificationVersion = CASE
+      WHEN excluded.storefrontOrigin IS NOT NULL
+      THEN excluded.storefrontOriginVerificationVersion
+      ELSE salla_connections.storefrontOriginVerificationVersion END,
     authorizedAt = excluded.authorizedAt,
     updatedAt = excluded.updatedAt,
     lastEventAt = excluded.lastEventAt,
@@ -54,6 +73,11 @@ export async function upsertSallaAuthorization(input: {
   tokenExpiresAt: number;
   scopes: string;
   authorizer: SallaAuthorizer;
+  storeName: string | null;
+  storefrontOrigin: string | null;
+  storefrontOriginSource: string | null;
+  storefrontOriginVerifiedAt: number | null;
+  storefrontOriginVerificationVersion: string | null;
   eventAt: number;
 }): Promise<void> {
   const db = await getDb();
@@ -67,6 +91,11 @@ export async function upsertSallaAuthorization(input: {
     input.authorizer.email,
     input.authorizer.name,
     input.authorizer.role,
+    input.storeName,
+    input.storefrontOrigin,
+    input.storefrontOriginSource,
+    input.storefrontOriginVerifiedAt,
+    input.storefrontOriginVerificationVersion,
     input.eventAt,
     Date.now(),
     input.eventAt
@@ -229,6 +258,16 @@ export const SALLA_RECORD_CLAIM_SQL = `
     AND ?6 >= COALESCE(connection.appUpdatedAt, 0)
     AND ?6 >= COALESCE(connection.authorizedAt, 0)
     AND ?6 >= connection.lastEventAt
+    AND (
+      SELECT COUNT(*) FROM salla_connections AS owned
+      WHERE owned.userId = code.userId
+        AND owned.merchantId <> connection.merchantId
+    ) < CASE claimant.plan
+      WHEN 'starter' THEN ${getPlanLimits('starter').maxStores}
+      WHEN 'growth' THEN ${getPlanLimits('growth').maxStores}
+      WHEN 'business' THEN ${getPlanLimits('business').maxStores}
+      ELSE 0
+    END
   ON CONFLICT DO NOTHING;
 `;
 
@@ -423,11 +462,68 @@ export async function getSallaConnectionForUser(
   userId: string
 ): Promise<SallaConnection | undefined> {
   const db = await getDb();
+  const rows = await db.prepare(`
+    SELECT * FROM salla_connections
+    WHERE userId = ? AND status = 'connected'
+    ORDER BY updatedAt DESC LIMIT 2
+  `).all(userId) as SallaConnection[];
+  // Legacy callers have no merchant selector. A single owned store remains
+  // backward compatible; multiple stores fail closed instead of guessing.
+  return rows.length === 1 ? rows[0] : undefined;
+}
+
+export async function getSallaConnectionForUserAndMerchant(
+  userId: string,
+  merchantId: string
+): Promise<SallaConnection | undefined> {
+  const db = await getDb();
+  return db.prepare(`
+    SELECT * FROM salla_connections
+    WHERE userId = ? AND merchantId = ?
+    LIMIT 1
+  `).get(userId, merchantId);
+}
+
+export async function listSallaConnectionsForUser(
+  userId: string
+): Promise<SallaConnection[]> {
+  const db = await getDb();
   return db.prepare(`
     SELECT * FROM salla_connections
     WHERE userId = ?
-    ORDER BY CASE status WHEN 'connected' THEN 0 ELSE 1 END, updatedAt DESC LIMIT 1
-  `).get(userId);
+    ORDER BY CASE status WHEN 'connected' THEN 0 ELSE 1 END,
+      updatedAt DESC
+    LIMIT 10
+  `).all(userId) as Promise<SallaConnection[]>;
+}
+
+export async function getVerifiedSallaStorefront(
+  userId: string,
+  merchantId: string
+): Promise<VerifiedSallaStorefront | undefined> {
+  const db = await getDb();
+  const row = await db.prepare(`
+    SELECT merchantId, userId, storeName, storefrontOrigin,
+      storefrontOriginSource, storefrontOriginVerifiedAt,
+      storefrontOriginVerificationVersion
+    FROM salla_connections
+    WHERE userId = ? AND merchantId = ? AND status = 'connected'
+      AND storefrontOrigin IS NOT NULL
+      AND storefrontOriginSource IS NOT NULL
+      AND storefrontOriginVerifiedAt IS NOT NULL
+      AND storefrontOriginVerificationVersion IS NOT NULL
+    LIMIT 1
+  `).get(userId, merchantId) as Record<string, unknown> | undefined;
+  if (!row) return undefined;
+  return {
+    merchantId: String(row.merchantId),
+    userId: String(row.userId),
+    storeName: typeof row.storeName === 'string' ? row.storeName : null,
+    origin: String(row.storefrontOrigin),
+    source: String(row.storefrontOriginSource),
+    verifiedAt: Number(row.storefrontOriginVerifiedAt),
+    verificationVersion: String(row.storefrontOriginVerificationVersion),
+  };
 }
 
 export function sallaRefreshNeedsReconnect(
@@ -454,11 +550,16 @@ export function getOwnedSallaConnectState(
 export async function getSallaConnectState(
   userId: string
 ): Promise<SallaConnectState> {
-  const owned = await getSallaConnectionForUser(userId);
-  if (owned?.status === 'connected') {
-    return getOwnedSallaConnectState(owned);
+  const ownedConnections = await listSallaConnectionsForUser(userId);
+  const connected = ownedConnections.find((connection) =>
+    connection.status === 'connected'
+  );
+  if (connected) {
+    return getOwnedSallaConnectState(connected);
   }
-  if (owned?.status === 'disconnected' || owned?.status === 'uninstalled') {
+  if (ownedConnections.some((connection) =>
+    connection.status === 'disconnected' || connection.status === 'uninstalled'
+  )) {
     return 'disconnected';
   }
   return await getActiveSallaLinkCodeExpiry(userId)

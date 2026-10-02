@@ -57,6 +57,14 @@ SALLA_WEBHOOK_SECRET=your_webhook_secret
    earlier active codes. Expiry uses server time, not event time.
 7. Existing ownership is immutable, including after uninstall. Products and
    orders cannot use unclaimed credentials.
+8. The server reads Salla's authenticated user-info response and requires
+   `data.merchant.id` to match the signed webhook merchant. Only
+   `data.merchant.domain` can become the storefront origin; a URL supplied by
+   the browser or customer is never ownership proof.
+9. A valid storefront origin is normalized to an HTTPS origin and stored with
+   its Salla source, merchant/owner association, verification time, and method
+   version. Missing, malformed, internal, credentialed, IP-literal, or
+   non-HTTPS values remain unavailable and cannot be analyzed.
 
 The legacy custom OAuth callback remains in the codebase for compatibility but
 is not used by the normal connect action.
@@ -75,6 +83,19 @@ Refresh attempts are persisted before contacting Salla. If the provider may
 have rotated a refresh token but the result cannot be confirmed locally, the
 connection is marked for safe reauthorization rather than retrying the same
 stored refresh token.
+
+Multiple merchants can be owned by the same customer up to the server-side
+plan limit (Starter 1, Growth 3, Business 10). Merchant ownership remains
+immutable and unique to one customer. Reads without a merchant selector work
+only when exactly one connected merchant exists; ambiguous multi-store reads
+fail closed rather than choosing a store.
+
+The landing-page analyzer must reuse the verified storefront-origin policy:
+HTTPS only, public DNS answers only, no internal/loopback/link-local/metadata
+destinations, no URL credentials, same-origin redirects only, and bounded
+redirects, time, response bytes, and HTML bytes. Every future redirect hop and
+DNS resolution must be revalidated before fetching. This phase stores the
+trusted origin and policy only; it does not fetch or render storefronts.
 
 ## 3. Database Schema
 New tables added to SQLite (D1 compatible):

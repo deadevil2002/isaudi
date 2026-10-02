@@ -8,6 +8,11 @@ export interface SallaConnection {
   merchantId: string;
   userId: string | null;
   status: SallaConnectionStatus;
+  storeName?: string | null;
+  storefrontOrigin?: string | null;
+  storefrontOriginSource?: string | null;
+  storefrontOriginVerifiedAt?: number | null;
+  storefrontOriginVerificationVersion?: string | null;
   accessTokenEncrypted: string | null;
   refreshTokenEncrypted: string | null;
   tokenExpiresAt: number | null;
@@ -25,6 +30,16 @@ export interface SallaAuthorizer {
   email: string;
   name: string | null;
   role: string | null;
+}
+
+export interface VerifiedSallaStorefront {
+  merchantId: string;
+  userId: string;
+  storeName: string | null;
+  origin: string;
+  source: string;
+  verifiedAt: number;
+  verificationVersion: string;
 }
 
 export type SallaConnectState =

@@ -45,14 +45,15 @@ export class SallaReadError extends Error {
 export interface ReadClientOptions {
   fetcher?: typeof fetch;
   now?: number;
+  merchantId?: string;
   resolveAccessToken?: (
     userId: string,
-    options: { fetcher: typeof fetch; now: number }
+    options: { fetcher: typeof fetch; now: number; merchantId?: string }
   ) => Promise<{ merchantId: string; accessToken: string }>;
   refreshRejectedToken?: (
     userId: string,
     rejectedAccessToken: string,
-    options: { fetcher: typeof fetch; now: number }
+    options: { fetcher: typeof fetch; now: number; merchantId?: string }
   ) => Promise<{ merchantId: string; accessToken: string }>;
 }
 
@@ -215,7 +216,7 @@ async function requestPage(
 
 function defaultResolveAccessToken(
   userId: string,
-  options: { fetcher: typeof fetch; now: number }
+  options: { fetcher: typeof fetch; now: number; merchantId?: string }
 ) {
   return getAuthenticatedSallaAccessToken(userId, options);
 }
@@ -223,7 +224,7 @@ function defaultResolveAccessToken(
 function defaultRefreshRejectedToken(
   userId: string,
   rejectedAccessToken: string,
-  options: { fetcher: typeof fetch; now: number }
+  options: { fetcher: typeof fetch; now: number; merchantId?: string }
 ) {
   return refreshAuthenticatedSallaAccessTokenForRejectedToken(
     userId,
@@ -246,7 +247,11 @@ async function list(
 
   let credentials: { merchantId: string; accessToken: string };
   try {
-    credentials = await resolveAccessToken(userId, { fetcher, now });
+    credentials = await resolveAccessToken(userId, {
+      fetcher,
+      now,
+      merchantId: options.merchantId,
+    });
   } catch {
     throw new SallaReadError('connection_unavailable');
   }
@@ -263,7 +268,7 @@ async function list(
       refreshed = await refreshRejectedToken(
         userId,
         credentials.accessToken,
-        { fetcher, now: Date.now() }
+        { fetcher, now: Date.now(), merchantId: options.merchantId }
       );
     } catch {
       throw new SallaReadError('refresh_failed');

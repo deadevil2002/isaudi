@@ -35,6 +35,15 @@ import {
   SallaTokenCryptoConfigurationError,
 } from '../src/lib/salla/token-crypto';
 import type { SallaConnection } from '../src/lib/salla/types';
+import {
+  assertPublicStorefrontResolution,
+  isPublicStorefrontAddress,
+  normalizeTrustedStorefrontOrigin,
+  SALLA_STOREFRONT_ORIGIN_SOURCE,
+  SALLA_STOREFRONT_VERIFICATION_VERSION,
+  STOREFRONT_FETCH_POLICY,
+  validateStorefrontRedirect,
+} from '../src/lib/salla/storefront-origin';
 
 const authorize = {
   event: 'app.store.authorize',
@@ -74,7 +83,9 @@ function authorizationSql(
   const authorization = bindSql(SALLA_AUTHORIZATION_UPSERT_SQL, [
     merchantId, token, `refresh-${token}`, eventAt + 10_000,
     'orders.read', 'authorizer', `${userId || 'none'}@example.com`,
-    'Owner', 'owner', eventAt, eventAt, eventAt,
+    'Owner', 'owner', 'Verified Store', 'https://store.example',
+    SALLA_STOREFRONT_ORIGIN_SOURCE, eventAt,
+    SALLA_STOREFRONT_VERIFICATION_VERSION, eventAt, eventAt, eventAt,
   ]);
   return `${authorization}
     ${userId === null ? '' : `
@@ -82,11 +93,7 @@ function authorizationSql(
       WHERE merchantId = ${sqlLiteral(merchantId)}
         AND userId IS NULL
         AND updatedAt = ${eventAt}
-        AND NOT EXISTS (
-          SELECT 1 FROM salla_connections AS owned
-          WHERE owned.userId = ${sqlLiteral(userId)}
-            AND owned.merchantId <> ${sqlLiteral(merchantId)}
-        );`
+        ;`
     }`;
 }
 
@@ -106,17 +113,24 @@ function sqliteRows(statements: string): SqlRow[] {
     new URL('../migrations/0013_salla_link_codes.sql', import.meta.url),
     'utf8'
   );
+  const storefrontMigration = readFileSync(
+    new URL('../migrations/0020_salla_verified_storefront_origins.sql', import.meta.url),
+    'utf8'
+  );
   const result = spawnSync('sqlite3', ['-json', ':memory:'], {
     encoding: 'utf8',
     input: `
       PRAGMA foreign_keys = ON;
       CREATE TABLE users(
         id TEXT PRIMARY KEY,
-        email_verified INTEGER NOT NULL DEFAULT 0
+        email_verified INTEGER NOT NULL DEFAULT 0,
+        plan TEXT NOT NULL DEFAULT 'free'
       );
-      INSERT INTO users(id, email_verified) VALUES ('u1', 1), ('u2', 1);
+      INSERT INTO users(id, email_verified, plan)
+        VALUES ('u1', 1, 'growth'), ('u2', 1, 'starter');
       ${sallaMigration}
       ${linkMigration}
+      ${storefrontMigration}
       ${statements}
     `,
   });
@@ -138,6 +152,73 @@ test('connect action uses exact Easy Mode install URL, not custom OAuth start', 
   assert.match(source, /SALLA_INSTALL_URL/);
 });
 
+test('verified storefront origins normalize only public HTTPS hostnames', () => {
+  assert.equal(
+    normalizeTrustedStorefrontOrigin(
+      '  https://Shop.Example.COM/products?source=salla#featured  '
+    ),
+    'https://shop.example.com'
+  );
+  for (const unsafe of [
+    'http://shop.example.com',
+    'https://user:pass@shop.example.com',
+    'https://shop.example.com:8443',
+    'https://localhost',
+    'https://metadata.google.internal',
+    'https://127.0.0.1',
+    'https://127.1',
+    'https://0x7f000001',
+    'https://[::1]',
+    'file:///etc/passwd',
+    'data:text/html,unsafe',
+    'javascript:alert(1)',
+    'ftp://shop.example.com',
+  ]) {
+    assert.equal(normalizeTrustedStorefrontOrigin(unsafe), null, unsafe);
+  }
+});
+
+test('storefront SSRF policy rejects non-public DNS answers and cross-origin redirects', () => {
+  assert.equal(STOREFRONT_FETCH_POLICY.protocol, 'https:');
+  assert.ok(STOREFRONT_FETCH_POLICY.maxRedirects <= 3);
+  assert.ok(STOREFRONT_FETCH_POLICY.timeoutMs <= 10_000);
+  assert.ok(STOREFRONT_FETCH_POLICY.maxHtmlBytes <= 1024 * 1024);
+
+  for (const publicAddress of ['8.8.8.8', '1.1.1.1', '2606:4700:4700::1111']) {
+    assert.equal(isPublicStorefrontAddress(publicAddress), true, publicAddress);
+  }
+  for (const privateAddress of [
+    '0.0.0.0', '10.0.0.1', '100.64.0.1', '127.0.0.1',
+    '169.254.169.254', '172.16.0.1', '192.168.1.1', '198.18.0.1',
+    '::', '::1', 'fc00::1', 'fe80::1', '::ffff:127.0.0.1',
+  ]) {
+    assert.equal(isPublicStorefrontAddress(privateAddress), false, privateAddress);
+  }
+  assert.doesNotThrow(() =>
+    assertPublicStorefrontResolution('shop.example.com', ['8.8.8.8'])
+  );
+  assert.throws(() =>
+    assertPublicStorefrontResolution('shop.example.com', ['8.8.8.8', '127.0.0.1'])
+  );
+  assert.throws(() =>
+    assertPublicStorefrontResolution('metadata.google.internal', ['8.8.8.8'])
+  );
+
+  assert.equal(
+    validateStorefrontRedirect(
+      'https://shop.example.com',
+      'https://shop.example.com/',
+      '/products?page=2#result'
+    ),
+    'https://shop.example.com/products?page=2'
+  );
+  assert.throws(() => validateStorefrontRedirect(
+    'https://shop.example.com',
+    'https://shop.example.com/',
+    'https://evil.example/redirected'
+  ));
+});
+
 test('valid authorize verifies Salla identity, encrypts credentials, and has no ownership input', async () => {
   let stored: Parameters<typeof upsertSallaAuthorization>[0] | undefined;
   let requested = '';
@@ -149,7 +230,17 @@ test('valid authorize verifies Salla identity, encrypts credentials, and has no 
         'Bearer access-secret'
       );
       return new Response(JSON.stringify({
-        data: { id: 7, email: 'Owner@Example.com', name: 'Owner', role: 'owner', merchant: { id: 42 } },
+        data: {
+          id: 7,
+          email: 'Owner@Example.com',
+          name: 'Owner',
+          role: 'owner',
+          merchant: {
+            id: 42,
+            name: '  Verified Store  ',
+            domain: 'https://Shop.Example.com/catalog?utm=provider#top',
+          },
+        },
       }));
     },
     encryptToken: (token) => `encrypted:${token}`,
@@ -162,6 +253,14 @@ test('valid authorize verifies Salla identity, encrypts credentials, and has no 
   assert.equal('candidateUserId' in stored, false);
   assert.equal(stored.accessTokenEncrypted, 'encrypted:access-secret');
   assert.equal(stored.refreshTokenEncrypted, 'encrypted:refresh-secret');
+  assert.equal(stored.storeName, 'Verified Store');
+  assert.equal(stored.storefrontOrigin, 'https://shop.example.com');
+  assert.equal(stored.storefrontOriginSource, SALLA_STOREFRONT_ORIGIN_SOURCE);
+  assert.equal(
+    stored.storefrontOriginVerificationVersion,
+    SALLA_STOREFRONT_VERIFICATION_VERSION
+  );
+  assert.equal(typeof stored.storefrontOriginVerifiedAt, 'number');
 });
 
 test('Salla partner relay email remains metadata and cannot assign ownership', async () => {
@@ -171,7 +270,7 @@ test('Salla partner relay email remains metadata and cannot assign ownership', a
       data: {
         id: 7,
         email: 'bkqj2wg3mxlp4lle@email.partners',
-        merchant: { id: 42 },
+        merchant: { id: 42, domain: 'https://relay.example' },
       },
     })),
     encryptToken: (token) => token,
@@ -179,6 +278,26 @@ test('Salla partner relay email remains metadata and cannot assign ownership', a
   });
   assert.ok(stored);
   assert.equal('candidateUserId' in stored, false);
+});
+
+test('unsafe or missing Salla domain never becomes a trusted storefront origin', async () => {
+  let stored: Parameters<typeof upsertSallaAuthorization>[0] | undefined;
+  await processSallaWebhook(authorize, {
+    fetcher: async () => new Response(JSON.stringify({
+      data: {
+        id: 7,
+        email: 'owner@example.com',
+        merchant: { id: 42, name: 'Store', domain: 'https://127.0.0.1/admin' },
+      },
+    })),
+    encryptToken: (token) => token,
+    upsertAuthorization: async (input) => { stored = input; },
+  });
+  assert.ok(stored);
+  assert.equal(stored.storefrontOrigin, null);
+  assert.equal(stored.storefrontOriginSource, null);
+  assert.equal(stored.storefrontOriginVerifiedAt, null);
+  assert.equal(stored.storefrontOriginVerificationVersion, null);
 });
 
 function linkClaimSql(input: {
@@ -209,6 +328,14 @@ test('merchant identity mismatch and malformed relevant payloads are rejected', 
     processSallaWebhook(authorize, {
       fetcher: async () => new Response(JSON.stringify({
         data: { email: 'owner@example.com', merchant: { id: 99 } },
+      })),
+    }),
+    SallaWebhookValidationError
+  );
+  await assert.rejects(
+    processSallaWebhook(authorize, {
+      fetcher: async () => new Response(JSON.stringify({
+        data: { id: 7, email: 'owner@example.com' },
       })),
     }),
     SallaWebhookValidationError
@@ -640,7 +767,7 @@ test('new Easy Mode token encryption is authenticated and fails closed without k
   assert.throws(() => cipher.decrypt(tampered));
 });
 
-test('SQLite authorization rejects stale ownership and conflicting merchant claims', () => {
+test('SQLite authorization rejects stale ownership while allowing multiple owned merchants', () => {
   const rows = sqliteRows(`
     ${authorizationSql('m1', 'u1', 100, 'first')}
     ${authorizationSql('m1', 'u2', 90, 'stale')}
@@ -652,7 +779,7 @@ test('SQLite authorization rejects stale ownership and conflicting merchant clai
   `);
   assert.deepEqual(rows, [
     { merchantId: 'm1', userId: 'u1', accessTokenEncrypted: 'first' },
-    { merchantId: 'm2', userId: null, accessTokenEncrypted: 'conflict' },
+    { merchantId: 'm2', userId: 'u1', accessTokenEncrypted: 'conflict' },
     { merchantId: 'm3', userId: null, accessTokenEncrypted: 'unclaimed' },
   ]);
 });
@@ -929,6 +1056,46 @@ test('valid unexpired link code atomically claims the authoritative merchant and
   ]);
 });
 
+test('multi-store claims remain tenant-bound and enforce the customer plan limit', () => {
+  const rows = sqliteRows(`
+    ${authorizationSql('m1', null, 100, 'token-1')}
+    ${authorizationSql('m2', null, 101, 'token-2')}
+    ${authorizationSql('m3', null, 102, 'token-3')}
+    ${authorizationSql('m4', null, 103, 'token-4')}
+    ${authorizationSql('m5', null, 104, 'token-5')}
+    ${authorizationSql('m6', null, 105, 'token-6')}
+
+    INSERT INTO salla_link_codes VALUES ('c1','u1','h1',1000,NULL,NULL,110);
+    ${linkClaimSql({ merchantId: 'm1', userId: 'u1', codeId: 'c1', codeHash: 'h1', now: 120 })}
+    INSERT INTO salla_link_codes VALUES ('c2','u1','h2',1000,NULL,NULL,121);
+    ${linkClaimSql({ merchantId: 'm2', userId: 'u1', codeId: 'c2', codeHash: 'h2', now: 130 })}
+    INSERT INTO salla_link_codes VALUES ('c3','u1','h3',1000,NULL,NULL,131);
+    ${linkClaimSql({ merchantId: 'm3', userId: 'u1', codeId: 'c3', codeHash: 'h3', now: 140 })}
+    INSERT INTO salla_link_codes VALUES ('c4','u1','h4',1000,NULL,NULL,141);
+    ${linkClaimSql({ merchantId: 'm4', userId: 'u1', codeId: 'c4', codeHash: 'h4', now: 150 })}
+
+    INSERT INTO salla_link_codes VALUES ('c5','u2','h5',1000,NULL,NULL,151);
+    ${linkClaimSql({ merchantId: 'm5', userId: 'u2', codeId: 'c5', codeHash: 'h5', now: 160 })}
+    INSERT INTO salla_link_codes VALUES ('c6','u2','h6',1000,NULL,NULL,161);
+    ${linkClaimSql({ merchantId: 'm6', userId: 'u2', codeId: 'c6', codeHash: 'h6', now: 170 })}
+
+    SELECT userId, COUNT(*) AS storeCount FROM salla_connections
+      WHERE userId IS NOT NULL GROUP BY userId ORDER BY userId;
+    SELECT userId, COUNT(*) AS claimCount FROM salla_link_claims
+      GROUP BY userId ORDER BY userId;
+    SELECT id, consumedAt FROM salla_link_codes
+      WHERE id IN ('c4','c6') ORDER BY id;
+  `);
+  assert.deepEqual(rows, [
+    { userId: 'u1', storeCount: 3 },
+    { userId: 'u2', storeCount: 1 },
+    { userId: 'u1', claimCount: 3 },
+    { userId: 'u2', claimCount: 1 },
+    { id: 'c4', consumedAt: null },
+    { id: 'c6', consumedAt: null },
+  ]);
+});
+
 test('D1 claim batch binds exactly the positional parameters each statement references', () => {
   const operations = buildSallaClaimBatch({
     userId: 'u1',
@@ -1158,6 +1325,19 @@ test('database migration makes established merchant ownership immutable', () => 
     migration,
     /OLD\.userId IS NOT NULL AND NEW\.userId IS NOT OLD\.userId/
   );
+  const storefrontMigration = readFileSync(
+    new URL('../migrations/0020_salla_verified_storefront_origins.sql', import.meta.url),
+    'utf8'
+  );
+  assert.match(
+    storefrontMigration,
+    /DROP INDEX IF EXISTS idx_salla_connections_one_merchant_per_user/
+  );
+  assert.match(
+    storefrontMigration,
+    /CREATE TABLE salla_link_claims_v2[\s\S]*userId TEXT NOT NULL,[\s\S]*linkCodeId TEXT NOT NULL UNIQUE/
+  );
+  assert.doesNotMatch(storefrontMigration, /userId TEXT NOT NULL UNIQUE/);
 });
 
 test('link-code endpoint requires an authenticated verified user and is origin-protected', () => {
