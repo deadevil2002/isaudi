@@ -60,6 +60,23 @@ test('Tap and Salla callback origins are pinned in production', async () => {
   assert.match(salla, /process\.env\.NODE_ENV === 'production'[\s\S]*https:\/\/isaudi\.ai/);
 });
 
+test('CSV upload rejects common customer personal-data columns before import', () => {
+  for (const header of [
+    'customer_email', 'Customer Phone', 'shipping-address',
+    'اسم العميل', 'رقم الجوال', 'عنوان الشحن',
+  ]) {
+    assert.throws(
+      () => validateCsvTable([['order id', header], ['1', 'private']], 0),
+      /personal-data columns/,
+      header,
+    );
+  }
+  assert.doesNotThrow(() => validateCsvTable([
+    ['order id', 'total', 'items'],
+    ['1', '100', 'Product x 1'],
+  ], 0));
+});
+
 test('Tap activation requires provider verification rather than a browser redirect', async () => {
   const client = await readFile(
     new URL('../src/app/(authenticated)/billing/billing-client.tsx', import.meta.url),

@@ -11,6 +11,10 @@ test('public Privacy Notice discloses the actual aggregate purpose in Arabic and
   assert.match(policy, /aggregated indicators with source identifiers removed/);
   assert.match(policy, /لا نعرض للعملاء الآخرين بيانات متجرك أو هويتك أو سجلاتك الخام/);
   assert.match(policy, /We do not expose your store data, identity, or raw records to other customers/);
+  assert.match(policy, /not currently enabled for production customers/);
+  assert.match(policy, /Provider responses or uploaded files may contain information about your store's customers/);
+  assert.match(policy, /Some service providers may operate outside Saudi Arabia/);
+  assert.match(policy, /غير مفعلة حاليًا لعملاء الإنتاج/);
   assert.doesNotMatch(policy, /fully anonymous|مجهولة الهوية بالكامل/i);
 });
 
@@ -26,6 +30,7 @@ test('Terms contains only a concise cross-store privacy reference', () => {
   assert.match(policy, /تحسين الخدمة والخصوصية/);
   assert.match(policy, /Service improvement and privacy/);
   assert.match(policy, /راجع سياسة الخصوصية للتفاصيل/);
+  assert.match(policy, /These terms alone do not establish a lawful basis/);
 });
 
 test('Cross-Store AI feature flag remains fail-closed and turns on only explicitly', () => {

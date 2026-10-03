@@ -31,7 +31,9 @@ export const SHARED_PATTERN_FORBIDDEN_FIELDS = [
   'tenant_id', 'tenantHash', 'sourceTenantId', 'sessionId', 'accessToken', 'refreshToken',
   'productId', 'orderId', 'reportId', 'analysisId', 'referralId', 'partnerOfferId',
   'partnerName', 'partnerUrl', 'commission', 'commissionAmount', 'sourceUrl', 'rawJson',
-  'prompt', 'chatContext', 'exactTimestamp', 'exactRevenue', 'exactValue',
+  'rawOrder', 'rawProduct', 'rawCustomer', 'privateReport', 'privatePrompt', 'privateChat',
+  'prompt', 'chatContext', 'exactTimestamp', 'exactRevenue', 'exactOrderCount',
+  'exactAov', 'exactCost', 'exactValue',
 ] as const;
 
 type SuppressionReason = 'small_sample' | 'low_measurement_quality' | 'invalid_aggregate' | 'privacy_risk';

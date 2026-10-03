@@ -17,6 +17,8 @@ import {
   revenueBand,
   type CrossStoreDb,
 } from '../src/lib/cross-store/aggregation';
+import { createPatternGenerationService } from '../src/lib/cross-store/patterns';
+import { createPatternValidationService } from '../src/lib/cross-store/validation';
 
 const ANALYZED_AT = Date.UTC(2026, 9, 3, 13, 27, 41);
 const FINDING = 'landing.cta.missing.v1';
@@ -26,6 +28,14 @@ function database() {
   sqlite.exec('PRAGMA foreign_keys=ON; CREATE TABLE users (id TEXT PRIMARY KEY);');
   sqlite.exec(readFileSync(new URL(
     '../migrations/staging/0002_cross_store_aggregation_foundation.sql',
+    import.meta.url
+  ), 'utf8'));
+  sqlite.exec(readFileSync(new URL(
+    '../migrations/staging/0003_cross_store_candidate_patterns.sql',
+    import.meta.url
+  ), 'utf8'));
+  sqlite.exec(readFileSync(new URL(
+    '../migrations/staging/0004_cross_store_pattern_validation.sql',
     import.meta.url
   ), 'utf8'));
   const db: CrossStoreDb = {
@@ -131,14 +141,53 @@ test('multiple stores and repeated rows from one tenant remain one contribution'
   assert.equal(cell.validationStatus, 'suppressed');
 });
 
-test('deletion recomputes 20 tenants to 19 and suppresses the cell', async () => {
+test('deletion recomputes 20 tenants to 19 and suppresses the cell, pattern, and validation', async () => {
   const { sqlite, service } = await seedTenants(20);
+  const db: CrossStoreDb = {
+    prepare(sql: string) {
+      const statement = sqlite.prepare(sql);
+      return {
+        get: async (...params: unknown[]) => statement.get(...params as never[]) as Record<string, unknown> | undefined,
+        all: async (...params: unknown[]) => statement.all(...params as never[]) as Record<string, unknown>[],
+        run: async (...params: unknown[]) => statement.run(...params as never[]),
+      };
+    },
+    async batch(operations) {
+      sqlite.exec('BEGIN IMMEDIATE');
+      try {
+        for (const operation of operations) {
+          sqlite.prepare(operation.sql).run(...(operation.params ?? []) as never[]);
+        }
+        sqlite.exec('COMMIT');
+      } catch (error) {
+        sqlite.exec('ROLLBACK');
+        throw error;
+      }
+    },
+  };
+  const [candidate] = await createPatternGenerationService(db, true).generateBounded();
+  const [validated] = await createPatternValidationService(db, true).validateChangedPatterns([candidate]);
+  assert.equal(validated.validationStatus, 'validated');
+
   await service.removeTenantContributions('synthetic-phase7b-20');
   const [cell] = await service.readValidationCells();
   assert.equal(cell.tenantCount, 19);
   assert.equal(cell.observationCount, 19);
   assert.equal(cell.validationStatus, 'suppressed');
   assert.equal(cell.suppressionReason, 'small_sample');
+  const pattern = sqlite.prepare(`SELECT sample_size,tenant_diversity,lifecycle_status,suppression_reason
+    FROM cross_store_candidate_patterns`).get();
+  assert.equal(pattern.sample_size, 19);
+  assert.equal(pattern.tenant_diversity, 19);
+  assert.equal(pattern.lifecycle_status, 'suppressed');
+  assert.equal(pattern.suppression_reason, 'small_sample');
+  const validation = sqlite.prepare(`SELECT validation_status,sample_count,distinct_tenant_count,
+    evidence_quality,suppression_reason FROM cross_store_pattern_validation_results`).get();
+  assert.equal(validation.validation_status, 'suppressed');
+  assert.equal(validation.sample_count, 19);
+  assert.equal(validation.distinct_tenant_count, 19);
+  assert.equal(validation.evidence_quality, 'insufficient');
+  assert.equal(validation.suppression_reason, 'small_sample');
   assert.doesNotThrow(() => sqlite.prepare(
     "DELETE FROM users WHERE id='synthetic-phase7b-20'"
   ).run());

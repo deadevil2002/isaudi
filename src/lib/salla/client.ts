@@ -26,9 +26,7 @@ export interface SallaPagination {
   total: number | null;
 }
 
-export interface SallaListResult<T = Record<string, unknown>> {
-  /** Provider records are intentionally available only to server callers. */
-  records: T[];
+export interface SallaListResult {
   count: number;
   pagination: SallaPagination;
 }
@@ -242,7 +240,6 @@ async function requestPage(
   }
 
   return {
-    records: payload.data as Record<string, unknown>[],
     count: payload.data.length,
     pagination: paginationFromPayload(payload),
   };

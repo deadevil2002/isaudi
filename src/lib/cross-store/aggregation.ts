@@ -294,6 +294,63 @@ const REBUILD_CELLS_FOR_SCOPE = `INSERT INTO cross_store_aggregate_cells (
     finding_code, metric_code, analyzer_version, data_contract_version,
     segment_version, metric_version, aggregation_version, privacy_policy_version`;
 
+const REFRESH_PATTERNS_FOR_SCOPE = `UPDATE cross_store_candidate_patterns AS p
+  SET sample_size=COALESCE((SELECT c.tenant_count FROM cross_store_aggregate_cells AS c
+        WHERE c.observation_window_kind=? AND c.observation_window_start=?
+          AND c.data_contract_version=? AND c.segment_version=p.segment_taxonomy_version
+          AND c.metric_version=p.metric_version
+          AND c.aggregation_version=p.aggregation_method_version
+          AND c.privacy_policy_version=p.privacy_policy_version
+          AND c.analyzer_version=p.analyzer_version
+          AND c.finding_code=p.finding_code AND c.segment_key=p.anonymous_segment), 0),
+      tenant_diversity=COALESCE((SELECT c.tenant_count FROM cross_store_aggregate_cells AS c
+        WHERE c.observation_window_kind=? AND c.observation_window_start=?
+          AND c.data_contract_version=? AND c.segment_version=p.segment_taxonomy_version
+          AND c.metric_version=p.metric_version
+          AND c.aggregation_version=p.aggregation_method_version
+          AND c.privacy_policy_version=p.privacy_policy_version
+          AND c.analyzer_version=p.analyzer_version
+          AND c.finding_code=p.finding_code AND c.segment_key=p.anonymous_segment), 0),
+      lifecycle_status='suppressed', suppression_reason='small_sample'
+  WHERE p.observation_window=?
+    AND p.segment_taxonomy_version=? AND p.metric_version=?
+    AND p.aggregation_method_version=? AND p.privacy_policy_version=?
+    AND NOT EXISTS (SELECT 1 FROM cross_store_aggregate_cells AS c
+      WHERE c.observation_window_kind=? AND c.observation_window_start=?
+        AND c.data_contract_version=? AND c.segment_version=p.segment_taxonomy_version
+        AND c.metric_version=p.metric_version
+        AND c.aggregation_version=p.aggregation_method_version
+        AND c.privacy_policy_version=p.privacy_policy_version
+        AND c.analyzer_version=p.analyzer_version
+        AND c.finding_code=p.finding_code AND c.segment_key=p.anonymous_segment
+        AND c.validation_status='eligible_for_validation')`;
+
+const REFRESH_VALIDATIONS_FOR_SCOPE = `UPDATE cross_store_pattern_validation_results
+  SET validation_status='suppressed', passed_gates_json='[]',
+      failed_gates_json='["minimum_sample","minimum_tenant_diversity"]',
+      sample_count=(SELECT sample_size FROM cross_store_candidate_patterns
+        WHERE pattern_id=cross_store_pattern_validation_results.pattern_id),
+      distinct_tenant_count=(SELECT tenant_diversity FROM cross_store_candidate_patterns
+        WHERE pattern_id=cross_store_pattern_validation_results.pattern_id),
+      freshness_status='invalid', evidence_quality='insufficient',
+      suppression_reason='small_sample'
+  WHERE pattern_id IN (SELECT pattern_id FROM cross_store_candidate_patterns
+    WHERE observation_window=? AND segment_taxonomy_version=? AND metric_version=?
+      AND aggregation_method_version=? AND privacy_policy_version=?
+      AND lifecycle_status='suppressed' AND suppression_reason='small_sample')`;
+
+function patternRefreshParams(scope: WindowScope): unknown[] {
+  const cellScope = [
+    scope.observationWindowKind, scope.observationWindowStart, scope.dataContractVersion,
+  ];
+  const patternScope = [
+    `month:${new Date(scope.observationWindowStart).toISOString().slice(0, 7)}`,
+    scope.segmentVersion, scope.metricVersion, scope.aggregationVersion,
+    scope.privacyPolicyVersion,
+  ];
+  return [...cellScope, ...cellScope, ...patternScope, ...cellScope];
+}
+
 export function createCrossStoreAggregationService(db: CrossStoreDb, enabled: boolean) {
   function requireEnabled() {
     if (!enabled) throw new Error('cross-store aggregation feature flag is disabled');
@@ -387,6 +444,15 @@ export function createCrossStoreAggregationService(db: CrossStoreDb, enabled: bo
           return [
             { sql: DELETE_CELLS_FOR_SCOPE, params },
             { sql: REBUILD_CELLS_FOR_SCOPE, params },
+            { sql: REFRESH_PATTERNS_FOR_SCOPE, params: patternRefreshParams(scope) },
+            {
+              sql: REFRESH_VALIDATIONS_FOR_SCOPE,
+              params: [
+                `month:${new Date(scope.observationWindowStart).toISOString().slice(0, 7)}`,
+                scope.segmentVersion, scope.metricVersion, scope.aggregationVersion,
+                scope.privacyPolicyVersion,
+              ],
+            },
           ];
         }),
       ]);

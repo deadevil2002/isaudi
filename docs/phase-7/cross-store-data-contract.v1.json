@@ -315,7 +315,9 @@
       "tenant_id", "tenantHash", "sourceTenantId", "sessionId", "accessToken", "refreshToken",
       "productId", "orderId", "reportId", "analysisId", "referralId", "partnerOfferId",
       "partnerName", "partnerUrl", "commission", "commissionAmount", "sourceUrl", "rawJson",
-      "prompt", "chatContext", "exactTimestamp", "exactRevenue", "exactValue"
+      "rawOrder", "rawProduct", "rawCustomer", "privateReport", "privatePrompt", "privateChat",
+      "prompt", "chatContext", "exactTimestamp", "exactRevenue", "exactOrderCount",
+      "exactAov", "exactCost", "exactValue"
     ],
     "lifecycleStatuses": ["candidate", "validated", "active", "stale", "suppressed", "retired"],
     "defaultEvidenceClass": "observed_association",

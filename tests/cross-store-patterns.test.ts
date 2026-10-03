@@ -152,6 +152,19 @@ test('machine-readable contract allowlist and forbidden names are enforced recur
     assert.equal(JSON.stringify(pattern).toLowerCase().includes(String(forbidden).toLowerCase()), false);
   }
   assert.throws(() => assertSharedPatternContract({ ...pattern, confidenceComponents: { tenantId: 'hidden' } }), /forbidden/);
+  for (const field of [
+    'rawOrder', 'rawProduct', 'rawCustomer', 'privateReport', 'privatePrompt',
+    'privateChat', 'exactOrderCount', 'exactAov', 'exactCost',
+  ]) {
+    assert.throws(
+      () => assertSharedPatternContract({
+        ...pattern,
+        confidenceComponents: { nested: [{ [field]: 'hidden' }] },
+      }),
+      /forbidden/,
+      field,
+    );
+  }
 });
 
 test('re-identification probes remain suppressed or rejected without identity leakage', async () => {

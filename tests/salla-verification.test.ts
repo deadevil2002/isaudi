@@ -70,7 +70,6 @@ test('read client uses the documented first-page URLs and safe fetch options', a
   });
 
   assert.deepEqual(result, {
-    records: [{ id: 'product-1', name: 'private product' }],
     count: 1,
     pagination: { currentPage: 1, totalPages: 4, total: 17 },
   });
@@ -233,7 +232,7 @@ test('response size cap cancels the provider stream', async () => {
   assert.equal(cancelled, true);
 });
 
-test('orders use the documented first page and retain provider records only server-side', async () => {
+test('orders use the documented first page and discard provider records at the read boundary', async () => {
   let requested = '';
   const result = await listOrders('owner-1', {
     resolveAccessToken,
@@ -251,7 +250,8 @@ test('orders use the documented first page and retain provider records only serv
     requested,
     'https://api.salla.dev/admin/v2/orders?page=1&per_page=5'
   );
-  assert.equal(result.records[0].customer && typeof result.records[0].customer, 'object');
+  assert.equal('records' in result, false);
+  assert.equal(JSON.stringify(result).includes('private@example.com'), false);
   assert.equal(result.pagination.currentPage, 1);
 });
 
@@ -370,22 +370,11 @@ test('verification is owner-scoped, rejects unclaimed/disconnected connections, 
   const readProducts = async () => {
     reads += 1;
     return {
-      records: [{
-        id: 'p1',
-        name: 'private product',
-        sku: 'secret-sku',
-        token: 'secret-token',
-      }],
       count: 1,
       pagination: { currentPage: 1, totalPages: 1, total: 1 },
     };
   };
   const readOrders = async () => ({
-    records: [{
-      id: 'o1',
-      customer: { email: 'private@example.com', phone: 'secret-phone' },
-      access_token: 'secret-token',
-    }],
     count: 1,
     pagination: { currentPage: 1, totalPages: 1, total: 1 },
   });

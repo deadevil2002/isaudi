@@ -6,6 +6,9 @@ Decision version: `cross_store_privacy_v1_provisional`
 
 This is a technical and product decision record, not legal advice and not a declaration of compliance or anonymity.
 
+The full field-level legal-basis and impact assessment is
+[`LEGAL_BASIS_PRIVACY_IMPACT_ASSESSMENT.md`](./LEGAL_BASIS_PRIVACY_IMPACT_ASSESSMENT.md).
+
 ## Purpose
 
 Use aggregated signals with source identifiers removed, derived from customer store analysis, to identify recurring patterns and general best practices so iSaudi can improve future customer analyses and recommendations. The purpose is not to share raw store data and is not model training on raw customer records.
@@ -39,7 +42,7 @@ The processing is useful for general recommendation quality, but necessity and p
 
 ## Candidate lawful basis
 
-Candidate for counsel assessment: processing necessary to provide and improve the contracted analytics service and/or another basis permitted by the Saudi PDPL for this documented purpose. **No lawful basis is approved by this record.** Counsel must determine the basis, additional-purpose rules, notice timing, and any cross-border obligations.
+Candidate for counsel assessment: legitimate interests for the strictly minimised, non-sensitive secondary purpose. The structured assessment result is **POSSIBLY SUITABLE — LEGAL REVIEW REQUIRED**. **No lawful basis is approved by this record.** Counsel must complete the balancing analysis, additional-purpose analysis, notice timing, controller-role allocation and cross-border assessment.
 
 ## Customer expectations and transparency
 
@@ -76,7 +79,7 @@ Objection/opt-out: **UNRESOLVED — LEGAL REVIEW REQUIRED**. Counsel and product
 2. Approve Arabic/English notice and Terms wording and effective-date process.
 3. Approve retention, deletion handling, and any exception.
 4. Resolve consent, objection, and opt-out obligations.
-5. Determine whether a DPIA is required and complete it if so.
+5. Complete a written DPIA under the conservative Article 25(1)(b) classification and obtain counsel confirmation.
 6. Complete Saudi privacy counsel review, including de-identification/re-identification classification.
 7. Assess cross-border processing for compact evidence supplied to OpenAI.
 

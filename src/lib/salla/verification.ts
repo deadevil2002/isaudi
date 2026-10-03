@@ -47,8 +47,7 @@ interface VerificationOptions extends ReadClientOptions {
 function projectSuccess(result: SallaListResult): VerificationOperation {
   if (
     !Number.isSafeInteger(result.count) ||
-    result.count < 0 ||
-    !Array.isArray(result.records)
+    result.count < 0
   ) {
     return { ok: false, error: 'Unable to read Salla data' };
   }

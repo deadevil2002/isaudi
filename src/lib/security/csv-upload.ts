@@ -8,7 +8,18 @@ const ALLOWED_CSV_MIME_TYPES = new Set([
   'application/vnd.ms-excel',
 ]);
 const DANGEROUS_HEADERS = new Set(['__proto__', 'prototype', 'constructor']);
+const PERSONAL_DATA_HEADERS = new Set([
+  'customername', 'customeremail', 'customerphone', 'customerid',
+  'email', 'phone', 'mobile', 'address', 'shippingaddress', 'billingaddress',
+  'notes', 'note', 'اسمالعميل', 'بريدالعميل', 'البريدالإلكتروني',
+  'هاتفالعميل', 'جوالالعميل', 'رقمالجوال', 'رقمالهاتف', 'معرفالعميل',
+  'عنوانالعميل', 'عنوانالشحن', 'عنوانالفاتورة', 'ملاحظات',
+]);
 const FORMULA_PREFIX = /^[=+\-@]/;
+
+function headerKey(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
 
 export class InvalidCsvUploadError extends Error {}
 
@@ -68,6 +79,9 @@ export function validateCsvTable(rows: string[][], headerIndex: number): void {
   const headers = rows[headerIndex]?.map((header) => header.trim().toLowerCase());
   if (!headers?.length || headers.some((header) => !header || DANGEROUS_HEADERS.has(header))) {
     throw new InvalidCsvUploadError('CSV contains invalid headers');
+  }
+  if (headers.some((header) => PERSONAL_DATA_HEADERS.has(headerKey(header)))) {
+    throw new InvalidCsvUploadError('CSV contains personal-data columns that are not required');
   }
   if (new Set(headers).size !== headers.length) {
     throw new InvalidCsvUploadError('CSV contains duplicate headers');
