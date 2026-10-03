@@ -61,13 +61,13 @@ export const staggerContainer = {
 };
 
 export const landingReveal = {
-  hidden: { opacity: 0, y: 28, scale: 0.985, filter: "blur(8px)" },
+  hidden: { opacity: 0, y: 42, scale: 0.97, filter: "blur(10px)" },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
     filter: "blur(0px)",
-    transition: { duration: 0.72, ease: [0.22, 1, 0.36, 1] as const },
+    transition: { duration: 0.82, ease: [0.22, 1, 0.36, 1] as const },
   },
 };
 
@@ -85,7 +85,7 @@ export const landingRevealReduced = {
 export const landingStagger = {
   hidden: {},
   visible: {
-    transition: { delayChildren: 0.08, staggerChildren: 0.085 },
+    transition: { delayChildren: 0.08, staggerChildren: 0.11 },
   },
 };
 
@@ -99,6 +99,47 @@ export const landingStaggerReduced = {
 export const landingCardStagger = {
   hidden: {},
   visible: {
-    transition: { staggerChildren: 0.07 },
+    transition: { delayChildren: 0.1, staggerChildren: 0.09 },
+  },
+};
+
+export const landingSectionReveal = {
+  hidden: {
+    opacity: 0,
+    y: 56,
+    scale: 0.96,
+    rotateX: 3,
+    clipPath: "inset(8% 0 12% 0 round 2rem)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    rotateX: 0,
+    clipPath: "inset(0% 0 0% 0 round 2rem)",
+    transition: {
+      duration: 0.86,
+      ease: [0.22, 1, 0.36, 1] as const,
+      delayChildren: 0.12,
+      staggerChildren: 0.09,
+    },
+  },
+};
+
+export const landingSectionRevealReduced = {
+  hidden: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    rotateX: 0,
+    clipPath: "inset(0% 0 0% 0 round 2rem)",
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    rotateX: 0,
+    clipPath: "inset(0% 0 0% 0 round 2rem)",
+    transition: { duration: 0, delayChildren: 0, staggerChildren: 0 },
   },
 };

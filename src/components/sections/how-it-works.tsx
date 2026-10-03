@@ -7,8 +7,8 @@ import {
   landingCardStagger,
   landingReveal,
   landingRevealReduced,
-  landingStagger,
-  landingStaggerReduced,
+  landingSectionReveal,
+  landingSectionRevealReduced,
   useLandingReducedMotion,
 } from "@/lib/animations";
 import { createTranslator } from "@/lib/i18n/translations";
@@ -18,8 +18,8 @@ export function HowItWorks() {
   const t = createTranslator(lang);
   const reduceMotion = useLandingReducedMotion();
   const reveal = reduceMotion ? landingRevealReduced : landingReveal;
-  const stagger = reduceMotion ? landingStaggerReduced : landingStagger;
-  const cardStagger = reduceMotion ? landingStaggerReduced : landingCardStagger;
+  const sectionReveal = reduceMotion ? landingSectionRevealReduced : landingSectionReveal;
+  const cardStagger = reduceMotion ? landingSectionRevealReduced : landingCardStagger;
   const steps = [
     { id: "01", title: t("how.step1.title"), description: t("how.step1.description") },
     { id: "02", title: t("how.step2.title"), description: t("how.step2.description") },
@@ -33,7 +33,7 @@ export function HowItWorks() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          variants={stagger}
+          variants={sectionReveal}
           className="grid grid-cols-1 items-center gap-12 rounded-[2rem] border border-white/10 bg-[#0e1218] bg-gradient-to-br from-[rgba(230,185,92,0.05)] to-transparent p-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 lg:p-12"
         >
           <motion.div variants={reveal}>

@@ -10,6 +10,8 @@ import { createTranslator } from "@/lib/i18n/translations";
 import {
   landingReveal,
   landingRevealReduced,
+  landingSectionReveal,
+  landingSectionRevealReduced,
   landingStagger,
   landingStaggerReduced,
   useLandingReducedMotion,
@@ -22,6 +24,7 @@ export function SampleReport() {
   const reduceMotion = useLandingReducedMotion();
   const reveal = reduceMotion ? landingRevealReduced : landingReveal;
   const stagger = reduceMotion ? landingStaggerReduced : landingStagger;
+  const sectionReveal = reduceMotion ? landingSectionRevealReduced : landingSectionReveal;
 
   return (
     <section className="landing-section-glow relative overflow-hidden bg-[#0e1218] py-32" id="features">
@@ -45,7 +48,7 @@ export function SampleReport() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          variants={reveal}
+          variants={sectionReveal}
           className="rounded-[2rem] border border-white/[.08] bg-[#090d12]/70 p-3 shadow-[0_40px_100px_rgba(0,0,0,.3)] backdrop-blur-sm sm:p-5"
         >
           <div className="mb-5 flex items-center justify-between border-b border-white/[.07] pb-4" aria-hidden="true"><div className="flex gap-1.5"><span className="h-2 w-2 rounded-full bg-[#fb7185]/60" /><span className="h-2 w-2 rounded-full bg-[#e6b95c]/60" /><span className="h-2 w-2 rounded-full bg-[#0fc9a7]/60" /></div><span className="h-1.5 w-28 rounded-full bg-white/[.06]" /></div>

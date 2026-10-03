@@ -233,24 +233,66 @@
 }
 
 @keyframes landing-orbit-drift {
-  0% { transform: translate3d(-2%, -1%, 0) scale(1); }
-  100% { transform: translate3d(3%, 2%, 0) scale(1.08); }
+  0%, 100% { transform: translate3d(-5%, -3%, 0) scale(1); }
+  32% { transform: translate3d(5%, -1%, 0) scale(1.055); }
+  66% { transform: translate3d(1%, 5%, 0) scale(1.1); }
 }
 
-@keyframes landing-showcase-float {
+@keyframes landing-showcase-cycle {
   0%, 100% { transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg); }
-  50% { transform: translate3d(0, -8px, 0) rotateX(0.7deg) rotateY(-0.8deg); }
+  18% { transform: translate3d(0, calc(var(--landing-float-lift) * -.58), 12px) rotateX(var(--landing-tilt-x)) rotateY(calc(var(--landing-tilt-y) * -1)); }
+  36% { transform: translate3d(0, calc(var(--landing-float-lift) * -1), 18px) rotateX(calc(var(--landing-tilt-x) * -.45)) rotateY(calc(var(--landing-tilt-y) * .62)); }
+  54% { transform: translate3d(0, calc(var(--landing-float-lift) * -.7), 22px) rotateX(calc(var(--landing-tilt-x) * .72)) rotateY(var(--landing-tilt-y)); }
+  72% { transform: translate3d(0, calc(var(--landing-float-lift) * -.24), 10px) rotateX(calc(var(--landing-tilt-x) * -.75)) rotateY(calc(var(--landing-tilt-y) * -.38)); }
+  88% { transform: translate3d(0, 2px, 3px) rotateX(calc(var(--landing-tilt-x) * .28)) rotateY(calc(var(--landing-tilt-y) * -.55)); }
 }
 
 @keyframes landing-sheen {
-  0%, 18% { transform: translate3d(-130%, 0, 0) skewX(-18deg); opacity: 0; }
-  28% { opacity: 0.34; }
-  42%, 100% { transform: translate3d(145%, 0, 0) skewX(-18deg); opacity: 0; }
+  0%, 8% { transform: translate3d(-145%, 0, 0) skewX(-18deg); opacity: 0; }
+  18% { opacity: 0.4; }
+  34%, 100% { transform: translate3d(175%, 0, 0) skewX(-18deg); opacity: 0; }
 }
 
 @keyframes landing-live-pulse {
   0%, 100% { transform: scale(1); opacity: 0.72; box-shadow: 0 0 0 0 rgba(32, 212, 178, 0); }
   50% { transform: scale(1.12); opacity: 1; box-shadow: 0 0 0 5px rgba(32, 212, 178, 0.08); }
+}
+
+@keyframes landing-product-light-cycle {
+  0%, 100% { transform: translate3d(-14%, -4%, 0) scale(.92); opacity: .42; }
+  32% { transform: translate3d(5%, 1%, 0) scale(1.08); opacity: .72; }
+  62% { transform: translate3d(14%, 7%, 0) scale(1.02); opacity: .58; }
+  82% { transform: translate3d(-2%, 3%, 0) scale(.96); opacity: .46; }
+}
+
+@keyframes landing-kpi-cycle {
+  0%, 10%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  18%, 27% { transform: translate3d(0, -5px, 18px) scale(1.035); }
+  36%, 92% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes landing-chart-scan-cycle {
+  0%, 20% { transform: translate3d(-150%, 0, 0) skewX(-12deg); opacity: 0; }
+  28% { opacity: .5; }
+  44%, 100% { transform: translate3d(410%, 0, 0) skewX(-12deg); opacity: 0; }
+}
+
+@keyframes landing-insight-cycle {
+  0%, 38%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  48%, 60% { transform: translate3d(0, -6px, 20px) scale(1.03); }
+  72% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes landing-insight-line-cycle {
+  0%, 42%, 100% { transform: scaleX(.25); opacity: .36; }
+  52%, 66% { transform: scaleX(1); opacity: 1; }
+  76% { transform: scaleX(.72); opacity: .58; }
+}
+
+@keyframes landing-float-metric-cycle {
+  0%, 54%, 100% { transform: translate3d(0, 0, var(--landing-card-z, 30px)) scale(1); }
+  64%, 77% { transform: translate3d(0, -7px, calc(var(--landing-card-z, 30px) + 12px)) scale(1.04); }
+  88% { transform: translate3d(0, 0, var(--landing-card-z, 30px)) scale(1); }
 }
 
 .landing-hero::after {
@@ -274,7 +316,7 @@
   aspect-ratio: 1;
   border-radius: 9999px;
   filter: blur(100px);
-  animation: landing-orbit-drift 24s var(--isaudi-ease-out) infinite alternate;
+  animation: landing-orbit-drift 22s ease-in-out infinite;
   will-change: transform;
 }
 
@@ -312,10 +354,34 @@
   will-change: transform;
 }
 
-.landing-showcase-float {
-  animation: landing-showcase-float 9s ease-in-out infinite;
+.landing-showcase-pointer {
+  --landing-pointer-x: 0px;
+  --landing-pointer-y: 0px;
+  --landing-pointer-rx: 0deg;
+  --landing-pointer-ry: 0deg;
+  transform: translate3d(var(--landing-pointer-x), var(--landing-pointer-y), 0) rotateX(var(--landing-pointer-rx)) rotateY(var(--landing-pointer-ry));
   transform-style: preserve-3d;
   will-change: transform;
+}
+
+.landing-showcase-float {
+  --landing-float-lift: 14px;
+  --landing-tilt-x: 1.35deg;
+  --landing-tilt-y: 2.15deg;
+  animation: landing-showcase-cycle 12s cubic-bezier(.45, 0, .2, 1) infinite;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.landing-product-light {
+  z-index: -1;
+  border-radius: 45%;
+  background:
+    radial-gradient(circle at 34% 40%, rgba(230, 185, 92, .24), transparent 38%),
+    radial-gradient(circle at 68% 55%, rgba(15, 201, 167, .2), transparent 42%);
+  filter: blur(42px);
+  animation: landing-product-light-cycle 12s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .landing-browser {
@@ -326,12 +392,42 @@
   z-index: 20;
   width: 34%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .12), transparent);
-  animation: landing-sheen 11s ease-in-out infinite;
+  animation: landing-sheen 12s ease-in-out infinite;
   will-change: transform, opacity;
 }
 
 .landing-live-dot {
   animation: landing-live-pulse 2.8s ease-in-out infinite;
+}
+
+.landing-kpi-card {
+  animation: landing-kpi-cycle 12s ease-in-out infinite;
+  animation-delay: calc(var(--motion-index, 0) * .32s);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.landing-chart-scan {
+  z-index: 2;
+  background: linear-gradient(90deg, transparent, rgba(32, 212, 178, .15), rgba(249, 216, 137, .12), transparent);
+  animation: landing-chart-scan-cycle 12s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.landing-chart-line {
+  filter: drop-shadow(0 0 7px rgba(32, 212, 178, .32));
+}
+
+.landing-insight-card {
+  transform-style: preserve-3d;
+  animation: landing-insight-cycle 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+.landing-insight-line {
+  animation: landing-insight-line-cycle 12s ease-in-out infinite;
+  animation-delay: calc(var(--motion-index, 0) * .16s);
+  will-change: transform, opacity;
 }
 
 .landing-float-card {
@@ -343,13 +439,23 @@
 .landing-float-card-gold {
   inset-inline-start: -1.5rem;
   bottom: 12%;
-  transform: translateZ(35px);
+  --landing-card-z: 35px;
 }
 
 .landing-float-card-teal {
   inset-inline-end: -1.25rem;
   top: 15%;
-  transform: translateZ(28px);
+  --landing-card-z: 28px;
+}
+
+.landing-float-card {
+  animation: landing-float-metric-cycle 12s ease-in-out infinite;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.landing-float-card-teal {
+  animation-delay: -.55s;
 }
 
 .landing-feature-card,
@@ -446,7 +552,12 @@ dialog[data-landing-drawer][open]::backdrop {
 
 @media (max-width: 640px) {
   .landing-orb { width: 38rem; filter: blur(120px); }
-  .landing-showcase-float { animation-duration: 11s; }
+  .landing-showcase-float {
+    --landing-float-lift: 8px;
+    --landing-tilt-x: .58deg;
+    --landing-tilt-y: .92deg;
+  }
+  .landing-product-light { filter: blur(54px); opacity: .72; }
   .landing-feature-card:hover,
   .landing-interactive-card:hover { transform: none; }
 }

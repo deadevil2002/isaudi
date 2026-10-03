@@ -7,7 +7,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fadeIn, useLandingReducedMotion } from "@/lib/animations";
+import {
+  landingCardStagger,
+  landingReveal,
+  landingRevealReduced,
+  landingSectionRevealReduced,
+  useLandingReducedMotion,
+} from "@/lib/animations";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import type { User } from "@/lib/db/client";
@@ -82,6 +88,8 @@ export function Pricing({
   const [selectedPlan, setSelectedPlan] = useState("growth");
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
   const reduceMotion = useLandingReducedMotion();
+  const reveal = reduceMotion ? landingRevealReduced : landingReveal;
+  const cardStagger = reduceMotion ? landingSectionRevealReduced : landingCardStagger;
 
   return (
     <section className={cn("landing-section-glow bg-transparent", compact ? "py-12 md:py-16" : "py-32")} id="pricing">
@@ -91,7 +99,7 @@ export function Pricing({
             initial={compact ? false : "hidden"}
             whileInView="visible"
             viewport={{ once: true }}
-            variants={fadeIn}
+            variants={reveal}
             className="text-3xl md:text-5xl font-bold text-white mb-6"
           >
             {t("pricing.title")}
@@ -100,7 +108,7 @@ export function Pricing({
             initial={compact ? false : "hidden"}
             whileInView="visible"
             viewport={{ once: true }}
-            variants={fadeIn}
+            variants={reveal}
             className="text-[#94a3b8] mb-10 text-lg max-w-2xl mx-auto"
           >
             {t("pricing.subtitle")}
@@ -145,7 +153,11 @@ export function Pricing({
           </div>
         </div>
 
-        <div
+        <motion.div
+          initial={compact ? false : "hidden"}
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={cardStagger}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start max-w-6xl mx-auto px-4 sm:px-0"
           onMouseLeave={() => setHoveredPlan(null)}
         >
@@ -177,8 +189,9 @@ export function Pricing({
             }
 
             return (
-              <div
+              <motion.div
                 key={plan.id}
+                variants={reveal}
                 onClick={() => setSelectedPlan(plan.id)}
                 onMouseEnter={() => setHoveredPlan(plan.id)}
                 onMouseLeave={() => setHoveredPlan(null)}
@@ -257,16 +270,16 @@ export function Pricing({
                     {buttonText}
                   </Button>
                 </Link>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         <motion.div
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          variants={fadeIn}
+          variants={reveal}
           className="text-center text-[#64748b] text-xs mt-16 max-w-2xl mx-auto space-y-3"
         >
           <p className="font-medium text-[#0fc9a7]">
