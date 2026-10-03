@@ -27,6 +27,7 @@ BASE_URL = "https://isaudi-staging.isaudi-official.workers.dev"
 NEXT_PUBLIC_APP_URL = "https://isaudi-staging.isaudi-official.workers.dev"
 RESEND_FROM = "iSaudi Staging <no-reply@updates.isaudi.ai>"
 CROSS_STORE_INTELLIGENCE_AI = "shadow"
+CROSS_STORE_OUTCOME_ENABLED = "false"
 
 [observability]
 enabled = true
