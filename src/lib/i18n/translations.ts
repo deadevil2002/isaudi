@@ -1333,6 +1333,62 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "اختر الباقة",
     en: "Choose plan",
   },
+  "pricing.matrix.included": {
+    ar: "متاح",
+    en: "Included",
+  },
+  "pricing.matrix.unavailable": {
+    ar: "غير متاح",
+    en: "Unavailable",
+  },
+  "pricing.matrix.stores.starter": {
+    ar: "متجر واحد",
+    en: "1 store",
+  },
+  "pricing.matrix.stores.growth": {
+    ar: "حتى 3 متاجر",
+    en: "Up to 3 stores",
+  },
+  "pricing.matrix.stores.business": {
+    ar: "حتى 10 متاجر",
+    en: "Up to 10 stores",
+  },
+  "pricing.matrix.csv": {
+    ar: "استيراد المنتجات والطلبات عبر CSV",
+    en: "CSV product and order import",
+  },
+  "pricing.matrix.salla": {
+    ar: "ربط متجر سلة",
+    en: "Salla store connection",
+  },
+  "pricing.matrix.reports.starter": {
+    ar: "حتى 30 تقريرًا شهريًا",
+    en: "Up to 30 reports per month",
+  },
+  "pricing.matrix.reports.growth": {
+    ar: "حتى 200 تقرير شهريًا",
+    en: "Up to 200 reports per month",
+  },
+  "pricing.matrix.reports.business": {
+    ar: "حتى 999,999 تقريرًا شهريًا",
+    en: "Up to 999,999 reports per month",
+  },
+  "pricing.matrix.aiAssistant": {
+    ar: "المساعد الذكي لتحليل بيانات المتجر",
+    en: "AI assistant for store analysis",
+  },
+  "pricing.matrix.aiRecommendations": {
+    ar: "توصيات ذكية مبنية على بيانات المتجر",
+    en: "AI recommendations based on store data",
+  },
+  "pricing.matrix.dataExport": {
+    ar: "تصدير البيانات",
+    en: "Data export",
+  },
+  "pricing.matrix.apiAccess": {
+    ar: "الوصول إلى واجهة API",
+    en: "API access",
+  },
   "pricing.note1": {
     ar: "تحليلان مجانيان للحساب بالكامل قبل الحاجة للاشتراك.",
     en: "Two full-account analyses for free before you need to subscribe.",
@@ -1408,10 +1464,6 @@ const translations: Record<string, { ar: string; en: string }> = {
   "pricing.plan.business.eyebrow": {
     ar: "أقصى قدرات المنصة",
     en: "Maximum platform capacity",
-  },
-  "pricing.plan.business.includesGrowth": {
-    ar: "يشمل جميع صلاحيات خطة النمو",
-    en: "Includes all Growth entitlements",
   },
   "pricing.plan.business.feature1": {
     ar: "حتى 10 متاجر",

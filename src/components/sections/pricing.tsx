@@ -19,6 +19,7 @@ import { createTranslator } from "@/lib/i18n/translations";
 import type { User } from "@/lib/db/client";
 import type { SubscriptionEntitlements } from "@/lib/subscription/types";
 import { comparePlans, type PlanId } from "@/lib/subscription/plans";
+import { pricingFeaturesForPlan } from "@/lib/pricing/feature-matrix";
 
 const plans = [
   {
@@ -28,17 +29,6 @@ const plans = [
     popular: false,
     nameKey: "billing.plan.basic",
     descriptionKey: "pricing.plan.starter.description",
-    featureKeys: [
-      "pricing.plan.starter.feature1",
-      "pricing.plan.starter.feature2",
-      "pricing.plan.starter.feature3",
-      "pricing.plan.starter.feature4",
-      "pricing.plan.starter.feature5",
-    ],
-    notIncludedKeys: [
-      "pricing.plan.starter.notIncluded1",
-      "pricing.plan.starter.notIncluded2",
-    ],
   },
   {
     id: "growth",
@@ -47,14 +37,6 @@ const plans = [
     popular: true,
     nameKey: "billing.plan.pro",
     descriptionKey: "pricing.plan.growth.description",
-    featureKeys: [
-      "pricing.plan.growth.feature1",
-      "pricing.plan.growth.feature2",
-      "pricing.plan.growth.feature3",
-      "pricing.plan.growth.feature4",
-      "pricing.plan.growth.feature5",
-    ],
-    notIncludedKeys: [] as string[],
   },
   {
     id: "business",
@@ -63,13 +45,6 @@ const plans = [
     popular: false,
     nameKey: "billing.plan.business",
     descriptionKey: "pricing.plan.business.description",
-    featureKeys: [
-      "pricing.plan.business.includesGrowth",
-      "pricing.plan.business.feature1",
-      "pricing.plan.business.feature2",
-      "pricing.plan.business.feature3",
-    ],
-    notIncludedKeys: [] as string[],
   },
 ];
 
@@ -161,6 +136,7 @@ export function Pricing({
           {plans.map((plan) => {
             const isGrowth = plan.id === "growth";
             const isBusiness = plan.id === "business";
+            const features = pricingFeaturesForPlan(plan.id as PlanId);
             const slug = plan.id;
             const interval = isYearly ? "year" : "month";
 
@@ -256,19 +232,28 @@ export function Pricing({
                     </div>
                   </div>
 
-                  <ul className="mb-8 flex-1 space-y-4">
-                  {plan.featureKeys.map((key, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm leading-6 text-[#94a3b8]">
-                      <Check className="mt-0.5 h-5 w-5 shrink-0 text-[#0fc9a7]" />
-                      <span>{t(key)}</span>
-                    </li>
-                  ))}
-                  {plan.notIncludedKeys.map((key, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm leading-6 text-[#64748b] opacity-60">
-                      <X className="mt-0.5 h-5 w-5 shrink-0" />
-                      <span>{t(key)}</span>
-                    </li>
-                  ))}
+                  <ul className="mb-8 flex-1 space-y-3.5">
+                    {features.map((feature) => (
+                      <li
+                        key={feature.id}
+                        className={cn(
+                          "flex items-start gap-3 text-sm leading-6",
+                          feature.included ? "text-[#aeb8c6]" : "text-[#64748b]",
+                        )}
+                      >
+                        {feature.included ? (
+                          <Check className="mt-0.5 h-5 w-5 shrink-0 text-[#0fc9a7]" aria-hidden="true" />
+                        ) : (
+                          <X className="mt-0.5 h-5 w-5 shrink-0 text-[#7b8796]" aria-hidden="true" />
+                        )}
+                        <span>
+                          <span className="sr-only">
+                            {t(feature.included ? "pricing.matrix.included" : "pricing.matrix.unavailable")}: {" "}
+                          </span>
+                          {t(feature.labelKey)}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
 
                   {buttonDisabled ? (
