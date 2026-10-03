@@ -77,6 +77,14 @@ const APPROVED_FINDING_CODES = new Set([
   'landing.trust.signals_absent.v1',
 ]);
 
+export function isApprovedFindingCode(value: string): boolean {
+  return APPROVED_FINDING_CODES.has(value);
+}
+
+export function isApprovedSegmentKey(value: string): value is `platform:${CrossStorePlatform}` {
+  return value === 'platform:salla' || value === 'platform:csv';
+}
+
 function assertNonEmpty(value: string, label: string): string {
   const normalized = value.trim();
   if (!normalized) throw new Error(`${label} is required`);
