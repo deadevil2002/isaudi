@@ -44,7 +44,7 @@ test('release plan is exact, ledger-safe, and explicitly skips historical 0014',
     assert.doesNotMatch(skipped.sql, /CREATE\s+TABLE/i);
     assert.equal(plan.workerDeploymentIncluded, false);
     assert.equal(plan.writeBudget.total, APPROVED_EXPECTED_WRITES);
-    assert.equal(plan.steps.at(-1)?.name, '0019_admin_observability.sql');
+    assert.equal(plan.steps.at(-1)?.name, '0029_cross_store_outcome_feedback.sql');
   });
 });
 
@@ -189,6 +189,16 @@ test('release mechanism contains no automatic Worker deployment', () => {
   assert.equal(packageJson.scripts.release, undefined);
 });
 
+test('Phase 7 production migrations are canonical files and never execute staging-only SQL paths', () => {
+  const core = readFileSync(path.join(process.cwd(), 'scripts', 'lib', 'production-release-core.mjs'), 'utf8');
+  for (const name of RELEASE_NAMES.slice(-4)) {
+    const sql = readFileSync(path.join(process.cwd(), 'migrations', name), 'utf8');
+    assert.match(sql, /Production-safe Phase 7 migration/);
+    assert.doesNotMatch(sql, /staging-only|Never apply to production/i);
+  }
+  assert.doesNotMatch(core, /migrations[\\/]staging|migration\(['"]staging/);
+});
+
 test('Production Worker deployment is pinned to the iSaudi identity and cannot fall back to default auth', () => {
   const packageJson = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;
@@ -253,7 +263,7 @@ test('Production verification uses supported D1 checks and retains targeted inva
   assert.ok(runner.indexOf('const initialState = inspectRemoteState()') < runner.indexOf('const plan = buildReleasePlan(initialState)'));
 });
 
-test('release resumes from verified 0016 state with only 0017 through 0019', () => {
+test('release resumes from verified 0016 state through the reconciled Phase 7 schema', () => {
   withDatabase((db) => {
     const initialPlan = buildReleasePlan(inspectLocalDatabase(db));
     applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 9) });
@@ -262,7 +272,7 @@ test('release resumes from verified 0016 state with only 0017 through 0019', () 
     const beforeCounts = watchedCounts(partialState);
     const resumePlan = buildReleasePlan(partialState);
     assert.deepEqual(resumePlan.steps.map((step) => step.name), RELEASE_NAMES.slice(9));
-    assert.equal(resumePlan.writeBudget.total, 2_582);
+    assert.equal(resumePlan.writeBudget.total, 2_597);
     assert.equal(resumePlan.writeBudget.priorEstimatedWrites, 8_580);
     assert.equal(resumePlan.writeBudget.cumulativeEstimatedWrites, APPROVED_EXPECTED_WRITES);
     assert.equal(partialState.quickCheck, 'ok');
@@ -301,7 +311,7 @@ test('0018 ai_usage_ledger verification accepts equivalent D1 serialization', ()
     const equivalentSchema = structuredClone(state.aiUsageLedgerSchema);
     equivalentSchema.checks = extractCheckConstraints(d1SerializedSql);
     assert.equal(assertAiUsageLedgerSemanticSchema(equivalentSchema, 11), true);
-    assert.deepEqual(buildReleasePlan(state).steps.map((step) => step.name), ['0019_admin_observability.sql']);
+    assert.deepEqual(buildReleasePlan(state).steps.map((step) => step.name), RELEASE_NAMES.slice(11));
   });
 });
 
@@ -340,17 +350,17 @@ test('0019 ai_usage_ledger semantic verifier requires its finalized trigger', ()
   });
 });
 
-test('release resumes from verified 0018 state with only 0019 and is idempotent', () => {
+test('release resumes from the current verified 0019 production state and is idempotent', () => {
   withDatabase((db) => {
     const initialPlan = buildReleasePlan(inspectLocalDatabase(db));
-    applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 11) });
+    applyReleasePlanLocally(db, { ...initialPlan, steps: initialPlan.steps.slice(0, 12) });
 
     const partialState = inspectLocalDatabase(db);
     const beforeCounts = watchedCounts(partialState);
     const resumePlan = buildReleasePlan(partialState);
-    assert.deepEqual(resumePlan.steps.map((step) => step.name), ['0019_admin_observability.sql']);
-    assert.equal(resumePlan.writeBudget.total, 2_580);
-    assert.equal(resumePlan.writeBudget.priorEstimatedWrites, 8_582);
+    assert.deepEqual(resumePlan.steps.map((step) => step.name), RELEASE_NAMES.slice(12));
+    assert.equal(resumePlan.writeBudget.total, 15);
+    assert.equal(resumePlan.writeBudget.priorEstimatedWrites, 11_162);
     assert.equal(resumePlan.writeBudget.cumulativeEstimatedWrites, APPROVED_EXPECTED_WRITES);
     assert.equal(partialState.quickCheck, 'ok');
     assert.equal(partialState.foreignKeyViolations, 0);

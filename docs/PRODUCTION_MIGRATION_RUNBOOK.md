@@ -1,6 +1,14 @@
 # Production D1 migration runbook (prepare only)
 
-Status: **not approved for execution**. Verified 2026-10-02. Production remained read-only while this runbook and its deterministic release runner were prepared.
+Status: **LEGAL REVIEW REQUIRED — not approved for execution**. Re-verified read-only on 2026-10-03. Production remained unchanged.
+
+## 2026-10-03 superseding release state
+
+- The live production ledger and schema are verified through `0019_admin_observability.sql`. The earlier pre-`0008b` starting point below is retained only as release history.
+- The only planned remote steps are canonical `0020`–`0029`. Files `0026`–`0029` are independent production-safe reconciliations of the validated Phase 7 schema; the `migrations/staging` files remain staging-only and are never applied to production.
+- Phase 7 production activation remains blocked by the legal gates in `docs/phase-7/PRIVACY_DECISION_RECORD.md`. Preparing or rehearsing SQL does not authorize processing or turn the feature flag on.
+- The current read-only production plan reports 10 pending ledger/schema steps, 15 expected remaining writes, 11,162 prior estimated writes, and **11,177 cumulative expected writes**, below the unchanged 12,000 ceiling.
+- The complete representative local rehearsal through `0029` preserves source counts, passes quick and foreign-key checks, and produces zero operations on a second run.
 
 ## Verified starting point
 
@@ -53,9 +61,9 @@ This bridge is implemented and locally rehearsed, but is not approved for remote
 5. Recreate a canonical `idx_admin_audit_created` on `created_at`, retain a separately named legacy `createdAt` index, and retain the legacy target index. Migration `0015` then adds `idx_admin_audit_action_created` safely.
 6. Verify old/new projections, row-count equality, primary-key equality, trigger behavior, and foreign keys locally. Keep the backup table through the Worker rollback window. Remove bridge columns, triggers, and the backup only in a later separately approved cleanup.
 
-## Expected write budget
+## Historical 0008b–0019 write budget and current cumulative budget
 
-`0016` creates 13 per-user summary rows plus one Admin summary row at the verified cardinality; its triggers do not fire during that initial backfill. The 19 missing `0015` indexes cover 8,557 current row/index entries. `0019` adds four nullable columns to `ai_usage_ledger`; creates three aggregate tables, five indexes, and 27 triggers; backfills one observability singleton plus five plan buckets; and builds four indexes over 4 sessions, 1 Salla connection, 1,022 products, and 1,546 orders (2,573 index entries). Its AI aggregate backfill is budgeted conservatively at up to three rows per existing AI ledger row; the verified production ledger currently has zero rows. With zero live audit and AI usage rows, the deterministic estimate is **11,162 writes**: 8,557 hardening-index entries, 14 runtime aggregate rows, 2,573 observability-index entries, 6 observability aggregate rows, and 12 migration-ledger rows (`0008b`, `0009`–`0019`, including the no-op `0014` marker), excluding provider-specific DDL accounting. `0017` creates no video row and `0018` performs no backfill. The runner recomputes this from fresh counts and aborts above 12,000 or when the baseline estimate differs materially from 11,162. If the fresh preflight finds `N` audit rows, the bridge adds approximately `8N` data/index writes; each pre-existing AI ledger row adds a conservative upper bound of three aggregate rows. Any resulting drift must be reapproved.
+`0016` creates 13 per-user summary rows plus one Admin summary row at the verified cardinality; its triggers do not fire during that initial backfill. The 19 missing `0015` indexes cover 8,557 current row/index entries. `0019` adds four nullable columns to `ai_usage_ledger`; creates three aggregate tables, five indexes, and 27 triggers; backfills one observability singleton plus five plan buckets; and builds four indexes over 4 sessions, 1 Salla connection, 1,022 products, and 1,546 orders (2,573 index entries). The verified through-`0019` estimate remains **11,162 writes**. The reconciled `0020`–`0029` plan adds ten ledger rows, two bounded Salla-claim reconciliation/index writes at the verified cardinality, and three singleton/configuration seed rows, for 15 remaining and **11,177 cumulative expected writes**. The runner recomputes this from fresh counts and aborts above 12,000 or on material drift. Any drift must be reapproved.
 
 ## Migration 0019: Admin observability
 
@@ -67,7 +75,7 @@ This bridge is implemented and locally rehearsed, but is not approved for remote
 2. Repeat account/resource/schema preflight and capture the Time Travel bookmark.
 3. Run `npm run d1:release:production:plan`. This is read-only but contacts production; inspect its JSON identity, exact steps, 19-index set, secret-name presence, and write budget. Abort on any mismatch.
 4. With separate explicit approval for that release window, set the approval phrase, the newly captured Time Travel bookmark, and its capture timestamp only in the current process, then run `npm run d1:release:production:execute`. The runner requires the exact approval phrase internally and rejects bookmarks older than ten minutes. Never place these values in Git, files, documentation, or command arguments.
-5. The runner applies exactly: `0008b` → ledger-only `0009` → ledger-only `0010` → ledger-only `0011` → ledger-only `0012` → ledger-only `0013` → no-op/skip marker `0014` → missing-only `0015` → `0016` → `0017` → `0018` → `0019`. It verifies the physically existing `0009`–`0013` objects before recording them and never runs historical `0014` SQL.
+5. From the currently verified live `0019` state, the runner applies exactly: `0020` → `0021` → `0022` → `0023` → `0024` → `0025` → `0026` → `0027` → `0028` → `0029`. It still supports and verifies the historical prefix safely, and never runs historical `0014` SQL.
 6. The release runner performs all schema, bridge, aggregate, integrity, foreign-key, ledger-prefix, and data-count checks, emits its JSON report, and stops. It cannot deploy a Worker.
 7. Deploy the reviewed new Worker only in a separate human-approved action after the release JSON is accepted. The current Worker remains compatible through the bridge; the new Worker requires the final YouTube table, runtime summary tables, and `0018` metering columns. Never deploy the new Worker before the schema, and retain the audit bridge throughout rollback.
 8. Under separate production approval, configure a strong
@@ -104,6 +112,7 @@ a manual release decision, not an automatic action in this procedure.
 - `how_it_works_video` exists with `youtube_video_id`, `youtube_url`, and `enabled`; `user_runtime_summaries` and `runtime_admin_summary` exist.
 - `ai_usage_ledger` has exactly the 19 reviewed columns and retains both tenant-scoped indexes; the eight `0018` metering fields and four `0019` observability fields are nullable. Historical source ledger rows are preserved; only aggregate rows are backfilled.
 - All three `0019` aggregate tables, five indexes, and 27 triggers match the reviewed definitions; the observability singleton exists and all five reviewed plan buckets exist.
+- Phase 6 tables from `0020`–`0025` and every Phase 7 private-contribution, aggregate-cell, pattern, validation, intervention, outcome, index, and foreign-key object from `0026`–`0029` match the reviewed canonical definitions.
 - Per-user product/order/sales/excluded totals exactly match source queries; the Admin singleton exactly matches users, active subscriptions, captured revenue, and reports.
 - All runtime aggregate triggers and every justified `0015` index exist.
 - `d1_migrations` and `wrangler d1 migrations list` reflect the approved ledger outcome.

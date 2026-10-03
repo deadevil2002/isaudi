@@ -40,6 +40,7 @@ type Contract = {
   retention: Record<string, string>;
   deletion: { requiredSteps: string[] };
   legalGates: string[];
+  versions: { patternSchema: string; privacyPolicy: string; segmentTaxonomy: string; aggregationMethod: string };
 };
 
 const contract = JSON.parse(readFileSync(
@@ -53,13 +54,19 @@ const requiredPolicyKeys: Array<keyof Policy> = [
   'minimumTenantDiversity', 'suppressionRule', 'version', 'notes',
 ];
 
-test('Phase 7A contract is provisional and cannot authorize production', () => {
-  assert.equal(contract.status, 'provisional');
+test('Phase 7 contract matches implementation while legal review still blocks production', () => {
+  assert.equal(contract.status, 'implementation_aligned_legal_review_required');
   assert.equal(contract.productionAuthorized, false);
   assert.equal(contract.thresholds.approvalStatus, 'PROVISIONAL');
   assert.equal(contract.thresholds.prevalenceDistinctTenants, 20);
   assert.equal(contract.thresholds.outcomeDistinctTenants, 30);
   assert.match(contract.thresholds.unit, /distinct_customer_tenants/);
+  assert.deepEqual(contract.versions, {
+    patternSchema: 'shared_pattern_v1',
+    privacyPolicy: 'cross_store_privacy_v1_provisional',
+    segmentTaxonomy: 'cross_store_segment_platform_v1_staging',
+    aggregationMethod: 'bounded_monthly_v1_staging',
+  });
 });
 
 test('every inventoried field resolves to a complete policy', () => {

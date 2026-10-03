@@ -12,11 +12,12 @@ export const RELEASE_IDENTITY = Object.freeze({
 });
 
 export const EXECUTION_APPROVAL = 'APPLY_ISAUDI_PRODUCTION_D1_RELEASE';
-export const APPROVED_EXPECTED_WRITES = 11_162;
+export const APPROVED_EXPECTED_WRITES = 11_177;
 export const APPROVED_MAX_WRITES = 12_000;
 export const BOOKMARK_MAX_AGE_MS = 10 * 60 * 1_000;
 const APPROVED_CUMULATIVE_WRITES_BY_PREFIX = Object.freeze([
   0, 1, 2, 3, 4, 5, 6, 7, 8_565, 8_580, 8_581, 8_582, 11_162,
+  11_165, 11_167, 11_169, 11_170, 11_171, 11_173, 11_174, 11_175, 11_176, 11_177,
 ]);
 
 export const BASE_LEDGER_NAMES = Object.freeze([
@@ -67,6 +68,30 @@ export const RELEASE_NAMES = Object.freeze([
   '0017_youtube_how_it_works_video.sql',
   '0018_ai_usage_metering.sql',
   '0019_admin_observability.sql',
+  '0020_salla_verified_storefront_origins.sql',
+  '0021_landing_page_analyzer.sql',
+  '0022_trusted_service_referrals.sql',
+  '0023_referral_unique_audience_metrics.sql',
+  '0024_referral_conversions_commissions.sql',
+  '0025_business_api_access.sql',
+  '0026_cross_store_aggregation_foundation.sql',
+  '0027_cross_store_candidate_patterns.sql',
+  '0028_cross_store_pattern_validation.sql',
+  '0029_cross_store_outcome_feedback.sql',
+]);
+
+const POST_0019_TABLES = Object.freeze([
+  'landing_page_analyses', 'admin_landing_page_summary', 'service_categories',
+  'partner_offers', 'service_referrals', 'referral_events', 'referral_unique_clickers',
+  'referral_daily_metrics', 'referral_unique_audience', 'referral_audience_metrics',
+  'referral_conversions', 'referral_commissions', 'referral_conversion_daily_metrics',
+  'referral_commission_daily_metrics', 'business_api_keys', 'business_api_key_events',
+  'business_api_usage_daily', 'business_api_admin_summary',
+  'cross_store_private_contributions', 'cross_store_aggregate_cells',
+  'cross_store_candidate_patterns', 'cross_store_pattern_validation_results',
+  'cross_store_private_interventions', 'cross_store_private_outcome_observations',
+  'cross_store_outcome_aggregate_cells', 'cross_store_outcome_patterns',
+  'cross_store_outcome_pattern_validation_results',
 ]);
 
 const ROOT = process.cwd();
@@ -829,7 +854,23 @@ export function assertAiUsageLedgerSemanticSchema(schema, prefixLength) {
 
 function assertSchemaForProgress(state, prefixLength) {
   const expected = getExpectedStates();
-  assertObjectSet(state.objects, expected.baseline.objects, PREEXISTING_RELEASE_OBJECTS);
+  const storefrontReconciliationApplied = prefixLength >= 13;
+  for (const key of PREEXISTING_RELEASE_OBJECTS) {
+    if (storefrontReconciliationApplied && key === 'index:idx_salla_connections_one_merchant_per_user') {
+      if (state.objects[key]) fail(`${key} must be removed by the verified multi-store reconciliation`);
+      continue;
+    }
+    const changedByStorefrontReconciliation = key === 'table:salla_connections'
+      || key === 'table:salla_link_claims'
+      || key === 'index:idx_salla_link_claims_user';
+    assertSameObject(
+      state.objects,
+      storefrontReconciliationApplied && changedByStorefrontReconciliation
+        ? expected.final.objects
+        : expected.baseline.objects,
+      key,
+    );
+  }
 
   const observabilityApplied = prefixLength >= 12;
   assertAiUsageLedgerSemanticSchema(state.aiUsageLedgerSchema, prefixLength);
@@ -881,6 +922,13 @@ function assertSchemaForProgress(state, prefixLength) {
         fail(`${table} columns differ from the verified 0019 definition`);
       }
     }
+  }
+
+  if (prefixLength === RELEASE_NAMES.length) {
+    const expectedPostReleaseObjects = Object.entries(expected.final.objects)
+      .filter(([, object]) => POST_0019_TABLES.includes(object.table))
+      .map(([key]) => key);
+    assertObjectSet(state.objects, expected.final.objects, expectedPostReleaseObjects);
   }
 }
 
@@ -944,6 +992,13 @@ export function calculateWriteBudget(state, steps) {
   const aiObservabilityBackfillUpperBound = names.has('0019_admin_observability.sql')
     ? Number(state.counts.ai_usage_ledger ?? 0) * 3
     : 0;
+  const sallaClaimReconciliation = names.has('0020_salla_verified_storefront_origins.sql')
+    ? Number(state.counts.salla_link_claims ?? 0) * 2
+    : 0;
+  const phase6SeedRows =
+    (names.has('0021_landing_page_analyzer.sql') ? 1 : 0)
+    + (names.has('0022_trusted_service_referrals.sql') ? 1 : 0)
+    + (names.has('0025_business_api_access.sql') ? 1 : 0);
   const ledger = steps.length;
   const result = {
     auditBridge,
@@ -955,6 +1010,8 @@ export function calculateWriteBudget(state, steps) {
     adminObservabilityIndexes: observabilityIndexes,
     adminObservabilityRows: observabilityRows,
     aiObservabilityBackfillUpperBound,
+    sallaClaimReconciliation,
+    phase6SeedRows,
     otherDdlDataAccounting: 0,
   };
   const total = Object.values(result).reduce((sum, value) => sum + value, 0);

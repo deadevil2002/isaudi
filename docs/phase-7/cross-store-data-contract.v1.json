@@ -1,6 +1,6 @@
 {
   "contractVersion": "cross_store_data_contract_v1",
-  "status": "provisional",
+  "status": "implementation_aligned_legal_review_required",
   "productionAuthorized": false,
   "thresholds": {
     "prevalenceDistinctTenants": 20,
@@ -16,8 +16,8 @@
   "versions": {
     "patternSchema": "shared_pattern_v1",
     "privacyPolicy": "cross_store_privacy_v1_provisional",
-    "segmentTaxonomy": "not_implemented",
-    "aggregationMethod": "not_implemented"
+    "segmentTaxonomy": "cross_store_segment_platform_v1_staging",
+    "aggregationMethod": "bounded_monthly_v1_staging"
   },
   "policies": {
     "forbidden_identity": {
@@ -349,5 +349,14 @@
     "documented_purpose_and_lawful_basis", "privacy_notice_review_or_update",
     "retention_and_deletion_approval", "consent_or_opt_out_assessment", "DPIA",
     "Saudi_privacy_legal_review", "cross_border_processing_assessment_if_AI_is_used"
-  ]
+  ],
+  "legalGateStatus": {
+    "documented_purpose_and_lawful_basis": "candidate_documented_approval_required",
+    "privacy_notice_review_or_update": "draft_updated_legal_approval_required",
+    "retention_and_deletion_approval": "required",
+    "consent_or_opt_out_assessment": "required",
+    "DPIA": "requirement_assessment_pending",
+    "Saudi_privacy_legal_review": "required",
+    "cross_border_processing_assessment_if_AI_is_used": "required"
+  }
 }

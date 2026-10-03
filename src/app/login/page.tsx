@@ -154,6 +154,12 @@ export default function LoginPage() {
                   <p className="text-xs text-center text-[#64748b]">
                     {t("login.footerNote")}
                   </p>
+                  <p className="text-center text-xs leading-6 text-[#64748b]">
+                    {lang === "ar" ? "راجع" : "Review our"}{" "}
+                    <Link href="/terms" className="text-[#c9a95e] underline-offset-4 hover:underline">{lang === "ar" ? "الشروط" : "Terms"}</Link>{" "}
+                    {lang === "ar" ? "و" : "and"}{" "}
+                    <Link href="/privacy" className="text-[#c9a95e] underline-offset-4 hover:underline">{lang === "ar" ? "سياسة الخصوصية" : "Privacy Notice"}</Link>.
+                  </p>
                 </form>
               ) : (
                 <form onSubmit={handleVerifyOtp} className="space-y-6">
