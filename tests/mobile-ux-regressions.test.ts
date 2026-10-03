@@ -112,7 +112,7 @@ test("weekly comparison formatter produces plain Arabic and English explanations
   assert.equal(english.metrics.some((metric) => metric.summary.includes("→")), false);
 });
 
-test("interaction guards prevent stale comparisons and nested CTA key capture", () => {
+test("interaction guards prevent stale comparisons and keep pricing CTAs semantic", () => {
   const reportsSource = readFileSync(
     new URL("../src/app/(authenticated)/dashboard/reports/reports-client.tsx", import.meta.url),
     "utf8",
@@ -131,7 +131,8 @@ test("interaction guards prevent stale comparisons and nested CTA key capture", 
     reportsSource,
     /requestGeneration !== compareGenerationRef\.current/,
   );
-  assert.match(pricingSource, /e\.target !== e\.currentTarget/);
+  assert.doesNotMatch(pricingSource, /tabIndex=\{0\}|setSelectedPlan/);
+  assert.match(pricingSource, /<Button asChild[\s\S]*<Link href=\{buttonHref\}/);
   assert.match(billingSource, /\[preview, status, tapId, router\]/);
   assert.doesNotMatch(billingSource, /\[preview, status, tapId, router, lang\]/);
 });

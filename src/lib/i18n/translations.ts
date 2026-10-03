@@ -1402,24 +1402,28 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Priority support",
   },
   "pricing.plan.business.description": {
-    ar: "للشركات الكبرى",
-    en: "For larger companies",
+    ar: "للمؤسسات متعددة المتاجر",
+    en: "For multi-store businesses",
+  },
+  "pricing.plan.business.eyebrow": {
+    ar: "أقصى قدرات المنصة",
+    en: "Maximum platform capacity",
+  },
+  "pricing.plan.business.includesGrowth": {
+    ar: "يشمل جميع صلاحيات خطة النمو",
+    en: "Includes all Growth entitlements",
   },
   "pricing.plan.business.feature1": {
     ar: "حتى 10 متاجر",
     en: "Up to 10 stores",
   },
   "pricing.plan.business.feature2": {
-    ar: "تخصيص التقرير حسب نشاطك",
-    en: "Customized report for your vertical",
+    ar: "حتى 999,999 تقريرًا شهريًا",
+    en: "Up to 999,999 reports per month",
   },
   "pricing.plan.business.feature3": {
-    ar: "دعم مباشر",
-    en: "Direct support",
-  },
-  "pricing.plan.business.feature4": {
-    ar: "جلسة مراجعة شهرية",
-    en: "Monthly review session",
+    ar: "وصول إلى واجهة API",
+    en: "API access",
   },
   "login.title": {
     ar: "تسجيل الدخول",
