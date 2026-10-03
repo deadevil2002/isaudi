@@ -241,11 +241,19 @@ test('per-key rate limiting returns 429 without logging or returning the credent
   assert.doesNotMatch(source, /console\.(log|error)\([^)]*(authorization|plaintext)/i);
 });
 
-test('customer UI shows one-time secret warning, scope selection, revoke/rotate confirmations, docs, and upgrade path', () => {
+test('customer UI shows one-time secret warning, scope selection, accessible revoke/rotate confirmations, docs, and upgrade path', () => {
   const ui = readFileSync(new URL('../src/app/(authenticated)/settings/api-access-panel.tsx', import.meta.url), 'utf8');
+  const dialog = readFileSync(new URL('../src/components/ui/app-dialog.tsx', import.meta.url), 'utf8');
   const docs = readFileSync(new URL('../src/app/(authenticated)/docs/api/page.tsx', import.meta.url), 'utf8');
   assert.match(ui, /لن تتمكن من رؤيته مرة أخرى/);
-  assert.match(ui, /window\.confirm/);
+  assert.doesNotMatch(ui, /window\.confirm/);
+  assert.match(ui, /<AppDialog/);
+  assert.match(ui, /variant=\{pendingAction\?\.type === "revoke" \? "destructive" : "warning"\}/);
+  assert.match(dialog, /"alertdialog"/);
+  assert.match(dialog, /\.showModal\(\)/);
+  assert.match(dialog, /onCancel=/);
+  assert.match(dialog, /returnFocusRef\.current\?\.focus\(\)/);
+  assert.match(dialog, /motion-reduce:open:animate-none/);
   assert.match(ui, /account:read/);
   assert.match(ui, /stores:read/);
   assert.match(ui, /reports:read/);

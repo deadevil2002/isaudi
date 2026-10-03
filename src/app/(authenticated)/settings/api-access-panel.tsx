@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, BookOpen, Check, Copy, KeyRound, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppDialog } from "@/components/ui/app-dialog";
 import { useLanguage } from "@/components/providers/language-provider";
 import type { BusinessApiScope } from "@/lib/business-api/contracts";
 
@@ -10,6 +11,8 @@ type SafeKey = {
   id: string; name: string; prefix: string; scopes: BusinessApiScope[];
   status: "active" | "revoked"; createdAt: number; lastUsedAt: number | null; revokedAt: number | null;
 };
+
+type PendingKeyAction = { type: "revoke" | "rotate"; key: SafeKey };
 
 const scopes: Array<{ id: BusinessApiScope; ar: string; en: string }> = [
   { id: "account:read", ar: "قراءة هوية الحساب", en: "Read account identity" },
@@ -27,6 +30,7 @@ export function ApiAccessPanel({ enabled, preview = false }: { enabled: boolean;
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingKeyAction | null>(null);
 
   const load = async () => {
     if (!enabled || preview) return;
@@ -60,14 +64,10 @@ export function ApiAccessPanel({ enabled, preview = false }: { enabled: boolean;
     if (result) setName("");
   };
 
-  const revoke = async (key: SafeKey) => {
-    if (!window.confirm(ar ? `إلغاء المفتاح ${key.name}؟ سيتوقف فورًا.` : `Revoke ${key.name}? It will stop working immediately.`)) return;
-    await mutate(`/api/business-api/keys/${key.id}/revoke`);
-  };
-
-  const rotate = async (key: SafeKey) => {
-    if (!window.confirm(ar ? `تدوير المفتاح ${key.name}؟ سيتوقف المفتاح القديم فورًا.` : `Rotate ${key.name}? The old key will stop working immediately.`)) return;
-    await mutate(`/api/business-api/keys/${key.id}/rotate`);
+  const confirmKeyAction = async () => {
+    if (!pendingAction) return;
+    await mutate(`/api/business-api/keys/${pendingAction.key.id}/${pendingAction.type}`);
+    setPendingAction(null);
   };
 
   const copySecret = async () => {
@@ -89,10 +89,23 @@ export function ApiAccessPanel({ enabled, preview = false }: { enabled: boolean;
           <fieldset className="mt-4"><legend className="text-sm font-semibold text-white">{ar ? "صلاحيات القراءة" : "Read scopes"}</legend><div className="mt-2 grid gap-2 sm:grid-cols-3">{scopes.map(scope => <label key={scope.id} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-white/10 p-3 text-sm text-[#c7d0db]"><input type="checkbox" checked={selectedScopes.includes(scope.id)} onChange={event => setSelectedScopes(current => event.target.checked ? [...current, scope.id] : current.filter(value => value !== scope.id))} className="h-4 w-4 accent-[#0fc9a7]" />{ar ? scope.ar : scope.en}</label>)}</div></fieldset>
           <Button type="button" onClick={() => void create()} disabled={busy || !name.trim() || selectedScopes.length === 0} className="mt-4 min-h-11 w-full rounded-xl bg-[#0fc9a7] font-bold text-[#06110f] hover:bg-[#37d7b9] sm:w-auto">{busy ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}{ar ? "إنشاء مفتاح" : "Create key"}</Button>
         </div>
-        <div className="mt-5 space-y-3">{keys.length === 0 ? <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-[#94a3b8]">{ar ? "لا توجد مفاتيح API بعد." : "No API keys yet."}</p> : keys.map(key => <article key={key.id} className="rounded-xl border border-white/10 bg-[#161c24] p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{key.name}</h3><span className={`rounded-full px-2 py-1 text-xs ${key.status === "active" ? "bg-[#0fc9a7]/10 text-[#72ead4]" : "bg-red-400/10 text-red-300"}`}>{key.status}</span></div><code dir="ltr" className="mt-2 block text-sm text-[#e6b95c]">{key.prefix}••••••••</code><p className="mt-2 text-xs leading-5 text-[#64748b]">{key.scopes.join(" · ")}</p></div>{key.status === "active" && <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => void rotate(key)} className="min-h-11 rounded-xl border-white/10 text-white"><RefreshCw className="h-4 w-4" aria-hidden="true" />{ar ? "تدوير" : "Rotate"}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => void revoke(key)} className="min-h-11 rounded-xl border-red-400/20 text-red-300"><Ban className="h-4 w-4" aria-hidden="true" />{ar ? "إلغاء" : "Revoke"}</Button></div>}</div></article>)}</div>
+        <div className="mt-5 space-y-3">{keys.length === 0 ? <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-[#94a3b8]">{ar ? "لا توجد مفاتيح API بعد." : "No API keys yet."}</p> : keys.map(key => <article key={key.id} className="rounded-xl border border-white/10 bg-[#161c24] p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{key.name}</h3><span className={`rounded-full px-2 py-1 text-xs ${key.status === "active" ? "bg-[#0fc9a7]/10 text-[#72ead4]" : "bg-red-400/10 text-red-300"}`}>{key.status}</span></div><code dir="ltr" className="mt-2 block text-sm text-[#e6b95c]">{key.prefix}••••••••</code><p className="mt-2 text-xs leading-5 text-[#64748b]">{key.scopes.join(" · ")}</p></div>{key.status === "active" && <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => setPendingAction({ type: "rotate", key })} className="min-h-11 rounded-xl border-white/10 text-white"><RefreshCw className="h-4 w-4" aria-hidden="true" />{ar ? "تدوير" : "Rotate"}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setPendingAction({ type: "revoke", key })} className="min-h-11 rounded-xl border-red-400/20 text-red-300"><Ban className="h-4 w-4" aria-hidden="true" />{ar ? "إلغاء" : "Revoke"}</Button></div>}</div></article>)}</div>
         {error && <p role="alert" className="mt-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
         {copied && <span className="sr-only" aria-live="polite"><Check />{ar ? "تم نسخ المفتاح" : "API key copied"}</span>}
       </>}
+      <AppDialog
+        open={pendingAction !== null}
+        variant={pendingAction?.type === "revoke" ? "destructive" : "warning"}
+        title={pendingAction?.type === "revoke" ? (ar ? "إلغاء مفتاح API؟" : "Revoke API key?") : (ar ? "تدوير مفتاح API؟" : "Rotate API key?")}
+        description={pendingAction ? (pendingAction.type === "revoke" ? (ar ? `سيتوقف المفتاح ${pendingAction.key.name} عن العمل فورًا.` : `${pendingAction.key.name} will stop working immediately.`) : (ar ? `سيتوقف المفتاح القديم ${pendingAction.key.name} فورًا وسيُنشأ بديل جديد.` : `The old ${pendingAction.key.name} key will stop working immediately and a replacement will be created.`)) : undefined}
+        actionLabel={pendingAction?.type === "revoke" ? (ar ? "إلغاء المفتاح" : "Revoke key") : (ar ? "تدوير المفتاح" : "Rotate key")}
+        cancelLabel={ar ? "تراجع" : "Cancel"}
+        closeLabel={ar ? "إغلاق نافذة التأكيد" : "Close confirmation dialog"}
+        busy={busy}
+        direction={ar ? "rtl" : "ltr"}
+        onAction={confirmKeyAction}
+        onClose={() => setPendingAction(null)}
+      />
     </section>
   );
 }

@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 import { AlertCircle, CalendarDays, Check, Crown, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AppDialog } from "@/components/ui/app-dialog";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { calculateMinimumAnnualSavingsPercent } from "@/lib/pricing/annual-savings";
@@ -32,6 +33,7 @@ export function BillingClient({ user, subscription, previewState }: { user: User
   const [isYearly, setIsYearly] = useState(previewState === "yearly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(previewState === "checkout" ? "growth" : null);
   const [verifyErrorKey, setVerifyErrorKey] = useState<string | null>(previewState === "verify_error" ? "billing.verify.failedCharged" : null);
+  const [subscriptionError, setSubscriptionError] = useState(false);
   const status = previewState === "verify_error" ? "processed" : searchParams.get("status");
   const tapId = searchParams.get("tap_id") || searchParams.get("tapId");
   const annualSavings = calculateMinimumAnnualSavingsPercent(basePlans);
@@ -67,7 +69,7 @@ export function BillingClient({ user, subscription, previewState }: { user: User
       if (typeof data.tapChargeId === "string") window.sessionStorage.setItem("tapChargeId", data.tapChargeId);
       const redirectUrl = data.redirectUrl || data.url;
       if (redirectUrl) window.location.assign(redirectUrl);
-    } catch (error) { console.error("Subscription error:", error); alert(t("billing.error.generic")); }
+    } catch (error) { console.error("Subscription error:", error); setSubscriptionError(true); }
     finally { setLoadingPlan(null); }
   };
 
@@ -100,6 +102,7 @@ export function BillingClient({ user, subscription, previewState }: { user: User
           </motion.article>;
         })}</div>
       </section>
+      <AppDialog open={subscriptionError} variant="error" title={lang === "ar" ? "تعذر بدء الاشتراك" : "Subscription could not start"} description={t("billing.error.generic")} actionLabel={lang === "ar" ? "حسنًا" : "Close"} closeLabel={lang === "ar" ? "إغلاق رسالة الخطأ" : "Close error dialog"} direction={lang === "ar" ? "rtl" : "ltr"} onAction={() => setSubscriptionError(false)} onClose={() => setSubscriptionError(false)} />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { CheckCircle2, CircleOff, Film, Link2, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { parseYouTubeVideoUrl, youtubeEmbedUrl } from '@/lib/video/youtube';
+import { AppDialog } from '@/components/ui/app-dialog';
 
 type VideoState = {
   active: boolean;
@@ -22,6 +23,7 @@ const copy = {
     save: 'حفظ', saving: 'جارٍ الحفظ…', replace: 'استبدال', current: 'الفيديو الحالي', active: 'نشط', disabled: 'معطّل', none: 'لا يوجد فيديو محفوظ',
     disable: 'تعطيل', enable: 'تفعيل مجدداً', remove: 'إزالة', invalid: 'أدخل رابط فيديو YouTube صالحاً.', saved: 'تم حفظ الفيديو بنجاح.',
     disabledDone: 'تم تعطيل الفيديو.', removed: 'تمت إزالة الفيديو.', preview: 'معاينة الفيديو الحالي', privacy: 'الفيديو غير المدرج لا يظهر عادةً في بحث YouTube، لكن أي شخص يملك الرابط يستطيع مشاركته أو مشاهدته.',
+    removeTitle: 'إزالة رابط الفيديو؟', removeDescription: 'سيُحذف رابط الفيديو المحفوظ نهائياً ولن يظهر الفيديو للزوار.', confirmRemove: 'إزالة الرابط', cancel: 'تراجع', closeDialog: 'إغلاق نافذة التأكيد',
   },
   en: {
     title: 'How It Works Video', description: 'Add an unlisted YouTube video for visitors to watch on the How It Works page.',
@@ -29,6 +31,7 @@ const copy = {
     save: 'Save', saving: 'Saving…', replace: 'Replace', current: 'Current video', active: 'Active', disabled: 'Disabled', none: 'No video saved',
     disable: 'Disable', enable: 'Enable again', remove: 'Remove', invalid: 'Enter a valid YouTube video URL.', saved: 'Video saved successfully.',
     disabledDone: 'Video disabled.', removed: 'Video removed.', preview: 'Current video preview', privacy: 'An unlisted video is normally absent from YouTube search, but anyone with the link can watch or share it.',
+    removeTitle: 'Remove video URL?', removeDescription: 'The saved video URL will be permanently removed and the video will no longer appear to visitors.', confirmRemove: 'Remove URL', cancel: 'Cancel', closeDialog: 'Close confirmation dialog',
   },
 };
 
@@ -50,6 +53,7 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
   const [busy, setBusy] = useState(fixture === 'saving');
   const [error, setError] = useState(fixture === 'error' ? t.invalid : '');
   const [notice, setNotice] = useState<NoticeKey | ''>('');
+  const [removePending, setRemovePending] = useState(false);
 
   useEffect(() => {
     if (fixture) return;
@@ -94,7 +98,6 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
   }
 
   async function remove() {
-    if (!window.confirm(lang === 'ar' ? 'إزالة رابط الفيديو نهائياً؟' : 'Remove the saved video URL?')) return;
     if (fixture) { setState(fixtureState('none')); setUrl(''); setNotice('removed'); return; }
     setBusy(true); setError(''); setNotice('');
     try { await jsonApi('video-remove', { confirm: true }); await refresh('removed'); }
@@ -126,12 +129,13 @@ export function AdminVideoManager({ lang = 'ar', fixture }: { lang?: 'ar' | 'en'
 
       <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <div className="min-w-0"><p className="text-xs uppercase tracking-[.18em] text-slate-500">{t.current}</p><p className="mt-1 flex items-center gap-2 text-sm font-medium text-white">{state?.active ? <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-teal-400" /> : <CircleOff aria-hidden="true" className="h-4 w-4 text-slate-500" />}{hasVideo ? state?.active ? t.active : t.disabled : t.none}</p>{state?.youtubeUrl && <p dir="ltr" className="mt-2 max-w-xl overflow-hidden text-ellipsis whitespace-nowrap text-left text-xs text-slate-500" title={state.youtubeUrl}>{state.youtubeUrl}</p>}</div>
-        {hasVideo && <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={state?.active ? disable : enable} className="min-h-11 rounded-xl border border-white/10 px-4 text-sm text-slate-200 transition hover:bg-white/5 disabled:opacity-50 motion-reduce:transition-none">{state?.active ? t.disable : t.enable}</button><button type="button" disabled={busy} onClick={remove} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-400/20 px-4 text-sm text-red-200 transition hover:bg-red-400/10 disabled:opacity-50 motion-reduce:transition-none"><Trash2 aria-hidden="true" className="h-4 w-4" />{t.remove}</button></div>}
+        {hasVideo && <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={state?.active ? disable : enable} className="min-h-11 rounded-xl border border-white/10 px-4 text-sm text-slate-200 transition hover:bg-white/5 disabled:opacity-50 motion-reduce:transition-none">{state?.active ? t.disable : t.enable}</button><button type="button" disabled={busy} onClick={() => setRemovePending(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-400/20 px-4 text-sm text-red-200 transition hover:bg-red-400/10 disabled:opacity-50 motion-reduce:transition-none"><Trash2 aria-hidden="true" className="h-4 w-4" />{t.remove}</button></div>}
       </div>
 
       {previewUrl && state?.active ? <div className="aspect-video bg-black"><iframe title={t.preview} src={previewUrl} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowFullScreen className="h-full w-full border-0" /></div> : <div className="flex min-h-64 flex-col items-center justify-center border-t border-white/10 px-6 text-center sm:aspect-video"><span className="grid h-16 w-16 place-items-center rounded-2xl bg-white/5 text-[#d7b568]"><Film aria-hidden="true" className="h-7 w-7" /></span><p className="mt-4 text-sm text-slate-400">{hasVideo ? t.disabled : t.none}</p></div>}
       <p className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-slate-500 sm:px-7">{t.privacy}</p>
     </section>
+    <AppDialog open={removePending} variant="destructive" title={t.removeTitle} description={t.removeDescription} actionLabel={t.confirmRemove} cancelLabel={t.cancel} closeLabel={t.closeDialog} busy={busy} direction={lang === 'ar' ? 'rtl' : 'ltr'} onAction={async () => { await remove(); setRemovePending(false); }} onClose={() => setRemovePending(false)} />
   </div>;
 }
 
