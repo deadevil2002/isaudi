@@ -31,5 +31,3 @@ CREATE INDEX idx_cross_store_patterns_status_version
 
 CREATE INDEX idx_cross_store_patterns_finding_segment
   ON cross_store_candidate_patterns(finding_code, anonymous_segment, lifecycle_status);
-
-

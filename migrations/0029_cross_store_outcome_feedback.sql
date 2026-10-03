@@ -192,5 +192,3 @@ CREATE INDEX idx_outcome_validation_status
   ON cross_store_outcome_pattern_validation_results(
     validation_status, validation_version, observation_window
   );
-
-

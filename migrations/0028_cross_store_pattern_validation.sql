@@ -65,5 +65,3 @@ CREATE TABLE cross_store_pattern_validation_results (
 
 CREATE INDEX idx_cross_store_validation_status_version
   ON cross_store_pattern_validation_results(validation_status, validation_version, validation_window);
-
-

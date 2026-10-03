@@ -98,5 +98,3 @@ CREATE INDEX idx_cross_store_cells_validation
     validation_status, observation_window_start DESC,
     finding_code, segment_key, metric_code
   );
-
-
