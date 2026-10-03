@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import { SubscriptionEntitlements } from "@/lib/subscription/types";
+import { ApiAccessPanel } from "./api-access-panel";
 
 interface SettingsClientProps {
   userEmail: string; emailVerified: boolean; plan: string; planExpiresAt: number | null;
@@ -91,6 +92,7 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
   const planName = normalizedPlan === "free" ? t("billing.freeBadge") : normalizedPlan === "starter" ? t("billing.plan.basic") : normalizedPlan === "growth" ? t("billing.plan.pro") : normalizedPlan === "business" ? t("billing.plan.business") : normalizedPlan;
   const active = previewState === "inactive" ? false : Boolean(subscription?.isActiveNow);
   const canExport = active && subscription?.limits.dataExport === true;
+  const canUseApi = active && subscription?.limits.apiAccess === true;
   const start = formatDate(subscription?.startedAt ?? null, lang);
   const end = formatDate(subscription?.expiresAt ?? null, lang);
   const status = previewState === "inactive" ? "inactive" : (subscription?.status || "none");
@@ -144,6 +146,7 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
           )}
         </motion.section>
       )}
+      <ApiAccessPanel enabled={canUseApi} preview={preview} />
       <section className={`${card} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}><div><h2 className="font-bold text-white">{t("settings.logout.title")}</h2><p className="mt-1 text-sm text-[#94a3b8]">{t("settings.logout.body")}</p></div><Button variant="outline" onClick={handleLogout} disabled={loggingOut} className="min-h-11 rounded-xl border-red-400/20 bg-red-400/5 text-red-300 hover:bg-red-400/10 hover:text-red-200"><LogOut className="h-4 w-4" />{loggingOut ? t("settings.logout.loggingOut") : t("settings.logout.cta")}</Button></section>
     </div>
   );

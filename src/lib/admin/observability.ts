@@ -58,6 +58,15 @@ type SallaAggregateRow = {
   inactive: number;
   pending: number;
 };
+type BusinessApiAggregateRow = {
+  active_keys: number;
+  revoked_keys: number;
+  request_count: number;
+  error_count: number;
+  rate_limit_count: number;
+  last_used_at: number | null;
+  updated_at: number;
+};
 
 const EXPECTED_MIGRATIONS = [
   '0001_init.sql',
@@ -190,7 +199,7 @@ export async function readAdminObservability(db: D1, now = Date.now()) {
   const billingStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
   const queryStart = Math.min(thirtyDayStart, billingStart);
 
-  const [core, aiResult, planResult, migrationResult, schema, foreignKeys, sallaAggregate] = await Promise.all([
+  const [core, aiResult, planResult, migrationResult, schema, foreignKeys, sallaAggregate, businessApi] = await Promise.all([
     db.prepare(`SELECT
       r.users_count AS users_count, r.reports_count AS reports_count,
       r.active_subscriptions_count AS active_subscriptions_count,
@@ -253,6 +262,9 @@ export async function readAdminObservability(db: D1, now = Date.now()) {
       FROM salla_connections`)
       .bind(now, now)
       .first<SallaAggregateRow>(),
+    db.prepare(`SELECT active_keys, revoked_keys, request_count, error_count,
+      rate_limit_count, last_used_at, updated_at
+      FROM business_api_admin_summary WHERE id = 1`).first<BusinessApiAggregateRow>(),
   ]);
 
   if (!core) throw new Error('Observability aggregates unavailable');
@@ -413,6 +425,12 @@ export async function readAdminObservability(db: D1, now = Date.now()) {
       },
       csv: { products: number(core.csv_products_count), orders: number(core.csv_orders_count), lastImportAt: number(core.last_csv_at) || null, failedImports: null, rawContentRetained: false },
       video: { configured: Boolean(core.youtube_video_id), enabled: Boolean(core.video_enabled), updatedAt: videoObservedAt, provider: 'youtube' },
+      businessApi: {
+        activeKeys: number(businessApi?.active_keys), revokedKeys: number(businessApi?.revoked_keys),
+        requests: number(businessApi?.request_count), errors: number(businessApi?.error_count),
+        rateLimitEvents: number(businessApi?.rate_limit_count), lastUsedAt: number(businessApi?.last_used_at) || null,
+        updatedAt: number(businessApi?.updated_at) || null, plaintextKeysExposed: false,
+      },
     },
   };
 }
