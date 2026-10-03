@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fadeIn } from "@/lib/animations";
+import { fadeIn, useLandingReducedMotion } from "@/lib/animations";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
 import type { User } from "@/lib/db/client";
@@ -81,10 +81,10 @@ export function Pricing({
   const [isYearly, setIsYearly] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("growth");
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useLandingReducedMotion();
 
   return (
-    <section className={cn("bg-transparent", compact ? "py-12 md:py-16" : "py-32")} id="pricing">
+    <section className={cn("landing-section-glow bg-transparent", compact ? "py-12 md:py-16" : "py-32")} id="pricing">
       <Container>
         <div className={cn("text-center", compact ? "mb-12" : "mb-16")}>
           <motion.h2
@@ -191,7 +191,7 @@ export function Pricing({
                 }}
                 tabIndex={0}
                 className={cn(
-                  "isaudi-card isaudi-focus relative flex cursor-pointer flex-col p-6 transition-all duration-300 sm:p-8",
+                  "isaudi-card isaudi-focus landing-interactive-card relative flex cursor-pointer flex-col p-6 transition-all duration-300 sm:p-8",
                   isActive
                     ? "border-[#e6b95c]/55 bg-gradient-to-b from-[#151b23] to-[rgba(230,185,92,0.055)] shadow-[0_24px_70px_rgba(0,0,0,.34)] -translate-y-1"
                     : "hover:border-white/20"
@@ -250,7 +250,7 @@ export function Pricing({
                     className={cn(
                       "w-full transition-all duration-300 rounded-full font-semibold border-none py-6",
                       isActive
-                        ? "bg-gradient-to-r from-[#c5993c] to-[#e6b95c] text-black hover:opacity-90"
+                        ? "landing-cta bg-gradient-to-r from-[#c5993c] to-[#e6b95c] text-black hover:opacity-90"
                         : "bg-[#1d252f] text-white hover:bg-[#161c24] border border-white/10"
                     )}
                   >

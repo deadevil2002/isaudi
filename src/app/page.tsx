@@ -18,7 +18,7 @@ export const revalidate = false;
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
+    <main className="landing-motion-root min-h-screen overflow-x-clip bg-[#06090c] text-[#f0f4f8] selection:bg-[#0fc9a7]/20 selection:text-[#0fc9a7]">
       <Header />
       <Hero />
       <HowItWorks />

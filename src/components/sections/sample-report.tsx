@@ -2,35 +2,53 @@
 
 import { Container } from "@/components/ui/container";
 import { Button } from "@/components/ui/button";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { TrendingUp, LayoutDashboard, LineChart, WalletCards, Settings, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
+import {
+  landingReveal,
+  landingRevealReduced,
+  landingStagger,
+  landingStaggerReduced,
+  useLandingReducedMotion,
+} from "@/lib/animations";
+import Link from "next/link";
 
 export function SampleReport() {
   const { lang } = useLanguage();
   const t = createTranslator(lang);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useLandingReducedMotion();
+  const reveal = reduceMotion ? landingRevealReduced : landingReveal;
+  const stagger = reduceMotion ? landingStaggerReduced : landingStagger;
 
   return (
-    <section className="py-32 bg-[#0e1218] overflow-hidden relative" id="features">
+    <section className="landing-section-glow relative overflow-hidden bg-[#0e1218] py-32" id="features">
       <Container className="relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          variants={stagger}
+          className="mb-16 text-center"
+        >
+          <motion.h2 variants={reveal} className="mb-6 text-3xl font-bold text-white lg:text-4xl">
             {t("sample.heading")} <span className="text-[#e6b95c]">{t("sample.heading.highlight")}</span>
-          </h2>
-          <p className="text-[#94a3b8] text-lg max-w-2xl mx-auto">
+          </motion.h2>
+          <motion.p variants={reveal} className="mx-auto max-w-2xl text-lg text-[#94a3b8]">
             {t("sample.subtitle")}
-          </p>
-        </div>
+          </motion.p>
+        </motion.div>
 
         <motion.div
-          initial={false}
-          whileInView={reduceMotion ? undefined : { opacity: [0.94, 1], y: [14, 0] }}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.45 }}
+          variants={reveal}
+          className="rounded-[2rem] border border-white/[.08] bg-[#090d12]/70 p-3 shadow-[0_40px_100px_rgba(0,0,0,.3)] backdrop-blur-sm sm:p-5"
         >
+          <div className="mb-5 flex items-center justify-between border-b border-white/[.07] pb-4" aria-hidden="true"><div className="flex gap-1.5"><span className="h-2 w-2 rounded-full bg-[#fb7185]/60" /><span className="h-2 w-2 rounded-full bg-[#e6b95c]/60" /><span className="h-2 w-2 rounded-full bg-[#0fc9a7]/60" /></div><span className="h-1.5 w-28 rounded-full bg-white/[.06]" /></div>
           <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-8">
             {/* Sidebar Shell */}
             <aside className="hidden lg:flex bg-[#06090c] border border-white/10 rounded-[1rem] p-6 flex-col gap-2">
@@ -58,7 +76,7 @@ export function SampleReport() {
             {/* Main Content */}
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#06090c] border border-white/10 rounded-2xl p-6">
+                <div className="landing-interactive-card bg-[#06090c] border border-white/10 rounded-2xl p-6">
                   <div className="text-[#94a3b8] text-sm mb-2">{t("sample.stat1.label")}</div>
                   <div className="text-3xl font-bold text-white mb-2 flex items-baseline gap-1">
                     42,500 <span className="text-sm text-[#64748b]">SAR</span>
@@ -67,14 +85,14 @@ export function SampleReport() {
                     <TrendingUp size={16} /> 12% {t("sample.stat1.deltaLabel")}
                   </div>
                 </div>
-                <div className="bg-[#06090c] border border-white/10 rounded-2xl p-6">
+                <div className="landing-interactive-card bg-[#06090c] border border-white/10 rounded-2xl p-6">
                   <div className="text-[#94a3b8] text-sm mb-2">{t("sample.stat2.label")}</div>
                   <div className="text-3xl font-bold text-white mb-2">185</div>
                   <div className="inline-flex items-center gap-1 text-sm text-[#0fc9a7]">
                     <TrendingUp size={16} /> 5.2%
                   </div>
                 </div>
-                <div className="bg-[#06090c] border border-white/10 rounded-2xl p-6">
+                <div className="landing-interactive-card bg-[#06090c] border border-white/10 rounded-2xl p-6">
                   <div className="text-[#94a3b8] text-sm mb-2">{t("sample.stat3.label")}</div>
                   <div className="text-3xl font-bold text-white mb-2">2.4%</div>
                   <div className="inline-flex items-center gap-1 text-sm text-[#ef4444]">
@@ -91,7 +109,15 @@ export function SampleReport() {
                   </div>
                   <div className="h-[250px] bg-[#0e1218] mt-4 flex items-end p-4 gap-4">
                     {[40, 60, 45, 80, 50, 90, 70].map((h, i) => (
-                      <div key={i} className="flex-1 bg-gradient-to-t from-[#0a997e] to-[#0fc9a7] rounded-t-sm opacity-80 hover:opacity-100 transition-opacity" style={{ height: `${h}%` }}></div>
+                      <motion.div
+                        key={i}
+                        initial={{ scaleY: 0, opacity: .35 }}
+                        whileInView={{ scaleY: 1, opacity: .82 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: reduceMotion ? 0 : .62, delay: reduceMotion ? 0 : i * .055, ease: [0.22, 1, 0.36, 1] }}
+                        className="flex-1 origin-bottom rounded-t-sm bg-gradient-to-t from-[#0a997e] to-[#0fc9a7] transition-opacity hover:opacity-100"
+                        style={{ height: `${h}%` }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -109,8 +135,8 @@ export function SampleReport() {
                       <p className="text-sm text-[#94a3b8] leading-relaxed mb-4">
                         {t("sample.insight.body")}
                       </p>
-                      <Button size="sm" className="bg-[#1d252f] text-white hover:bg-[#161c24] border border-white/10 rounded-full w-full">
-                        {t("sample.insight.cta")}
+                      <Button asChild size="sm" className="landing-cta w-full rounded-full border border-white/10 bg-[#1d252f] text-white hover:bg-[#161c24]">
+                        <Link href="/login">{t("sample.insight.cta")}</Link>
                       </Button>
                     </div>
                   </div>

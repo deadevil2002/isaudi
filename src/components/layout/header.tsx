@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { createTranslator } from "@/lib/i18n/translations";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { useLandingReducedMotion } from "@/lib/animations";
 
 interface HeaderProps {
   userEmail?: string;
@@ -20,6 +22,7 @@ export function Header({ userEmail }: HeaderProps) {
   const router = useRouter();
   const t = createTranslator(lang);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const reduceMotion = useLandingReducedMotion();
   const drawerRef = useRef<HTMLDialogElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -69,7 +72,12 @@ export function Header({ userEmail }: HeaderProps) {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#06090c]/82 backdrop-blur-xl supports-[backdrop-filter]:bg-[#06090c]/72">
+      <motion.header
+        initial={{ opacity: 0, y: -18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : .55, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#06090c]/82 shadow-[0_10px_40px_rgba(0,0,0,.12)] backdrop-blur-xl supports-[backdrop-filter]:bg-[#06090c]/72"
+      >
         <Container>
           <div className="flex items-center justify-between h-16 md:h-20">
             <div className="flex items-center gap-2">
@@ -98,10 +106,10 @@ export function Header({ userEmail }: HeaderProps) {
 
               {/* Desktop Navigation */}
               <nav className="ms-8 hidden items-center gap-6 md:flex">
-                <Link href={userEmail ? "/billing" : "/pricing"} className="isaudi-focus rounded-lg px-2 py-2 text-sm font-medium text-[#a4b0c0] transition-colors hover:text-white">
+                <Link href={userEmail ? "/billing" : "/pricing"} className="isaudi-focus landing-nav-link rounded-lg px-2 py-2 text-sm font-medium text-[#a4b0c0] transition-colors hover:text-white">
                   {t("header.nav.pricing")}
                 </Link>
-                <Link href="/how-it-works" className="isaudi-focus rounded-lg px-2 py-2 text-sm font-medium text-[#a4b0c0] transition-colors hover:text-white">
+                <Link href="/how-it-works" className="isaudi-focus landing-nav-link rounded-lg px-2 py-2 text-sm font-medium text-[#a4b0c0] transition-colors hover:text-white">
                   {t("header.nav.how")}
                 </Link>
               </nav>
@@ -138,7 +146,7 @@ export function Header({ userEmail }: HeaderProps) {
                 </div>
               ) : (
                 <Link href="/login">
-                  <Button size="sm" className="rounded-full border-none bg-gradient-to-r from-[#f0cb77] to-[#dbaa49] px-6 text-[#171004] shadow-[0_10px_25px_rgba(230,185,92,.12)] hover:brightness-105">
+                  <Button size="sm" className="landing-cta rounded-full border-none bg-gradient-to-r from-[#f0cb77] to-[#dbaa49] px-6 text-[#171004] shadow-[0_10px_25px_rgba(230,185,92,.12)] hover:brightness-105">
                     {t("header.login")}
                   </Button>
                 </Link>
@@ -146,12 +154,13 @@ export function Header({ userEmail }: HeaderProps) {
             </div>
           </div>
         </Container>
-      </header>
+      </motion.header>
 
       {/* Mobile Drawer */}
       <dialog
         ref={drawerRef}
         id="mobile-navigation"
+        data-landing-drawer
         aria-label={t("header.nav.menu")}
         onCancel={(event) => {
           event.preventDefault();
@@ -166,7 +175,7 @@ export function Header({ userEmail }: HeaderProps) {
         }}
         className={cn(
           "fixed bottom-0 top-0 z-50 m-0 h-dvh w-[min(18rem,calc(100vw-1.5rem))] max-h-none max-w-full border-0 bg-[#06090c] text-[#f0f4f8] p-0 shadow-xl md:hidden [&::backdrop]:bg-black/80",
-          lang === "ar" ? "left-auto right-0" : "left-0 right-auto",
+          lang === "ar" ? "landing-drawer-rtl left-auto right-0" : "landing-drawer-ltr left-0 right-auto",
         )}
       >
         <div className="flex h-full flex-col">
