@@ -11,6 +11,7 @@ export interface PlanLimits {
   maxStores: number;
   maxReportsPerMonth: number;
   aiInsights: boolean;
+  dataExport: boolean;
   apiAccess: boolean;
 }
 
@@ -28,6 +29,7 @@ const plans: Record<PlanId, Plan> = {
       // Keep the entitlement catalog aligned with that existing allowance.
       maxReportsPerMonth: 2,
       aiInsights: false,
+      dataExport: false,
       apiAccess: false,
     },
   },
@@ -37,6 +39,7 @@ const plans: Record<PlanId, Plan> = {
       maxStores: 1,
       maxReportsPerMonth: 30,
       aiInsights: true,
+      dataExport: false,
       apiAccess: false,
     },
   },
@@ -46,6 +49,7 @@ const plans: Record<PlanId, Plan> = {
       maxStores: 3,
       maxReportsPerMonth: 200,
       aiInsights: true,
+      dataExport: false,
       apiAccess: false,
     },
   },
@@ -55,6 +59,7 @@ const plans: Record<PlanId, Plan> = {
       maxStores: 10,
       maxReportsPerMonth: 999999,
       aiInsights: true,
+      dataExport: true,
       apiAccess: true,
     },
   },

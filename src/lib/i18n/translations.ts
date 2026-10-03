@@ -1273,6 +1273,34 @@ const translations: Record<string, { ar: string; en: string }> = {
     ar: "إدارة الاشتراك",
     en: "Manage subscription",
   },
+  "settings.export.title": {
+    ar: "تصدير بيانات الأعمال",
+    en: "Business data export",
+  },
+  "settings.export.description": {
+    ar: "نزّل ملف CSV يضم آخر 1,000 ملخص تقرير لحسابك: الفترة، المبيعات، الطلبات، الربح، الهامش، وتغطية التكاليف.",
+    en: "Download a CSV of your latest 1,000 report summaries: period, sales, orders, profit, margin, and cost coverage.",
+  },
+  "settings.export.scope": {
+    ar: "يشمل ملخصات تقارير حسابك فقط، ولا يتضمن بيانات المتجر الخام أو الرموز السرية أو محتوى الذكاء الاصطناعي.",
+    en: "Includes only report summaries owned by your account; raw store data, secrets, tokens, and AI content are excluded.",
+  },
+  "settings.export.cta": {
+    ar: "تنزيل CSV",
+    en: "Download CSV",
+  },
+  "settings.export.preparing": {
+    ar: "جاري تجهيز الملف…",
+    en: "Preparing export…",
+  },
+  "settings.export.success": {
+    ar: "تم تجهيز ملف التصدير وتنزيله.",
+    en: "Your export was prepared and downloaded.",
+  },
+  "settings.export.error": {
+    ar: "تعذر تجهيز التصدير. حاول مرة أخرى لاحقًا.",
+    en: "The export could not be prepared. Please try again later.",
+  },
   "settings.logout.title": {
     ar: "تسجيل الخروج",
     en: "Log out",

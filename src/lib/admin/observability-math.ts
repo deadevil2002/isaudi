@@ -140,6 +140,7 @@ export function planEntitlements(planId: string) {
     maxStores: plan.limits.maxStores,
     maxReportsPerMonth: plan.limits.maxReportsPerMonth,
     aiInsights: plan.limits.aiInsights,
+    dataExport: plan.limits.dataExport,
     apiAccess: plan.limits.apiAccess,
     chat: { hourly: chat.hourly, daily: chat.daily, concurrent: chat.concurrent },
     generate: {

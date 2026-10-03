@@ -53,9 +53,8 @@ export function pricingFeaturesForPlan(planId: PlanId): PricingFeature[] {
       labelKey: 'pricing.matrix.aiRecommendations',
     },
     {
-      // No customer data-export capability or feature gate currently exists.
       id: 'dataExport',
-      included: false,
+      included: limits.dataExport,
       labelKey: 'pricing.matrix.dataExport',
     },
     {

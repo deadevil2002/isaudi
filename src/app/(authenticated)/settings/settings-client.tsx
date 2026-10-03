@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 import { useState } from "react";
-import { BadgeCheck, CalendarDays, CreditCard, LogOut, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
+import { BadgeCheck, CalendarDays, CreditCard, Download, LogOut, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
@@ -32,6 +32,8 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
   const [statusError, setStatusError] = useState<string | null>(previewState === "error" ? t("settings.verification.error.sendFailed") : null);
   const [verified, setVerified] = useState(!["unverified", "sending", "success", "error"].includes(previewState || "") && emailVerified);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState<"success" | "error" | null>(null);
 
   const handleResendVerification = async () => {
     if (preview) return;
@@ -58,9 +60,37 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
     catch { setLoggingOut(false); }
   };
 
+  const handleDataExport = async () => {
+    if (preview || exporting) return;
+    setExporting(true);
+    setExportStatus(null);
+    try {
+      const response = await fetch("/api/export/business-data", {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("export_failed");
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `isaudi-report-summaries-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+      setExportStatus("success");
+    } catch {
+      setExportStatus("error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const normalizedPlan = plan === "basic" ? "starter" : plan === "pro" ? "growth" : plan;
   const planName = normalizedPlan === "free" ? t("billing.freeBadge") : normalizedPlan === "starter" ? t("billing.plan.basic") : normalizedPlan === "growth" ? t("billing.plan.pro") : normalizedPlan === "business" ? t("billing.plan.business") : normalizedPlan;
   const active = previewState === "inactive" ? false : Boolean(subscription?.isActiveNow);
+  const canExport = active && subscription?.limits.dataExport === true;
   const start = formatDate(subscription?.startedAt ?? null, lang);
   const end = formatDate(subscription?.expiresAt ?? null, lang);
   const status = previewState === "inactive" ? "inactive" : (subscription?.status || "none");
@@ -83,6 +113,37 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
           <Button asChild variant="outline" className="mt-6 min-h-11 w-full rounded-xl border-white/10 bg-[#161c24] text-white hover:bg-[#1d252f] hover:text-white"><a href={preview ? "#" : "/billing"}>{t("settings.plan.manage")}</a></Button>
         </motion.section>
       </div>
+      {canExport && (
+        <motion.section animate={enter} transition={{ duration: .3, delay: reduceMotion ? 0 : .08 }} className={card} aria-labelledby="business-data-export-title">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e6b95c]/60 to-transparent" />
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]"><Download className="h-5 w-5" aria-hidden="true" /></span>
+              <div className="min-w-0">
+                <h2 id="business-data-export-title" className="font-bold text-white">{t("settings.export.title")}</h2>
+                <p id="business-data-export-description" className="mt-1 max-w-2xl text-sm leading-7 text-[#94a3b8]">{t("settings.export.description")}</p>
+                <p className="mt-2 text-xs leading-5 text-[#64748b]">{t("settings.export.scope")}</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              onClick={handleDataExport}
+              disabled={exporting}
+              aria-busy={exporting}
+              aria-describedby="business-data-export-description"
+              className="min-h-11 w-full shrink-0 rounded-xl bg-[#e6b95c] font-bold text-[#06090c] hover:bg-[#f0c96e] sm:w-auto"
+            >
+              {exporting ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
+              {exporting ? t("settings.export.preparing") : t("settings.export.cta")}
+            </Button>
+          </div>
+          {exportStatus && (
+            <p role="status" className={`mt-4 rounded-xl border p-3 text-sm ${exportStatus === "success" ? "border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#72ead4]" : "border-red-400/20 bg-red-400/10 text-red-300"}`}>
+              {t(exportStatus === "success" ? "settings.export.success" : "settings.export.error")}
+            </p>
+          )}
+        </motion.section>
+      )}
       <section className={`${card} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}><div><h2 className="font-bold text-white">{t("settings.logout.title")}</h2><p className="mt-1 text-sm text-[#94a3b8]">{t("settings.logout.body")}</p></div><Button variant="outline" onClick={handleLogout} disabled={loggingOut} className="min-h-11 rounded-xl border-red-400/20 bg-red-400/5 text-red-300 hover:bg-red-400/10 hover:text-red-200"><LogOut className="h-4 w-4" />{loggingOut ? t("settings.logout.loggingOut") : t("settings.logout.cta")}</Button></section>
     </div>
   );

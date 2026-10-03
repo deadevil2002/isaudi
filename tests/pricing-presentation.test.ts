@@ -24,6 +24,8 @@ test('Business presentation reflects implemented entitlements only', () => {
   assert.ok(business.maxStores >= growth.maxStores);
   assert.ok(business.maxReportsPerMonth >= growth.maxReportsPerMonth);
   assert.equal(business.aiInsights, growth.aiInsights);
+  assert.equal(growth.dataExport, false);
+  assert.equal(business.dataExport, true);
   assert.equal(growth.apiAccess, false);
   assert.equal(business.apiAccess, true);
 
@@ -48,7 +50,7 @@ test('feature matrix uses the real paid-plan gates and exposes inherited capabil
     apiAccess: false,
   });
   assert.deepEqual(growth, { ...starter });
-  assert.deepEqual(business, { ...growth, apiAccess: true });
+  assert.deepEqual(business, { ...growth, dataExport: true, apiAccess: true });
   assert.equal(getPlanLimits('starter').maxStores, 1);
   assert.equal(getPlanLimits('growth').maxStores, 3);
   assert.equal(getPlanLimits('business').maxStores, 10);

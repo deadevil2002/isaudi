@@ -52,6 +52,7 @@ type PlanEntitlements = {
   maxStores: number;
   maxReportsPerMonth: number;
   aiInsights: boolean;
+  dataExport: boolean;
   apiAccess: boolean;
   chat: { hourly: number; daily: number; concurrent: number };
   generate: { hourly: number; daily: number; concurrent: number };

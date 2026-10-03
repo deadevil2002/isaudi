@@ -8,13 +8,14 @@ import { motion, useReducedMotionConfig } from "framer-motion";
 
 export type Phase3State = "default" | "unverified" | "sending" | "success" | "error" | "inactive" | "starter" | "growth" | "business" | "yearly" | "checkout" | "verify_error" | "before_install" | "waiting" | "connected" | "disconnected" | "reconnect" | "partial" | "files" | "invalid" | "processing" | "warning" | "complete";
 
-const limits = { maxStores: 3, maxReportsPerMonth: 200, aiInsights: true, apiAccess: false };
+const limits = { maxStores: 3, maxReportsPerMonth: 200, aiInsights: true, dataExport: false, apiAccess: false };
 const subscription = { ok: true, planId: "growth" as const, status: "active", startedAt: 1725148800000, expiresAt: 1788220800000, isActiveNow: true, cancelAtPeriodEnd: false, limits };
+const businessSubscription = { ...subscription, planId: "business" as const, limits: { ...limits, maxStores: 10, maxReportsPerMonth: 999999, dataExport: true, apiAccess: true } };
 const user = { id: "qa-user", email: "owner@isaudi.ai", plan: "growth", planExpiresAt: 1788220800000, createdAt: 1700000000000 };
 
 export function Phase3Preview({ section, state }: { section: "settings" | "billing" | "connections"; state: Phase3State }) {
   const { lang } = useLanguage();
-  if (section === "settings") return <SettingsClient userEmail={user.email} emailVerified={state !== "unverified"} plan="growth" planExpiresAt={user.planExpiresAt} subscription={state === "inactive" ? { ...subscription, isActiveNow: false, status: "expired" } : subscription} previewState={(state === "default" ? "default" : state) as "default"} />;
+  if (section === "settings") return <SettingsClient userEmail={user.email} emailVerified={state !== "unverified"} plan={state === "business" ? "business" : "growth"} planExpiresAt={user.planExpiresAt} subscription={state === "inactive" ? { ...subscription, isActiveNow: false, status: "expired" } : state === "business" ? businessSubscription : subscription} previewState={(state === "default" ? "default" : state) as "default"} />;
   if (section === "billing") return <BillingClient user={user} subscription={subscription} previewState={(state === "default" ? "growth" : state) as "growth"} />;
   return <ConnectionsPreview state={state} lang={lang} />;
 }

@@ -49,12 +49,13 @@ test('application quota and report limits stay separate from provider credit', (
 test('Admin plan entitlements are derived from the application catalogs', () => {
   assert.deepEqual(planEntitlements('starter'), {
     id: 'starter', maxStores: 1, maxReportsPerMonth: 30,
-    aiInsights: true, apiAccess: false,
+    aiInsights: true, dataExport: false, apiAccess: false,
     chat: { hourly: 60, daily: 300, concurrent: 4 },
     generate: { hourly: 6, daily: 24, concurrent: 1 },
   });
   assert.equal(planEntitlements('free')?.maxReportsPerMonth, 2);
   assert.equal(planEntitlements('growth')?.maxStores, 3);
+  assert.equal(planEntitlements('business')?.dataExport, true);
   assert.equal(planEntitlements('business')?.apiAccess, true);
   assert.equal(planEntitlements('unknown'), null);
   assert.equal(limitStatus(8, 10), 'approaching');
