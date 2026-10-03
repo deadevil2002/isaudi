@@ -31,6 +31,10 @@ import {
   type AiUsageFailureKind,
   type AiUsageMetering,
 } from '@/lib/ai/usage-ledger';
+import {
+  resolveSharedIntelligenceForAi,
+  sharedIntelligenceAiMode,
+} from '@/lib/ai/shared-intelligence';
 
 const AI_UNAVAILABLE_MESSAGE =
   'عذراً، الخدمة الذكية غير متاحة حالياً. يرجى المحاولة لاحقاً.';
@@ -131,6 +135,14 @@ export async function POST(req: NextRequest) {
     }
 
     const db = await getDb();
+    const sharedIntelligence = await resolveSharedIntelligenceForAi({
+      db,
+      userId: user.id,
+      mode: sharedIntelligenceAiMode(getRuntimeString('CROSS_STORE_INTELLIGENCE_AI')),
+    });
+    if (sharedIntelligence.retrievalFailed) {
+      console.error('[analysis/chat] Optional shared intelligence retrieval unavailable');
+    }
     const reservationId = randomUUID();
     let reserved: boolean;
     try {
@@ -187,6 +199,7 @@ export async function POST(req: NextRequest) {
           context: buildFocusedChatContext(context, complexity),
           question: normalizedMessage,
           complexity,
+          shared: sharedIntelligence.promptContext,
         }),
         responseFormat: AI_CHAT_RESPONSE_FORMAT,
         temperature: 0.2,

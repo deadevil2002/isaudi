@@ -31,6 +31,10 @@ import {
   type AiUsageMetering,
   type AiUsageStatus,
 } from '@/lib/ai/usage-ledger';
+import {
+  resolveSharedIntelligenceForAi,
+  sharedIntelligenceAiMode,
+} from '@/lib/ai/shared-intelligence';
 
 interface TotalsRow {
   cnt: number | null;
@@ -375,6 +379,14 @@ export async function POST(req: NextRequest) {
       topProducts,
       weakProducts,
     });
+    const sharedIntelligence = await resolveSharedIntelligenceForAi({
+      db,
+      userId: user.id,
+      mode: sharedIntelligenceAiMode(getRuntimeString('CROSS_STORE_INTELLIGENCE_AI')),
+    });
+    if (sharedIntelligence.retrievalFailed) {
+      console.error('[analysis/generate] Optional shared intelligence retrieval unavailable');
+    }
     const reservationId = randomUUID();
     let reserved: boolean;
     try {
@@ -431,7 +443,7 @@ export async function POST(req: NextRequest) {
     try {
       const result = await requestOpenAIChat({
         apiKey: openaiApiKey,
-        messages: buildAnalysisMessages(analysisContext),
+        messages: buildAnalysisMessages(analysisContext, sharedIntelligence.promptContext),
         responseFormat: AI_ANALYSIS_RESPONSE_FORMAT,
         temperature: 0.2,
         maxTokens: AI_GENERATION_MAX_TOKENS,
