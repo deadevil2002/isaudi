@@ -1210,8 +1210,12 @@ const translations: Record<string, { ar: string; en: string }> = {
     en: "Back to dashboard",
   },
   "settings.account.title": {
-    ar: "الحساب",
-    en: "Account",
+    ar: "ملفي الشخصي",
+    en: "My Profile",
+  },
+  "settings.account.description": {
+    ar: "بيانات حسابك الأساسية وحالة تفعيل البريد الإلكتروني.",
+    en: "Your core account details and email verification status.",
   },
   "settings.account.email": {
     ar: "البريد الإلكتروني",

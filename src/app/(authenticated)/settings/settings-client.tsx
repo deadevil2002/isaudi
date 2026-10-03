@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotionConfig } from "framer-motion";
 import { useState } from "react";
-import { BadgeCheck, CalendarDays, CreditCard, LogOut, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { BadgeCheck, CalendarDays, CreditCard, LogOut, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
 import { createTranslator } from "@/lib/i18n/translations";
@@ -72,7 +72,7 @@ export function SettingsClient({ userEmail, emailVerified, plan, subscription, p
       <div className="grid gap-6 lg:grid-cols-[1.08fr_.92fr]">
         <motion.section animate={enter} transition={{ duration: .3 }} className={`${card} lg:self-start`}>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e6b95c]/60 to-transparent" />
-          <div className="mb-6 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]"><Mail className="h-5 w-5" /></span><div><h2 className="font-bold text-white">{t("settings.account.title")}</h2><p className="text-xs text-[#64748b]">{t("settings.account.email")}</p></div></div>
+          <div className="mb-6 flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-xl border border-[#e6b95c]/20 bg-[#e6b95c]/10 text-[#e6b95c]"><UserRound className="h-5 w-5" aria-hidden="true" /></span><div><h2 className="font-bold text-white">{t("settings.account.title")}</h2><p className="text-xs leading-5 text-[#64748b]">{t("settings.account.description")}</p></div></div>
           <div className="rounded-xl border border-white/10 bg-[#161c24] p-4"><p className="break-all text-sm font-semibold text-white" dir="ltr">{userEmail}</p><div className="mt-3 flex items-center gap-2">{verified ? <BadgeCheck className="h-4 w-4 text-[#0fc9a7]" /> : <ShieldCheck className="h-4 w-4 text-[#e6b95c]" />}<span className={verified ? "text-sm text-[#0fc9a7]" : "text-sm text-[#e6b95c]"}>{verified ? t("settings.account.verified") : t("settings.account.notVerified")}</span></div></div>
           {!verified && <div className="mt-5"><Button onClick={handleResendVerification} disabled={sending} className="min-h-11 w-full rounded-xl bg-[#e6b95c] font-bold text-[#06090c] hover:bg-[#f0c96e] sm:w-auto"><RefreshCw className={`h-4 w-4 ${sending ? "animate-spin" : ""}`} />{sending ? t("settings.verification.sending") : t("settings.verification.resend")}</Button><AnimatePresence mode="wait">{(statusMessage || statusError) && <motion.div initial={reduceMotion ? false : { y: 6, opacity: .7 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }} role="status" className={`mt-4 rounded-xl border p-3 text-sm ${statusError ? "border-red-400/20 bg-red-400/10 text-red-300" : "border-[#0fc9a7]/20 bg-[#0fc9a7]/10 text-[#72ead4]"}`}>{statusError || statusMessage}</motion.div>}</AnimatePresence></div>}
         </motion.section>
