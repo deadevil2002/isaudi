@@ -60,11 +60,11 @@ export type CandidatePattern = {
   };
   freshness: {
     policy: 'provisional_not_approved';
-    status: 'unvalidated';
+    status: 'unvalidated' | 'provisional_validated_no_activation';
   };
   measurementQuality: AggregateCell['measurementQuality'];
-  lifecycleStatus: 'candidate' | 'suppressed';
-  suppressionReason: SuppressionReason | null;
+  lifecycleStatus: 'candidate' | 'validated' | 'active' | 'stale' | 'suppressed' | 'retired';
+  suppressionReason: SuppressionReason | 'incompatible_version' | 'stale' | 'contract_violation' | null;
   observationWindow: string;
 };
 
